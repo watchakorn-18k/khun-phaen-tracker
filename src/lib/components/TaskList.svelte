@@ -60,14 +60,14 @@
 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
 	<div class="p-4 space-y-3 flex-1">
 		{#if tasks.length === 0}
-			<div class="text-center py-12 text-gray-500 dark:text-gray-400">
+			<div class="text-center py-10 text-gray-500 dark:text-gray-400">
 				<p>{$_('taskList__no_tasks')}</p>
 				<p class="text-sm mt-1">{$_('taskList__add_task_hint')}</p>
 			</div>
 		{:else}
 			{#each tasks as task (task.id)}
 				<div 
-					class="bg-gray-50/50 dark:bg-gray-900/30 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 hover:shadow-md transition-shadow group cursor-pointer"
+					class="bg-gray-50/50 dark:bg-gray-900/30 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition-colors group cursor-pointer"
 					on:click={() => dispatch('edit', task)}
 					on:keydown={(e) => e.key === 'Enter' && dispatch('edit', task)}
 					role="button"

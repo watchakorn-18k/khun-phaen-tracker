@@ -21,6 +21,7 @@
 	}>()
 
 	export let showImport: boolean = true;
+	export let height: string = 'h-11';
 
 	let fileInput: HTMLInputElement;
 	let showImportConfirm = false;
@@ -197,7 +198,7 @@
 	<div class="relative {showExportDropdown ? 'z-[9000]' : 'z-auto'}" bind:this={dropdownRef}>
 		<button
 			on:click={toggleExportDropdown}
-			class="flex items-center justify-center gap-2.5 h-12 px-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl font-bold text-xs uppercase tracking-widest text-gray-700 dark:text-gray-400 transition-all hover:-translate-y-0.5 active:translate-y-0 shadow-sm hover:shadow-md hover:text-emerald-500 hover:border-emerald-500/30"
+			class="flex items-center justify-center gap-2.5 {height} px-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl font-bold text-xs uppercase tracking-widest text-gray-700 dark:text-gray-400 transition-all shadow-sm hover:text-emerald-500 hover:border-emerald-500/30"
 		>
 			<Download size={18} />
 			<span class="hidden sm:inline">{$_('exportImport__export')}</span>
@@ -307,7 +308,7 @@
 
 		<button
 			on:click={() => fileInput?.click()}
-			class="flex items-center justify-center gap-2.5 h-12 px-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl font-bold text-xs uppercase tracking-widest text-gray-700 dark:text-gray-400 transition-all hover:-translate-y-0.5 active:translate-y-0 shadow-sm hover:shadow-md hover:text-primary hover:border-primary/30"
+			class="flex items-center justify-center gap-2.5 {height} px-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl font-bold text-xs uppercase tracking-widest text-gray-700 dark:text-gray-400 transition-all shadow-sm hover:text-primary hover:border-primary/30"
 		>
 			<Upload size={18} />
 			<span class="hidden sm:inline">{$_('exportImport__import')}</span>

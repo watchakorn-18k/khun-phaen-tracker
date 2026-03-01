@@ -238,11 +238,11 @@
 					use:dndzone={{ items, flipDurationMs: 200 }}
 					on:consider={(e) => handleDndConsider(e, status)}
 					on:finalize={(e) => handleDndFinalize(e, status)}
-					class="space-y-2 min-h-[300px] flex-1 pb-4"
+					class="space-y-1.5 min-h-[300px] flex-1 pb-4"
 				>
 					{#each items as task (task.id)}
 						<div 
-							class="kanban-card relative group {getCardBorderClass(status)} cursor-pointer hover:shadow-md transition-all"
+							class="kanban-card relative group bg-white dark:bg-gray-900 p-3 rounded-lg border border-gray-200 dark:border-gray-700/50 {getCardBorderClass(status)} cursor-pointer hover:border-primary/50 transition-all shadow-sm"
 							on:click={() => dispatch('edit', task)}
 						>
 						<div class="flex items-start justify-between gap-2">

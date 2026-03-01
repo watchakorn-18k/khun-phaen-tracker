@@ -267,50 +267,50 @@
 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
 	<!-- Bulk Actions Bar -->
 	{#if selectedTasks.size > 0}
-		<div class="bg-primary/10 dark:bg-primary/20 px-3 py-2 sm:px-4 sm:py-2 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
+		<div class="bg-primary/10 dark:bg-primary/20 px-3 py-1.5 sm:px-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-4 border-b border-gray-200 dark:border-gray-700">
 			<span class="text-xs sm:text-sm text-primary dark:text-primary font-medium">
 				{$_('tableView__selected_count', { values: { count: selectedTasks.size } })}
 			</span>
-			<div class="flex items-center gap-2">
+			<div class="flex items-center gap-1.5">
 				<button
 					on:click={clearSelection}
-					class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+					class="px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
 				>
 					{$_('tableView__btn_clear_selection')}
 				</button>
 				<button
 					on:click={handleChangeStatus}
-					class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-blue-600 dark:text-blue-400 border border-blue-300 dark:border-blue-500 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors flex items-center gap-1.5"
+					class="px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 border border-blue-300 dark:border-blue-500 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors flex items-center gap-1"
 				>
-					<CheckCircle2 size={14} />
+					<CheckCircle2 size={13} />
 					{$_('tableView__btn_change_status')}
 				</button>
 				<button
 					on:click={handleChangeProject}
-					class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-purple-600 dark:text-purple-400 border border-purple-300 dark:border-purple-500 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors flex items-center gap-1.5"
+					class="px-2 py-1 text-xs font-medium text-purple-600 dark:text-purple-400 border border-purple-300 dark:border-purple-500 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors flex items-center gap-1"
 				>
-					<Folder size={14} />
+					<Folder size={13} />
 					{$_('tableView__btn_change_project')}
 				</button>
 				<button
 					on:click={handleChangeSprint}
-					class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-500 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors flex items-center gap-1.5"
+					class="px-2 py-1 text-xs font-medium text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-500 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors flex items-center gap-1"
 				>
-					<Flag size={14} />
+					<Flag size={13} />
 					{$_('tableView__btn_change_sprint')}
 				</button>
 				<button
 					on:click={handleExportQR}
-					class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-teal-600 dark:text-teal-400 border border-teal-300 dark:border-teal-500 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors flex items-center gap-1.5"
+					class="px-2 py-1 text-xs font-medium text-teal-600 dark:text-teal-400 border border-teal-300 dark:border-teal-500 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors flex items-center gap-1"
 				>
-					<QrCode size={14} />
+					<QrCode size={13} />
 					{$_('tableView__btn_qr_export')}
 				</button>
 				<button
 					on:click={handleDeleteSelected}
-					class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-1.5"
+					class="px-2 py-1 text-xs font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-1"
 				>
-					<Trash2 size={14} />
+					<Trash2 size={13} />
 					{$_('tableView__btn_delete_selected')}
 				</button>
 			</div>
@@ -322,7 +322,7 @@
 		<table class="w-full">
 			<thead class="bg-gray-50 dark:bg-gray-700/50">
 				<tr>
-					<th class="px-3 py-2 lg:px-4 lg:py-3 text-left w-10">
+					<th class="px-3 py-2 text-left w-10">
 						<input
 							type="checkbox"
 							checked={allOnPageSelected}
@@ -331,72 +331,72 @@
 							class="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
 						/>
 					</th>
-					<th class="px-3 py-2 lg:px-4 lg:py-3 text-left">
+					<th class="px-3 py-2 text-left">
 						<button
 							on:click={() => toggleSort('title')}
-							class="flex items-center gap-1 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
+							class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
 						>
 							{$_('tableView__column_title')}
-							<svelte:component this={getSortIcon('title')} size={12} class="lg:w-3.5 lg:h-3.5" />
+							<svelte:component this={getSortIcon('title')} size={12} />
 						</button>
 					</th>
-					<th class="px-3 py-2 lg:px-4 lg:py-3 text-left hidden lg:table-cell">
+					<th class="px-3 py-2 text-left hidden lg:table-cell">
 						<button
 							on:click={() => toggleSort('project')}
-							class="flex items-center gap-1 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
+							class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
 						>
-							<Folder size={12} class="lg:w-3.5 lg:h-3.5" />
+							<Folder size={12} />
 							{$_('tableView__column_project')}
-							<svelte:component this={getSortIcon('project')} size={12} class="lg:w-3.5 lg:h-3.5" />
+							<svelte:component this={getSortIcon('project')} size={12} />
 						</button>
 					</th>
-					<th class="px-3 py-2 lg:px-4 lg:py-3 text-left hidden xl:table-cell">
+					<th class="px-3 py-2 text-left hidden xl:table-cell">
 						<button
 							on:click={() => toggleSort('category')}
-							class="flex items-center gap-1 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
+							class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
 						>
 							{$_('tableView__column_category')}
-							<svelte:component this={getSortIcon('category')} size={12} class="lg:w-3.5 lg:h-3.5" />
+							<svelte:component this={getSortIcon('category')} size={12} />
 						</button>
 					</th>
-					<th class="px-3 py-2 lg:px-4 lg:py-3 text-left">
+					<th class="px-3 py-2 text-left">
 						<button
 							on:click={() => toggleSort('assignee')}
-							class="flex items-center gap-1 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
+							class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
 						>
-							<User size={12} class="lg:w-3.5 lg:h-3.5" />
+							<User size={12} />
 							<span class="hidden lg:inline">{$_('tableView__column_assignee')}</span>
 							<span class="lg:hidden">{$_('tableView__column_assignee_short')}</span>
-							<svelte:component this={getSortIcon('assignee')} size={12} class="lg:w-3.5 lg:h-3.5" />
+							<svelte:component this={getSortIcon('assignee')} size={12} />
 						</button>
 					</th>
-					<th class="px-3 py-2 lg:px-4 lg:py-3 text-left hidden xl:table-cell">
-						<span class="flex items-center gap-1 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-							<Flag size={12} class="lg:w-3.5 lg:h-3.5" />
+					<th class="px-3 py-2 text-left hidden xl:table-cell">
+						<span class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+							<Flag size={12} />
 							{$_('tableView__column_sprint')}
 						</span>
 					</th>
-					<th class="px-3 py-2 lg:px-4 lg:py-3 text-left">
+					<th class="px-3 py-2 text-left">
 						<button
 							on:click={() => toggleSort('status')}
-							class="flex items-center gap-1 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
+							class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
 						>
 							{$_('tableView__column_status')}
-							<svelte:component this={getSortIcon('status')} size={12} class="lg:w-3.5 lg:h-3.5" />
+							<svelte:component this={getSortIcon('status')} size={12} />
 						</button>
 					</th>
-					<th class="px-3 py-2 lg:px-4 lg:py-3 text-left">
+					<th class="px-3 py-2 text-left">
 						<button
 							on:click={() => toggleSort('date')}
-							class="flex items-center gap-1 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
+							class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
 						>
-							<Calendar size={12} class="lg:w-3.5 lg:h-3.5" />
+							<Calendar size={12} />
 							<span class="hidden lg:inline">{$_('tableView__column_due_date')}</span>
 							<span class="lg:hidden">{$_('tableView__column_date_short')}</span>
-							<svelte:component this={getSortIcon('date')} size={12} class="lg:w-3.5 lg:h-3.5" />
+							<svelte:component this={getSortIcon('date')} size={12} />
 						</button>
 					</th>
-					<th class="px-3 py-2 lg:px-4 lg:py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider w-20">
+					<th class="px-3 py-2 text-center text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider w-20">
 						{$_('tableView__column_actions')}
 					</th>
 				</tr>
@@ -407,7 +407,7 @@
 						class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
 						on:click={() => dispatch('edit', task)}
 					>
-						<td class="px-3 py-2 lg:px-4 lg:py-3">
+						<td class="px-3 py-2">
 							<input
 								type="checkbox"
 								checked={selectedTasks.has(task.id!)}
@@ -416,7 +416,7 @@
 								class="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
 							/>
 						</td>
-						<td class="px-3 py-2 lg:px-4 lg:py-3">
+						<td class="px-3 py-2">
 							<div class="flex flex-col min-w-0">
 								<span class="font-medium text-gray-900 dark:text-white text-sm truncate max-w-30 lg:max-w-50 xl:max-w-xs" title={task.title}>
 									{task.title}
@@ -444,26 +444,26 @@
 								{/if}
 							</div>
 						</td>
-						<td class="px-3 py-2 lg:px-4 lg:py-3 hidden lg:table-cell">
+						<td class="px-3 py-2 hidden lg:table-cell">
 							{#if task.project}
-								<span class="inline-flex items-center px-2 py-0.5 lg:px-2.5 lg:py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 truncate max-w-25" title={task.project}>
+								<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 truncate max-w-25" title={task.project}>
 									{task.project}
 								</span>
 							{:else}
 								<span class="text-gray-400 dark:text-gray-500 text-sm">-</span>
 							{/if}
 						</td>
-						<td class="px-3 py-2 lg:px-4 lg:py-3 hidden xl:table-cell">
-							<span class="inline-flex items-center px-2 py-0.5 lg:px-2.5 lg:py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+						<td class="px-3 py-2 hidden xl:table-cell">
+							<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
 								{task.category || $_('tableView__category_other')}
 							</span>
 						</td>
-						<td class="px-3 py-2 lg:px-4 lg:py-3">
+						<td class="px-3 py-2">
 							{#if task.assignees && task.assignees.length > 0}
-								<div class="flex items-center gap-1 lg:gap-1.5 flex-wrap">
+								<div class="flex items-center gap-1 flex-wrap">
 									{#each task.assignees as assignee, idx}
 										<div
-											class="w-5 h-5 lg:w-6 lg:h-6 rounded-full flex items-center justify-center text-xs font-medium text-white shrink-0 {idx > 0 ? '-ml-1 lg:-ml-2' : ''}"
+											class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium text-white shrink-0 {idx > 0 ? '-ml-1' : ''}"
 											style="background-color: {assignee.color || '#6366F1'}"
 											title={assignee.name}
 										>
@@ -471,20 +471,20 @@
 										</div>
 									{/each}
 									{#if task.assignees.length === 1}
-										<span class="text-xs lg:text-sm text-gray-700 dark:text-gray-300 truncate max-w-15 lg:max-w-25" title={task.assignees[0].name}>
+										<span class="text-xs text-gray-700 dark:text-gray-300 truncate max-w-15" title={task.assignees[0].name}>
 											{task.assignees[0].name}
 										</span>
 									{:else if task.assignees.length > 1}
-										<span class="text-xs text-gray-500 dark:text-gray-400">+{task.assignees.length - 1}</span>
+										<span class="text-[10px] text-gray-500 dark:text-gray-400">+{task.assignees.length - 1}</span>
 									{/if}
 								</div>
 							{:else}
 								<span class="text-gray-400 dark:text-gray-500 text-sm">-</span>
 							{/if}
 						</td>
-						<td class="px-3 py-2 lg:px-4 lg:py-3 hidden xl:table-cell">
+						<td class="px-3 py-2 hidden xl:table-cell">
 							{#if getSprintName(task.sprint_id)}
-								<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 truncate max-w-25" title={getSprintName(task.sprint_id)}>
+								<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 truncate max-w-25" title={getSprintName(task.sprint_id)}>
 									<Flag size={10} />
 									{getSprintName(task.sprint_id)}
 								</span>
@@ -492,40 +492,40 @@
 								<span class="text-gray-400 dark:text-gray-500 text-sm">-</span>
 							{/if}
 						</td>
-						<td class="px-3 py-2 lg:px-4 lg:py-3">
+						<td class="px-3 py-2">
 							<button
 								on:click|stopPropagation={() => handleStatusChange(task.id!, nextStatus(task.status))}
-								class="inline-flex items-center gap-1 lg:gap-1.5 px-2 py-0.5 lg:px-2.5 lg:py-1 rounded-full text-xs font-medium transition-colors {getStatusClass(task.status, task.is_archived)} hover:opacity-80 whitespace-nowrap"
+								class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors {getStatusClass(task.status, task.is_archived)} hover:opacity-80 whitespace-nowrap"
 								title={$_('tableView__status_click_hint')}
 							>
-								<svelte:component this={getStatusIcon(task.status)} size={12} class="lg:w-4 lg:h-4" />
+								<svelte:component this={getStatusIcon(task.status)} size={11} />
 								<span class="hidden sm:inline">{getStatusLabel(task.status, task.is_archived)}</span>
 								<span class="sm:hidden">{getStatusShort(task.status)}</span>
 							</button>
 						</td>
-						<td class="px-3 py-2 lg:px-4 lg:py-3">
-							<span class="text-xs lg:text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap {isOverdue(task.date, task.status, task.is_archived) ? 'text-red-600 dark:text-red-400 font-medium' : ''}">
+						<td class="px-3 py-2">
+							<span class="text-xs text-gray-700 dark:text-gray-300 whitespace-nowrap {isOverdue(task.date, task.status, task.is_archived) ? 'text-red-600 dark:text-red-400 font-medium' : ''}">
 								{formatDate(task.date)}
 								{#if isOverdue(task.date, task.status, task.is_archived)}
 									<span class="ml-1 text-red-500">!</span>
 								{/if}
 							</span>
 						</td>
-						<td class="px-3 py-2 lg:px-4 lg:py-3">
-							<div class="flex items-center justify-center gap-1 lg:gap-2">
+						<td class="px-3 py-2">
+							<div class="flex items-center justify-center gap-1">
 								<button
 									on:click|stopPropagation={() => dispatch('edit', task)}
-									class="p-1 lg:p-1.5 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+									class="p-1 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
 									title={$_('taskList__edit')}
 								>
-									<Edit2 size={14} class="lg:w-4 lg:h-4" />
+									<Edit2 size={13} />
 								</button>
 								<button
 									on:click|stopPropagation={() => dispatch('delete', task.id!)}
-									class="p-1 lg:p-1.5 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+									class="p-1 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
 									title={$_('taskList__delete')}
 								>
-									<Trash2 size={14} class="lg:w-4 lg:h-4" />
+									<Trash2 size={13} />
 								</button>
 							</div>
 						</td>

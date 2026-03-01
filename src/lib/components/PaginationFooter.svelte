@@ -18,7 +18,7 @@
 	}
 </script>
 
-<div class="px-4 py-3 bg-gray-50/80 dark:bg-gray-800/80 border-t border-gray-100 dark:border-gray-700 flex flex-col md:flex-row items-center justify-between gap-4 backdrop-blur-sm">
+<div class="px-3 py-1.5 bg-gray-50/80 dark:bg-gray-800/80 border-t border-gray-100 dark:border-gray-700 flex flex-col md:flex-row items-center justify-between gap-2 backdrop-blur-sm">
 	<div class="flex items-center gap-3 order-2 md:order-1">
 		<div class="flex items-center gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-900/50 px-3 py-1.5 rounded-full border border-gray-100 dark:border-gray-700 shadow-sm">
 			<span>กำลังแสดง {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, totalTasks)} จากทั้งหมด {totalTasks}</span>
@@ -36,21 +36,21 @@
 	{#if totalPages > 1}
 		<div class="flex items-center gap-1 bg-white dark:bg-gray-900 p-1 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm order-1 md:order-2">
 			<button
-				class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-20 transition-all"
+				class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-20 transition-all"
 				disabled={currentPage === 1}
 				on:click={() => handlePageChange(currentPage - 1)}
 			>
-				<ChevronLeft size={16} />
+				<ChevronLeft size={14} />
 			</button>
 
-			<div class="flex items-center gap-0.5 px-1">
+							<div class="flex items-center gap-0.5 px-0.5">
 				{#each Array(totalPages) as _, i}
 					{@const pageNum = i + 1}
 					{#if totalPages <= 5 || pageNum === 1 || pageNum === totalPages || (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)}
 						<button
-							class="w-8 h-8 rounded-lg font-bold transition-all text-xs
+							class="w-7 h-7 rounded-lg font-bold transition-all text-[10px]
 								{currentPage === pageNum 
-									? 'bg-primary text-white shadow-md' 
+									? 'bg-primary text-white shadow-sm' 
 									: 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400'}"
 							on:click={() => handlePageChange(pageNum)}
 						>
@@ -63,11 +63,11 @@
 			</div>
 
 			<button
-				class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-20 transition-all"
+				class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-20 transition-all"
 				disabled={currentPage === totalPages}
 				on:click={() => handlePageChange(currentPage + 1)}
 			>
-				<ChevronRight size={16} />
+				<ChevronRight size={14} />
 			</button>
 		</div>
 	{/if}
