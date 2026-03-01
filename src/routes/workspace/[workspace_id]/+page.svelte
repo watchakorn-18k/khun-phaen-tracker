@@ -803,15 +803,23 @@
 		loadingData = true;
 		
 		try {
-			// Fetch data in parallel
-			const [filtered, all] = await Promise.all([
+			// Fetch all data in parallel (sprints must load alongside tasks)
+			const [filtered, all, , , , loadedAssignees] = await Promise.all([
 				getTasks(filters),
-				getTasks({ includeArchived: true })
+				getTasks({ includeArchived: true }),
+				sprints.refresh(),
+				getCategories().then(c => { categories = c; }),
+				getProjects().then(p => { projects = p; }),
+				getAssignees(),
 			]);
+			// Also load project list (non-critical)
+			getProjectsList().then(pl => { projectList = pl; });
 
 			tasks = filtered;
 			allTasksIncludingArchived = all;
 			monthlySummaryTasks = all;
+			assignees = loadedAssignees;
+			console.log('DEBUG: assignees loaded', assignees.length, 'myAssigneeId:', myAssigneeId);
 			
 			// Process stats locally from existing data
 			stats = getStatsFromTasks(all);
@@ -829,13 +837,6 @@
 			} else {
 				filteredTasks = tasks;
 			}
-			
-			categories = await getCategories();
-			projects = await getProjects();
-			projectList = await getProjectsList();
-			assignees = await getAssignees();
-			console.log('DEBUG: assignees loaded', assignees.length, 'myAssigneeId:', myAssigneeId);
-			await sprints.refresh();
 		} catch (e) {
 			console.error('❌ loadData failed:', e);
 			showMessage(`เกิดข้อผิดพลาดในการโหลดข้อมูล: ${e instanceof Error ? e.message : 'Unknown error'}`, 'error');
