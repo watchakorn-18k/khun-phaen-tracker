@@ -203,7 +203,7 @@
 	<!-- svelte-ignore a11y-click-events-have-key-events -->
 	<!-- svelte-ignore a11y-no-static-element-interactions -->
 	<div
-		class="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center transition-all duration-300"
+		class="fixed inset-0 z-[20000] bg-black/60 backdrop-blur-sm flex items-center justify-center transition-all duration-300"
 		class:p-2={!isFullscreen}
 		class:sm:p-4={!isFullscreen}
 		class:md:p-6={!isFullscreen}
@@ -283,24 +283,24 @@
 				</div>
 			</div>
 
-			<div class="flex-1 min-h-0 bg-white dark:bg-gray-950 relative">
+			<div class="flex-1 min-h-0 bg-white relative tldraw-light-force">
 				{#if licenseChecked && !hasLicense && showLicenseWarning}
-					<div class="mx-3 sm:mx-4 md:mx-5 mt-3 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg flex items-start gap-2.5">
-						<TriangleAlert size={18} class="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+					<div class="mx-3 sm:mx-4 md:mx-5 mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-2.5">
+						<TriangleAlert size={18} class="text-blue-600 shrink-0 mt-0.5" />
 						<div class="flex-1 min-w-0">
-							<p class="font-semibold text-sm text-blue-900 dark:text-blue-100">
+							<p class="font-semibold text-sm text-blue-900">
 								{$_('whiteboard__license_title')}
 							</p>
-							<p class="mt-1.5 text-xs text-blue-800 dark:text-blue-200 leading-relaxed">
-								{$_('whiteboard__license_copy')} <code class="bg-blue-100 dark:bg-blue-900/50 px-1 rounded font-mono">.env.example</code>
-								{$_('whiteboard__license_to')} <code class="bg-blue-100 dark:bg-blue-900/50 px-1 rounded font-mono">.env</code>
+							<p class="mt-1.5 text-xs text-blue-800 leading-relaxed">
+								{$_('whiteboard__license_copy')} <code class="bg-blue-100 px-1 rounded font-mono">.env.example</code>
+								{$_('whiteboard__license_to')} <code class="bg-blue-100 px-1 rounded font-mono">.env</code>
 								{$_('whiteboard__license_then')}
 								<a href="https://tldraw.dev" target="_blank" rel="noopener noreferrer" class="underline hover:no-underline">tldraw.dev</a>
 							</p>
 						</div>
 						<button
 							on:click={() => showLicenseWarning = false}
-							class="shrink-0 p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400"
+							class="shrink-0 p-1 rounded hover:bg-blue-100 text-blue-600"
 							title={$_('whiteboard__btn_close')}
 						>
 							<X size={14} />
@@ -308,8 +308,8 @@
 					</div>
 				{/if}
 				{#if isBooting}
-					<div class="absolute inset-0 z-10 bg-white/80 dark:bg-gray-950/80 flex items-center justify-center">
-						<div class="flex items-center gap-2 text-xs sm:text-sm text-gray-600 dark:text-gray-300">
+					<div class="absolute inset-0 z-10 bg-white/80 flex items-center justify-center">
+						<div class="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
 							<LoaderCircle size={14} class="sm:w-4 sm:h-4 animate-spin" />
 							<span>{$_('whiteboard__loading')}</span>
 						</div>
@@ -320,3 +320,16 @@
 		</div>
 	</div>
 {/if}
+
+<style>
+	/* Force the tldraw board area to always render in light mode */
+	.tldraw-light-force,
+	.tldraw-light-force * {
+		color-scheme: light;
+	}
+	:global(.tldraw-light-force .tl-theme__dark) {
+		/* Override tldraw dark theme vars to light */
+		--color-background: #ffffff !important;
+		--color-text: #1d1d1d !important;
+	}
+</style>

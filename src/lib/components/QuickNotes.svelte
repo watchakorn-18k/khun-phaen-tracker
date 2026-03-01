@@ -54,7 +54,7 @@
 </script>
 
 <div
-	class="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 backdrop-blur-sm"
+	class="fixed inset-0 bg-black/50 flex items-center justify-center z-[20000] p-4 backdrop-blur-sm"
 	role="presentation"
 	onclick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
 >

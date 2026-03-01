@@ -2695,7 +2695,7 @@
 	
 	<!-- Search & Quick Actions -->
 	<!-- Search & Quick Actions -->
-	<div class="relative z-[11000] flex flex-col md:flex-row items-center gap-3 bg-white/50 dark:bg-gray-900/30 p-2 rounded-2xl border border-gray-200/50 dark:border-gray-800/50 backdrop-blur-sm transition-all group shadow-sm">
+	<div class="relative z-30 flex flex-col md:flex-row items-center gap-3 bg-white/50 dark:bg-gray-900/30 p-2 rounded-2xl border border-gray-200/50 dark:border-gray-800/50 backdrop-blur-sm transition-all group shadow-sm">
 		<!-- Search Component -->
 		<div class="relative flex-1 group/search w-full">
 			<div class="absolute left-4 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-400 group-focus-within/search:text-primary group-focus-within/search:bg-primary/10 transition-all duration-300">
@@ -2801,7 +2801,7 @@
 
 	<!-- View Tabs -->
 	<!-- View Tabs -->
-	<div class="relative z-[10000] flex flex-col lg:flex-row gap-4 items-center bg-white/50 dark:bg-gray-900/30 p-2 rounded-2xl border border-gray-200/50 dark:border-gray-800/50 backdrop-blur-sm shadow-sm transition-all">
+	<div class="relative z-20 flex flex-col lg:flex-row gap-4 items-center bg-white/50 dark:bg-gray-900/30 p-2 rounded-2xl border border-gray-200/50 dark:border-gray-800/50 backdrop-blur-sm shadow-sm transition-all">
 		<div class="flex-1 flex p-1 bg-gray-200/80 dark:bg-gray-800/80 rounded-xl transition-all w-full overflow-x-auto scrollbar-none">
 			{#each visibleTabs as tab (tab.id)}
 				<button
@@ -2839,7 +2839,7 @@
 			</button>
 			
 			{#if showTabSettings}
-				<div class="absolute top-[calc(100%+1rem)] right-0 z-[10001] animate-fade-in origin-top-right">
+				<div class="absolute top-[calc(100%+1rem)] right-0 z-30 animate-fade-in origin-top-right">
 					<TabSettings 
 						on:close={() => showTabSettings = false}
 						on:save={() => showTabSettings = false}

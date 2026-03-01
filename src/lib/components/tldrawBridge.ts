@@ -16,7 +16,10 @@ const TLDRAW_LICENSE_KEY = import.meta.env.VITE_TLDRAW_LICENSE_KEY as
   | undefined;
 
 export function hasTldrawLicense(): boolean {
-  return !!TLDRAW_LICENSE_KEY && TLDRAW_LICENSE_KEY !== "your-tldraw-license-key-here";
+  return (
+    !!TLDRAW_LICENSE_KEY &&
+    TLDRAW_LICENSE_KEY !== "your-tldraw-license-key-here"
+  );
 }
 
 type Snapshot = Partial<TLEditorSnapshot> | TLStoreSnapshot;
@@ -75,6 +78,7 @@ function OfflineCanvas({
   return createElement(Tldraw, {
     licenseKey: TLDRAW_LICENSE_KEY,
     autoFocus: true,
+    inferDarkMode: false,
     onMount: (editor: Editor) => {
       unlistenRef.current?.();
       if (!initializedRef.current && initialSnapshot) {
@@ -85,6 +89,8 @@ function OfflineCanvas({
         }
       }
       initializedRef.current = true;
+      // Force light theme for the whiteboard regardless of app theme
+      editor.user.updateUserPreferences({ colorScheme: "light" });
       unlistenRef.current = registerSnapshotListener(editor, onUserSnapshot);
       onEditorReady(editor);
     },
@@ -166,8 +172,11 @@ function SyncCanvas({
     licenseKey: TLDRAW_LICENSE_KEY,
     store: store.store,
     autoFocus: true,
+    inferDarkMode: false,
     onMount: (editor: Editor) => {
       unlistenRef.current?.();
+      // Force light theme for the whiteboard regardless of app theme
+      editor.user.updateUserPreferences({ colorScheme: "light" });
       unlistenRef.current = registerSnapshotListener(editor, onUserSnapshot);
       onEditorReady(editor);
     },

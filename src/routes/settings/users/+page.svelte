@@ -144,13 +144,24 @@
         } else {
             openMenuId = u.id;
             openMenuUser = u;
-            // Calculate position
             const target = e.currentTarget as HTMLElement;
             const rect = target.getBoundingClientRect();
-            menuPos = {
-                top: rect.bottom + window.scrollY,
-                left: rect.right + window.scrollX - 160 // Align right to button
-            };
+            const menuHeight = 120;
+            const spaceBelow = window.innerHeight - rect.bottom;
+            
+            if (spaceBelow < menuHeight) {
+                // Show above the button
+                menuPos = {
+                    top: rect.top - menuHeight - 4,
+                    left: rect.right - 160
+                };
+            } else {
+                // Show below the button
+                menuPos = {
+                    top: rect.bottom + 4,
+                    left: rect.right - 160
+                };
+            }
         }
     }
 
@@ -408,7 +419,7 @@
         <!-- svelte-ignore a11y-click-events-have-key-events -->
         <!-- svelte-ignore a11y-no-static-element-interactions -->
         <div 
-            class="fixed flex flex-col min-w-[160px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl z-[2000] py-1 animate-zoom-in"
+            class="fixed flex flex-col min-w-[160px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl z-[20000] py-1 animate-zoom-in"
             style="top: {menuPos.top}px; left: {menuPos.left}px;"
             on:click|stopPropagation
         >

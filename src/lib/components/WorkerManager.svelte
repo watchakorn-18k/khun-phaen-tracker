@@ -86,12 +86,14 @@
 		if (userId) {
 			const user = systemUsers.find(u => u.id === userId);
 			if (user) {
-				// Auto-fill from user profile if name is empty or we are starting fresh
-				if (!newWorkerName || (editingWorker && newWorkerName === editingWorker.name)) {
-					newWorkerName = user.nickname || user.first_name || user.email.split('@')[0];
-				}
-				if ((user.discord_id || user.profile?.discord_id) && (!newWorkerDiscordId || (editingWorker && newWorkerDiscordId === editingWorker.discord_id))) {
-					newWorkerDiscordId = user.discord_id || user.profile?.discord_id || '';
+				// Only auto-fill when adding a new worker, NOT when editing
+				if (!editingWorker) {
+					if (!newWorkerName) {
+						newWorkerName = user.nickname || user.first_name || user.email.split('@')[0];
+					}
+					if ((user.discord_id || user.profile?.discord_id) && !newWorkerDiscordId) {
+						newWorkerDiscordId = user.discord_id || user.profile?.discord_id || '';
+					}
 				}
 			}
 		}
