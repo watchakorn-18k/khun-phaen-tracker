@@ -57,6 +57,8 @@ podman-compose down
 - **Frontend**: [http://localhost:8080/](http://localhost:8080/)
 - **Backend API**: [http://localhost:3001/api](http://localhost:3001/api)
 - **MongoDB**: Runs internally on port `27017`
+- **RustFS (Storage API)**: Runs mapped to port `9000`
+- **RustFS (Console)**: [http://localhost:9001/](http://localhost:9001/) (Credentials: `rustfsadmin` / `rustfsadmin` by default)
 
 ---
 
@@ -117,10 +119,24 @@ cp .env.example .env
 cd backend-server && cp .env.example .env && cd ..
 ```
 
-### 3. Run Development Server
+### 3. File Storage Setup (RustFS / S3 Compatible)
+By default, the backend expects an S3-compatible service (like RustFS) to handle task attachments.
+Ensure you have the following mapped in your `backend-server/.env`:
+```env
+STORAGE_URL="http://127.0.0.1:9000"
+RUSTFS_ACCESS_KEY="rustfsadmin"
+RUSTFS_SECRET_KEY="rustfsadmin"
+STORAGE_BUCKET="khunphaen-assets"
+```
+**Important:** The system will attempt to automatically create the specified bucket upon backend startup. However, if using an external IP/Server for `STORAGE_URL`, you may first need to manually log in to the RustFS Admin Console and verify or create the bucket to avoid Access Denied errors.
+
+### 4. Run Development Server
 ```sh
 # Run frontend
 npm run dev
+
+# Run RustFS storage service (optional but recommended for attachments)
+podman-compose up -d rustfs
 
 # In another terminal, run backend
 cd backend-server

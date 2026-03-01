@@ -125,6 +125,7 @@ pub async fn create_task(
         notes: payload.notes,
         assignee_ids: payload.assignee_ids,
         sprint_id: payload.sprint_id,
+        attachments: None,
         is_archived: payload.is_archived,
         checklist: payload.checklist,
         created_at: None,

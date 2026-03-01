@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 tokio = { version = "1.35", features = ["full"] }
-axum = { version = "0.7", features = ["ws"] }
+axum = { version = "0.7", features = ["ws", "multipart"] }
 tower = "0.4"
 tower-http = { version = "0.5", features = ["cors", "fs"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -27,6 +27,9 @@ axum-extra = { version = "0.9.0", features = ["cookie"] }
 serde_with = "3.12.0"
 time = { version = "0.3.36", features = ["formatting", "macros"] }
 reqwest = { version = "0.13.2", features = ["json"] }
+aws-config = "1.8.14"
+aws-sdk-s3 = "1.124.0"
+tokio-util = { version = "0.7.18", features = ["io"] }
 
 [[bin]]
 name = "backend-server"

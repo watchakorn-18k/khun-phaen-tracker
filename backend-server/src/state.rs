@@ -13,4 +13,6 @@ pub struct AppState {
     pub room_idle_timeout_seconds: u64,
     pub system_tx: broadcast::Sender<SystemEvent>,
     pub jwt_secret: String,
+    pub storage_client: Option<aws_sdk_s3::Client>,
+    pub storage_bucket: String,
 }

@@ -84,12 +84,26 @@ async fn main() {
     info!("✅ Connected to database: {}", db_name);
 
     let (system_tx, _) = broadcast::channel(100);
+    let storage_bucket = std::env::var("STORAGE_BUCKET").unwrap_or_else(|_| "khunphaen-assets".to_string());
+    let storage_client = if std::env::var("STORAGE_URL").is_ok() {
+        let client = crate::services::storage_service::create_s3_client().await;
+        if let Err(e) = crate::services::storage_service::ensure_bucket_exists(&client, &storage_bucket).await {
+            tracing::warn!("Failed to verify storage bucket: {}", e);
+        }
+        Some(client)
+    } else {
+        tracing::warn!("⚠️ STORAGE_URL not found. Attachment capabilities will be disabled.");
+        None
+    };
+
     let state = Arc::new(AppState {
         db,
         rooms: DashMap::new(),
         room_idle_timeout_seconds,
         system_tx: system_tx.clone(),
         jwt_secret,
+        storage_client,
+        storage_bucket,
     });
 
     if room_idle_timeout_seconds > 0 {
@@ -144,6 +158,9 @@ async fn main() {
         .route("/api/workspaces/:ws_id/tasks", post(handlers::data_handler::create_task))
         .route("/api/workspaces/:ws_id/tasks/:task_id", put(handlers::data_handler::update_task))
         .route("/api/workspaces/:ws_id/tasks/:task_id", delete(handlers::data_handler::delete_task))
+        .route("/api/workspaces/:ws_id/tasks/:task_id/attachments", post(handlers::attachment_handler::upload_attachment))
+        .route("/api/workspaces/:ws_id/tasks/:task_id/attachments/:attachment_id", delete(handlers::attachment_handler::delete_attachment))
+        .route("/api/files/*file_key", get(handlers::attachment_handler::download_attachment))
         .route("/api/workspaces/:ws_id/daily-report", get(handlers::data_handler::daily_report))
         .route("/api/workspaces/:ws_id/projects", get(handlers::data_handler::list_projects))
         .route("/api/workspaces/:ws_id/projects", post(handlers::data_handler::create_project))

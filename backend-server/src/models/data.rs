@@ -1,6 +1,18 @@
 use mongodb::bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
 
+// ===== Attachment Model =====
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Attachment {
+    pub id: String,
+    pub filename: String,
+    pub file_key: String,
+    pub mime_type: String,
+    pub size: i64,
+    pub uploaded_at: String,
+    pub uploader_id: String,
+}
+
 // ===== Task Document =====
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -22,6 +34,8 @@ pub struct TaskDocument {
     pub category: String,
     #[serde(default)]
     pub notes: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attachments: Option<Vec<Attachment>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub assignee_ids: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
