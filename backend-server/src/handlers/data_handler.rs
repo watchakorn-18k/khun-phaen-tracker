@@ -65,8 +65,6 @@ async fn verify_workspace_access(
     }
 }
 
-// ===== TASKS =====
-
 pub async fn list_tasks(
     State(state): State<SharedState>,
     Path(ws_id): Path<String>,
@@ -81,7 +79,20 @@ pub async fn list_tasks(
 
     let repo = DataRepository::new(&state.db);
     match repo.find_tasks(&ws_oid, &filter).await {
-        Ok(tasks) => axum::Json(serde_json::json!({ "success": true, "tasks": tasks })).into_response(),
+        Ok((tasks, total)) => {
+            let limit = filter.limit.unwrap_or(20);
+            let page = filter.page.unwrap_or(1).max(1);
+            let pages = (total as f64 / limit as f64).ceil() as u64;
+            
+            axum::Json(PaginatedTaskResponse {
+                success: true,
+                tasks,
+                total,
+                page,
+                limit,
+                pages,
+            }).into_response()
+        },
         Err(e) => (
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
             axum::Json(serde_json::json!({ "error": format!("{}", e) })),
@@ -406,7 +417,6 @@ pub async fn create_assignee(
     
     // If user_id is provided but discord_id is not, try to pull it from the user
     if let (Some(u_id), None) = (&payload.user_id, &discord_id) {
-        let user_repo = crate::repositories::user_repo::UserRepository::new(&state.db);
         // Find user by user_id (string UUID)
         let mut cursor = state.db.collection::<crate::models::user::User>("users")
             .find(doc! { "user_id": u_id }, None).await.unwrap();

@@ -201,4 +201,16 @@ pub struct TaskFilterQuery {
     pub start_date: Option<String>,
     pub end_date: Option<String>,
     pub include_archived: Option<bool>,
+    pub page: Option<u64>,
+    pub limit: Option<u64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaginatedTaskResponse {
+    pub success: bool,
+    pub tasks: Vec<TaskDocument>,
+    pub total: u64,
+    pub page: u64,
+    pub limit: u64,
+    pub pages: u64,
 }

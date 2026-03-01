@@ -19,7 +19,7 @@
 	import ExportImport from '$lib/components/ExportImport.svelte';
 	import WorkerManager from '$lib/components/WorkerManager.svelte';
 	import ProjectManager from '$lib/components/ProjectManager.svelte';
-	import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Search, Plus, Users, Folder, Sparkles, MessageSquareQuote, Settings2, Flag, FileText, FileSpreadsheet, Image as ImageIcon, Video, Presentation, CheckCircle, Moon, Sun, Bookmark, Play, ListTodo } from 'lucide-svelte';
+import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Search, Plus, Users, Folder, Sparkles, MessageSquareQuote, Settings2, Flag, FileText, FileSpreadsheet, Image as ImageIcon, Video, Presentation, CheckCircle, Moon, Sun, Bookmark, Play, ListTodo, ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import { initWasmSearch, indexTasks, performSearch, clearSearch, searchQuery, wasmReady, wasmLoading } from '$lib/stores/search';
 	import { connectRealtime, disconnectRealtime, realtimeStatus, realtimePeers } from '$lib/stores/realtime';
 	import { user } from '$lib/stores/auth';
@@ -75,6 +75,43 @@
 	let workerStats: { id: number; taskCount: number }[] = [];
 	let stats = { total: 0, todo: 0, in_progress: 0, in_test: 0, done: 0, total_minutes: 0 };
 	const VIEW_MODE_STORAGE_KEY = 'khunphaen-view-mode';
+	let pageSize = 20;
+	let totalTasks = 0;
+	let totalPages = 1;
+	let currentPage = 1;
+	let showPageSizeModal = false;
+	let newPageSize = 20;
+
+	onMount(() => {
+		const saved = localStorage.getItem('khunphaen-page-size');
+		if (saved) {
+			pageSize = parseInt(saved) || 20;
+			newPageSize = pageSize;
+		}
+	});
+
+	function savePageSize() {
+		pageSize = newPageSize;
+		localStorage.setItem('khunphaen-page-size', String(pageSize));
+		showPageSizeModal = false;
+		currentPage = 1;
+		void loadData();
+	}
+
+	function handlePageChange(newPage: number) {
+		if (newPage < 1 || newPage > totalPages || newPage === currentPage) return;
+		currentPage = newPage;
+		void loadData();
+		// Scroll to top of table
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	}
+
+	$: {
+		// Reset page when any filter changes (ignoring page/limit)
+		const { search, status, category, project, assignee_id, sprint_id, startDate, endDate } = filters;
+		currentPage = 1;
+		void loadData();
+	}
 	
 	$: ganttTasks = allTasksIncludingArchived.filter(t => {
 		// Filter by global project, category, assignee if they aren't 'all'
@@ -381,6 +418,18 @@
 			icon: MessageSquareQuote,
 			run: () => {
 				showDailyReflect = true;
+			}
+		},
+		{
+			id: 'set-page-size',
+			label: $_('pagination__set_limit'),
+			description: $_('pagination__set_limit_desc'),
+			keywords: ['pagination', 'limit', 'page size', 'งานต่อหน้า'],
+			category: 'command',
+			icon: Settings2,
+			run: () => {
+				newPageSize = pageSize;
+				showPageSizeModal = true;
 			}
 		}
 	];
@@ -828,10 +877,15 @@
 				}
 			}
 
+			// Add pagination
+			taskFilters.page = currentPage;
+			taskFilters.limit = pageSize;
+
 			// 2. Fetch everything else in parallel
-			const [filtered, all, , , loadedAssignees] = await Promise.all([
+			// For allTasksIncludingArchived, we might need a higher limit for charts/stats
+			const [paginated, all, , , loadedAssignees] = await Promise.all([
 				getTasks(taskFilters),
-				getTasks({ includeArchived: true }),
+				getTasks({ includeArchived: true, limit: 1000 }), // Higher limit for background calculations
 				getCategories().then(c => { categories = c; }),
 				getProjects().then(p => { projects = p; }),
 				getAssignees(),
@@ -839,14 +893,26 @@
 			// Also load project list (non-critical)
 			getProjectsList().then(pl => { projectList = pl; });
 
-			tasks = filtered;
-			allTasksIncludingArchived = all;
-			monthlySummaryTasks = all;
+			if (!Array.isArray(paginated)) {
+				tasks = paginated.tasks;
+				totalTasks = paginated.total;
+				totalPages = paginated.pages;
+			} else {
+				tasks = paginated;
+				totalTasks = paginated.length;
+				totalPages = Math.ceil(totalTasks / pageSize) || 1;
+			}
+			
+			// Update filteredTasks (main view)
+			filteredTasks = tasks;
+			
+			const allTasks = Array.isArray(all) ? all : all.tasks;
+			allTasksIncludingArchived = allTasks;
+			monthlySummaryTasks = allTasks;
 			assignees = loadedAssignees;
-			console.log('DEBUG: assignees loaded', assignees.length, 'myAssigneeId:', myAssigneeId);
 			
 			// Process stats locally from existing data
-			stats = getStatsFromTasks(all);
+			stats = getStatsFromTasks(allTasks);
 			
 			// No manual sprintManagerTasks update - it's handled reactively now
 
@@ -3073,7 +3139,130 @@
 				on:selectAssignee={handleSelectAssigneeFromWorkload}
 			/>
 		{/if}
+
+		<!-- Pagination -->
+		{#if totalTasks > 0 && !['gantt', 'workload'].includes(currentView)}
+			<div class="mt-12 flex flex-col items-center gap-4 pb-8">
+				{#if totalPages > 1}
+					<div class="flex items-center gap-1 bg-white/50 dark:bg-gray-800/50 p-1.5 rounded-2xl border border-gray-100 dark:border-gray-700 backdrop-blur-sm shadow-sm">
+						<button
+							class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+							disabled={currentPage === 1}
+							on:click={() => handlePageChange(currentPage - 1)}
+							title="หน้าก่อนหน้า"
+							aria-label="Previous page"
+						>
+							<ChevronLeft size={20} />
+						</button>
+
+						<div class="flex items-center gap-1 px-2">
+							{#each Array(totalPages) as _, i}
+								{@const pageNum = i + 1}
+								{#if totalPages <= 7 || pageNum === 1 || pageNum === totalPages || (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)}
+									<button
+										class="w-10 h-10 rounded-xl font-bold transition-all flex items-center justify-center text-sm
+											{currentPage === pageNum 
+												? 'bg-primary text-white shadow-lg shadow-primary/30 scale-105' 
+												: 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400'}"
+										on:click={() => handlePageChange(pageNum)}
+									>
+										{pageNum}
+									</button>
+								{:else if (pageNum === 2 && currentPage > 3) || (pageNum === totalPages - 1 && currentPage < totalPages - 2)}
+									<div class="w-8 flex items-center justify-center text-gray-400">
+										<span class="text-xs tracking-widest">...</span>
+									</div>
+								{/if}
+							{/each}
+						</div>
+
+						<button
+							class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+							disabled={currentPage === totalPages}
+							on:click={() => handlePageChange(currentPage + 1)}
+							title="หน้าถัดไป"
+							aria-label="Next page"
+						>
+							<ChevronRight size={20} />
+						</button>
+					</div>
+				{/if}
+
+				<div class="flex items-center gap-3">
+					<div class="flex items-center gap-2 text-xs font-medium text-gray-400 dark:text-gray-500 bg-gray-50/50 dark:bg-gray-900/30 px-3 py-1.5 rounded-full border border-gray-100/50 dark:border-gray-800/50">
+						<span>แสดง {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, totalTasks)} จากทั้งหมด {totalTasks}</span>
+					</div>
+					
+					<button
+						on:click={() => { newPageSize = pageSize; showPageSizeModal = true; }}
+						class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-full border border-gray-100 dark:border-gray-700 transition-colors text-xs font-medium shadow-sm"
+					>
+						<Settings2 size={14} />
+						<span>{pageSize} / หน้า</span>
+					</button>
+				</div>
+			</div>
+		{/if}
 	</div>
+
+	<!-- Page Size Modal -->
+	{#if showPageSizeModal}
+		<div class="fixed inset-0 bg-black/55 backdrop-blur-sm z-[30000] flex items-center justify-center p-4" on:click|self={() => showPageSizeModal = false}>
+			<div class="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-modal-in border border-gray-100 dark:border-gray-700">
+				<div class="px-8 pt-8 pb-6">
+					<div class="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-6">
+						<Settings2 size={32} class="text-primary" />
+					</div>
+					<h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">กำหนดจำนวนงาน</h3>
+					<p class="text-gray-500 dark:text-gray-400 mb-8">จำนวนงานที่จะแสดงผลต่อหน้าในโปรเจกต์นี้</p>
+					
+					<div class="space-y-4">
+						<div class="flex flex-wrap gap-2">
+							{#each [10, 20, 50, 100] as size}
+								<button
+									on:click={() => newPageSize = size}
+									class="flex-1 py-3 rounded-2xl border-2 transition-all font-bold
+										{newPageSize === size 
+											? 'border-primary bg-primary/5 text-primary scale-[1.02]' 
+											: 'border-gray-100 dark:border-gray-700 text-gray-400 hover:border-gray-200 dark:hover:border-gray-600'}"
+								>
+									{size}
+								</button>
+							{/each}
+						</div>
+						
+						<div class="pt-2">
+							<label class="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1 mb-2 block">ระบุจำนวนเอง</label>
+							<div class="relative">
+								<input
+									type="number"
+									bind:value={newPageSize}
+									min="1"
+									max="500"
+									class="w-full h-14 bg-gray-50 dark:bg-gray-900/50 border-2 border-gray-100 dark:border-gray-800 rounded-2xl px-6 focus:border-primary focus:ring-0 transition-all font-bold text-lg dark:text-white"
+								/>
+							</div>
+						</div>
+					</div>
+				</div>
+				
+				<div class="px-8 py-6 bg-gray-50/80 dark:bg-gray-900/50 flex gap-3">
+					<button
+						on:click={() => showPageSizeModal = false}
+						class="flex-1 py-4 text-gray-500 font-bold hover:text-gray-700 transition-colors"
+					>
+						ยกเลิก
+					</button>
+					<button
+						on:click={savePageSize}
+						class="flex-1 py-4 bg-primary hover:bg-primary-dark text-white rounded-2xl font-bold shadow-lg shadow-primary/30 transition-all active:scale-95"
+					>
+						บันทึก
+					</button>
+				</div>
+			</div>
+		</div>
+	{/if}
 
 		{#if showMonthlySummary}
 			<div

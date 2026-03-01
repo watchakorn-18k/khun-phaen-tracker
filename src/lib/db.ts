@@ -5,7 +5,14 @@
  * This module replaces the previous SQLite WASM / localStorage approach.
  */
 
-import type { Task, Project, Assignee, Sprint, FilterOptions } from "./types";
+import type {
+  Task,
+  Project,
+  Assignee,
+  Sprint,
+  FilterOptions,
+  PaginatedResponse,
+} from "./types";
 import { get } from "svelte/store";
 import { api } from "./apis";
 import { getWorkspaceId, loadWorkspaceId } from "./stores/workspace";
@@ -177,7 +184,13 @@ export async function deleteTask(id: string | number): Promise<void> {
   broadcastChange("task", "delete", String(id));
 }
 
-export async function getTasks(filter?: FilterOptions): Promise<Task[]> {
+export async function getTasks(
+  filter: FilterOptions & ({ page: number } | { limit: number }),
+): Promise<PaginatedResponse<Task>>;
+export async function getTasks(filter?: FilterOptions): Promise<Task[]>;
+export async function getTasks(
+  filter?: FilterOptions,
+): Promise<Task[] | PaginatedResponse<Task>> {
   const params: Record<string, string> = {};
 
   if (filter?.status && filter.status !== "all") {
@@ -206,8 +219,8 @@ export async function getTasks(filter?: FilterOptions): Promise<Task[]> {
     if (filter.assignee_id === "me") {
       const currentUser = get(userStore);
       if (currentUser) {
-        const assignees = await getAssignees();
-        const myAssignee = assignees.find(
+        const rawAssignees = await getAssignees();
+        const myAssignee = rawAssignees.find(
           (a) =>
             a.user_id === currentUser.id || a.user_id === currentUser.user_id,
         );
@@ -234,44 +247,71 @@ export async function getTasks(filter?: FilterOptions): Promise<Task[]> {
   if (filter?.startDate) params.start_date = filter.startDate;
   if (filter?.endDate) params.end_date = filter.endDate;
   if (filter?.includeArchived) params.include_archived = "true";
+  if (filter?.page) params.page = String(filter.page);
+  if (filter?.limit) params.limit = String(filter.limit);
 
   const res = await api.data.tasks.list(wsId(), params);
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Failed to fetch tasks");
 
-  const tasks: Task[] = (data.tasks || []).map(docToTask);
+  const rawTasks = data.tasks || [];
+  const tasks = await enrichTasksWithAssignees(rawTasks.map(docToTask));
 
-  // Enrich with assignee data
-  try {
-    const assignees = await getAssignees();
-    const assigneeMap = new Map(assignees.map((a) => [String(a.id), a]));
-    for (const task of tasks) {
-      if (task.assignee_ids && task.assignee_ids.length > 0) {
-        task.assignees = task.assignee_ids
-          .map((aid) => assigneeMap.get(String(aid)))
-          .filter(Boolean) as Assignee[];
-        task.assignee = task.assignees[0] || null;
-        task.assignee_id = task.assignees[0]?.id ?? null;
-      }
-    }
-  } catch (e) {
-    // Assignee enrichment is best-effort
-    console.error("Assignee enrichment failed:", e);
+  if (typeof data.total === "number") {
+    return {
+      success: true,
+      tasks,
+      total: data.total,
+      page: data.page,
+      limit: data.limit,
+      pages: data.pages,
+    } as PaginatedResponse<Task>;
   }
 
   return tasks;
 }
 
+async function enrichTasksWithAssignees(tasks: Task[]): Promise<Task[]> {
+  try {
+    const rawAssignees = await getAssignees();
+    const assigneeMap = new Map(rawAssignees.map((a) => [String(a.id), a]));
+    for (const task of tasks) {
+      if (task.assignee_ids && task.assignee_ids.length > 0) {
+        task.assignees = task.assignee_ids
+          .map((id) => assigneeMap.get(String(id)))
+          .filter((a): a is Assignee => a !== undefined);
+        // Set first assignee as legacy assignee_id for backward compatibility
+        if (task.assignees.length > 0) {
+          task.assignee_id = task.assignees[0].id;
+          task.assignee = task.assignees[0];
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Failed to enrich tasks with assignees:", e);
+  }
+  return tasks;
+}
+
 export async function getTaskById(id: string | number): Promise<Task | null> {
-  // Fetch all tasks and find by id (simple approach)
-  const tasks = await getTasks({ includeArchived: true });
-  return tasks.find((t) => String(t.id) === String(id)) || null;
+  // Fetch tasks with a high limit for search
+  const result = await getTasks({
+    includeArchived: true,
+    limit: 1000,
+  });
+  const tasks = Array.isArray(result) ? result : result.tasks;
+  return tasks.find((t: Task) => String(t.id) === String(id)) || null;
 }
 
 export async function getTasksBySprint(
   sprintId: number | string,
 ): Promise<Task[]> {
-  return getTasks({ sprint_id: sprintId as any, includeArchived: true });
+  const result = await getTasks({
+    sprint_id: sprintId as any,
+    includeArchived: true,
+    limit: 1000,
+  });
+  return Array.isArray(result) ? result : result.tasks;
 }
 
 export async function archiveTasksBySprint(
@@ -313,10 +353,14 @@ export async function getProjectStats(): Promise<
   { id: string; taskCount: number }[]
 > {
   const projects = await getProjectsList();
-  const tasks = await getTasks({ includeArchived: true });
+  const result = await getTasks({
+    includeArchived: true,
+    limit: 1000,
+  });
+  const tasks = Array.isArray(result) ? result : result.tasks;
   return projects.map((p) => ({
     id: String(p.id),
-    taskCount: tasks.filter((t) => t.project === p.name).length,
+    taskCount: tasks.filter((t: Task) => t.project === p.name).length,
   }));
 }
 
@@ -384,10 +428,14 @@ export async function getAssigneeStats(): Promise<
   { id: string; taskCount: number }[]
 > {
   const assignees = await getAssignees();
-  const tasks = await getTasks({ includeArchived: true });
+  const result = await getTasks({
+    includeArchived: true,
+    limit: 1000,
+  });
+  const tasks = Array.isArray(result) ? result : result.tasks;
   return assignees.map((a) => ({
     id: String(a.id),
-    taskCount: tasks.filter((t) =>
+    taskCount: tasks.filter((t: Task) =>
       t.assignee_ids?.map(String).includes(String(a.id)),
     ).length,
   }));
@@ -508,17 +556,23 @@ export async function deleteSprint(id: string | number): Promise<void> {
 // ===== Stats / Categories =====
 
 export async function getCategories(): Promise<string[]> {
-  const tasks = await getTasks({ includeArchived: true });
-  const cats = new Set(tasks.map((t) => t.category).filter(Boolean));
+  const result = await getTasks({
+    includeArchived: true,
+    limit: 1000,
+  });
+  const tasks = Array.isArray(result) ? result : result.tasks;
+  const cats = new Set(tasks.map((t: Task) => t.category).filter(Boolean));
   return Array.from(cats).sort();
 }
 
 export function getStatsFromTasks(tasks: Task[]) {
   const total = tasks.length;
-  const todo = tasks.filter((t) => t.status === "todo").length;
-  const in_progress = tasks.filter((t) => t.status === "in-progress").length;
-  const in_test = tasks.filter((t) => t.status === "in-test").length;
-  const done = tasks.filter((t) => t.status === "done").length;
+  const todo = tasks.filter((t: Task) => t.status === "todo").length;
+  const in_progress = tasks.filter(
+    (t: Task) => t.status === "in-progress",
+  ).length;
+  const in_test = tasks.filter((t: Task) => t.status === "in-test").length;
+  const done = tasks.filter((t: Task) => t.status === "done").length;
   const total_minutes = tasks.reduce(
     (sum, t) => sum + (t.duration_minutes || 0),
     0,
@@ -528,7 +582,11 @@ export function getStatsFromTasks(tasks: Task[]) {
 }
 
 export async function getStats() {
-  const tasks = await getTasks({ includeArchived: true });
+  const result = await getTasks({
+    includeArchived: true,
+    limit: 1000,
+  });
+  const tasks = Array.isArray(result) ? result : result.tasks;
   return getStatsFromTasks(tasks);
 }
 

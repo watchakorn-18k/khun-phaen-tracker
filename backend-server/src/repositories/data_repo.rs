@@ -1,4 +1,4 @@
-use mongodb::{bson::{doc, oid::ObjectId, Document, Bson}, Collection, Database};
+use mongodb::{bson::{doc, oid::ObjectId, Document}, Collection, Database};
 use crate::models::data::{TaskDocument, ProjectDocument, AssigneeDocument, SprintDocument, TaskFilterQuery};
 use futures::stream::StreamExt;
 
@@ -22,7 +22,7 @@ impl DataRepository {
 
     // ===== TASKS =====
 
-    pub async fn find_tasks(&self, workspace_id: &ObjectId, filter: &TaskFilterQuery) -> mongodb::error::Result<Vec<TaskDocument>> {
+    pub async fn find_tasks(&self, workspace_id: &ObjectId, filter: &TaskFilterQuery) -> mongodb::error::Result<(Vec<TaskDocument>, u64)> {
         let mut query = doc! { "workspace_id": workspace_id };
 
         // Status filter
@@ -69,8 +69,22 @@ impl DataRepository {
             }
             query.insert("date", date_query);
         }
+        
+        // Count total matching documents before pagination
+        let total = self.tasks.count_documents(query.clone(), None).await?;
 
-        let mut cursor = self.tasks.find(query, None).await?;
+        // Setup pagination and sorting
+        let limit = filter.limit.unwrap_or(20);
+        let page = filter.page.unwrap_or(1).max(1);
+        let skip = (page - 1) * limit;
+
+        let find_options = mongodb::options::FindOptions::builder()
+            .sort(doc! { "date": -1, "_id": -1 })
+            .limit(limit as i64)
+            .skip(skip)
+            .build();
+
+        let mut cursor = self.tasks.find(query, find_options).await?;
         let mut tasks = Vec::new();
         while let Some(result) = cursor.next().await {
             match result {
@@ -78,7 +92,7 @@ impl DataRepository {
                 Err(e) => return Err(e),
             }
         }
-        Ok(tasks)
+        Ok((tasks, total))
     }
 
     pub async fn find_task_by_id(&self, id: &ObjectId) -> mongodb::error::Result<Option<TaskDocument>> {

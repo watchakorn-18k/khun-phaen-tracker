@@ -22,7 +22,7 @@ use crate::repositories::user_repo::UserRepository;
 use crate::repositories::profile_repo::ProfileRepository;
 use crate::services::room_service::spawn_room_cleanup_task;
 use crate::state::AppState;
-use bcrypt::{hash, DEFAULT_COST};
+use bcrypt::hash;
 use tower_governor::{errors::GovernorError, key_extractor::KeyExtractor};
 use tracing::info;
 

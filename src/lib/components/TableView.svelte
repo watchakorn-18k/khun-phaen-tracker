@@ -3,7 +3,6 @@
 	import { _ } from '$lib/i18n';
 	import type { Task, Sprint } from '$lib/types';
 	import { ArrowUpDown, ArrowUp, ArrowDown, Edit2, Trash2, CheckCircle2, Circle, PlayCircle, User, Folder, Clock, Calendar, MoreVertical, ChevronDown, ChevronUp, ChevronRight, Flag, X, QrCode, FlaskConical, ListTodo, Check, Square, CheckSquare } from 'lucide-svelte';
-	import Pagination from './Pagination.svelte';
 
 	export let tasks: Task[] = [];
 	export let sprints: Sprint[] = [];
@@ -43,9 +42,7 @@
 		expandedChecklists = expandedChecklists;
 	}
 
-	// Pagination
-	let pageSize = 50;
-	let currentPage = 1;
+
 
 	$: sortedTasks = [...tasks].sort((a, b) => {
 		let aVal: any;
@@ -74,17 +71,16 @@
 			}
 		});
 
-	$: paginatedTasks = sortedTasks.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 	$: allTaskIds = new Set(
 		tasks
 			.map(task => task.id)
 			.filter((id): id is number => id !== undefined)
 	);
-	$: paginatedTaskIds = paginatedTasks
+	$: sortedTaskIds = sortedTasks
 		.map(task => task.id)
 		.filter((id): id is number => id !== undefined);
-	$: selectedOnPageCount = paginatedTaskIds.filter(id => selectedTasks.has(id)).length;
-	$: allOnPageSelected = paginatedTaskIds.length > 0 && selectedOnPageCount === paginatedTaskIds.length;
+	$: selectedOnPageCount = sortedTaskIds.filter(id => selectedTasks.has(id)).length;
+	$: allOnPageSelected = sortedTaskIds.length > 0 && selectedOnPageCount === sortedTaskIds.length;
 	$: someOnPageSelected = selectedOnPageCount > 0 && !allOnPageSelected;
 	$: {
 		const validSelected = new Set(Array.from(selectedTasks).filter(id => allTaskIds.has(id)));
@@ -189,9 +185,9 @@
 	function toggleSelectAll() {
 		const newSet = new Set(selectedTasks);
 		if (allOnPageSelected) {
-			paginatedTaskIds.forEach(id => newSet.delete(id));
+			sortedTaskIds.forEach(id => newSet.delete(id));
 		} else {
-			paginatedTaskIds.forEach(id => newSet.add(id));
+			sortedTaskIds.forEach(id => newSet.add(id));
 		}
 		selectedTasks = newSet;
 	}
@@ -399,7 +395,7 @@
 				</tr>
 			</thead>
 			<tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-				{#each paginatedTasks as task (task.id)}
+				{#each sortedTasks as task (task.id)}
 					<tr 
 						class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
 						on:click={() => dispatch('edit', task)}
@@ -571,9 +567,9 @@
 
 	<!-- Mobile Card View -->
 	<div class="md:hidden">
-		{#if paginatedTasks.length > 0}
+		{#if sortedTasks.length > 0}
 			<div class="divide-y divide-gray-200 dark:divide-gray-700">
-				{#each paginatedTasks as task (task.id)}
+				{#each sortedTasks as task (task.id)}
 						<div 
 							class="p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
 							on:click={() => dispatch('edit', task)}
@@ -724,15 +720,7 @@
 		{/if}
 	</div>
 
-	<!-- Pagination -->
-	{#if tasks.length > 0}
-		<Pagination
-			totalItems={tasks.length}
-			bind:pageSize
-			bind:currentPage
-			pageSizeOptions={[20, 50, 100]}
-		/>
-	{/if}
+
 </div>
 
 <style>

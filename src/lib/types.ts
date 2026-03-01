@@ -73,6 +73,17 @@ export interface FilterOptions {
   includeArchived?: boolean;
   search?: string;
   updatedAtStart?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface PaginatedResponse<T> {
+  success: boolean;
+  tasks: T[];
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
 }
 
 export const CATEGORIES = [

@@ -91,9 +91,11 @@ async fn send_daily_summary_to_discord(
         end_date: None,
         search: None,
         include_archived: Some(false),
+        page: None,
+        limit: Some(1000), // Get all active tasks for summary
     };
     
-    let tasks = data_repo.find_tasks(workspace_id, &filter).await?;
+    let (tasks, _) = data_repo.find_tasks(workspace_id, &filter).await?;
     
     if tasks.is_empty() {
         return Ok(()); // Nothing to report
