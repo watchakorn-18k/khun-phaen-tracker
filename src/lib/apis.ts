@@ -395,6 +395,86 @@ export const api = {
       },
     },
 
+    comments: {
+      list: (
+        wsId: string,
+        taskId: string,
+        params?: Record<string, string>,
+      ): Promise<Response> => {
+        const query = params
+          ? "?" + new URLSearchParams(params).toString()
+          : "";
+        return fetch(
+          `${API_BASE_URL}/workspaces/${wsId}/tasks/${taskId}/comments${query}`,
+          {
+            headers: api.data._headers(),
+            credentials: "include",
+          },
+        );
+      },
+      create: (
+        wsId: string,
+        taskId: string,
+        formData: FormData,
+      ): Promise<Response> => {
+        const headers = api.data._headers();
+        delete headers["Content-Type"];
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/tasks/${taskId}/comments`, {
+          method: "POST",
+          headers,
+          credentials: "include",
+          body: formData,
+        });
+      },
+      delete: (
+        wsId: string,
+        taskId: string,
+        commentId: string,
+      ): Promise<Response> => {
+        return fetch(
+          `${API_BASE_URL}/workspaces/${wsId}/tasks/${taskId}/comments/${commentId}`,
+          {
+            method: "DELETE",
+            headers: api.data._headers(),
+            credentials: "include",
+          },
+        );
+      },
+      update: (
+        wsId: string,
+        taskId: string,
+        commentId: string,
+        payload: Record<string, any>,
+      ): Promise<Response> => {
+        return fetch(
+          `${API_BASE_URL}/workspaces/${wsId}/tasks/${taskId}/comments/${commentId}`,
+          {
+            method: "PUT",
+            headers: api.data._headers(true),
+            credentials: "include",
+            body: JSON.stringify(payload),
+          },
+        );
+      },
+      images: (
+        wsId: string,
+        taskId: string,
+        commentId: string,
+        params?: Record<string, string>,
+      ): Promise<Response> => {
+        const query = params
+          ? "?" + new URLSearchParams(params).toString()
+          : "";
+        return fetch(
+          `${API_BASE_URL}/workspaces/${wsId}/tasks/${taskId}/comments/${commentId}/images${query}`,
+          {
+            headers: api.data._headers(),
+            credentials: "include",
+          },
+        );
+      },
+    },
+
     // Projects
     projects: {
       list: (wsId: string): Promise<Response> => {

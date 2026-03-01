@@ -54,6 +54,27 @@ export interface Task {
   checklist?: ChecklistItem[];
 }
 
+export interface CommentImage {
+  id: string;
+  filename: string;
+  file_key: string;
+  mime_type: string;
+  size: number;
+  uploaded_at: string;
+  uploader_id: string;
+}
+
+export interface TaskComment {
+  id?: string;
+  workspace_id?: string;
+  task_id?: string;
+  content: string;
+  images: CommentImage[];
+  created_by: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export type ViewMode =
   | "list"
   | "calendar"
@@ -80,6 +101,24 @@ export interface FilterOptions {
 export interface PaginatedResponse<T> {
   success: boolean;
   tasks: T[];
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
+}
+
+export interface PaginatedCommentResponse {
+  success: boolean;
+  comments: TaskComment[];
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
+}
+
+export interface PaginatedCommentImageResponse {
+  success: boolean;
+  images: CommentImage[];
   total: number;
   page: number;
   limit: number;

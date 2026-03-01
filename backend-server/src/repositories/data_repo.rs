@@ -1,5 +1,14 @@
-use mongodb::{bson::{doc, oid::ObjectId, Document}, Collection, Database};
-use crate::models::data::{TaskDocument, ProjectDocument, AssigneeDocument, SprintDocument, TaskFilterQuery};
+use mongodb::{
+    bson::{doc, oid::ObjectId, Document},
+    options::IndexOptions,
+    Collection,
+    Database,
+    IndexModel,
+};
+use crate::models::data::{
+    AssigneeDocument, CommentDocument, CommentImage, ProjectDocument, SprintDocument, TaskDocument,
+    TaskFilterQuery,
+};
 use futures::stream::StreamExt;
 
 #[derive(Clone)]
@@ -8,6 +17,7 @@ pub struct DataRepository {
     projects: Collection<ProjectDocument>,
     assignees: Collection<AssigneeDocument>,
     sprints: Collection<SprintDocument>,
+    task_comments: Collection<CommentDocument>,
 }
 
 impl DataRepository {
@@ -17,7 +27,23 @@ impl DataRepository {
             projects: db.collection("projects"),
             assignees: db.collection("assignees"),
             sprints: db.collection("sprints"),
+            task_comments: db.collection("task_comments"),
         }
+    }
+
+    pub async fn ensure_comment_indexes(&self) -> mongodb::error::Result<()> {
+        let by_workspace_task_created = IndexModel::builder()
+            .keys(doc! { "workspace_id": 1, "task_id": 1, "created_at": -1 })
+            .options(IndexOptions::builder().name(Some("idx_comments_ws_task_created".to_string())).build())
+            .build();
+        let by_task_id = IndexModel::builder()
+            .keys(doc! { "task_id": 1, "_id": -1 })
+            .options(IndexOptions::builder().name(Some("idx_comments_task_id".to_string())).build())
+            .build();
+        self.task_comments
+            .create_indexes(vec![by_workspace_task_created, by_task_id], None)
+            .await?;
+        Ok(())
     }
 
     // ===== TASKS =====
@@ -169,6 +195,147 @@ impl DataRepository {
         Ok(res.deleted_count)
     }
 
+    pub async fn create_comment(&self, mut comment: CommentDocument) -> mongodb::error::Result<CommentDocument> {
+        let now = chrono::Utc::now().to_rfc3339();
+        comment.created_at = Some(now.clone());
+        comment.updated_at = Some(now);
+        let res = self.task_comments.insert_one(comment.clone(), None).await?;
+        if let Some(id) = res.inserted_id.as_object_id() {
+            comment.id = Some(id);
+        }
+        Ok(comment)
+    }
+
+    pub async fn find_comments_by_task_paginated(
+        &self,
+        workspace_id: &ObjectId,
+        task_id: &ObjectId,
+        page: u64,
+        limit: u64,
+    ) -> mongodb::error::Result<(Vec<CommentDocument>, u64)> {
+        let query = doc! {
+            "workspace_id": workspace_id,
+            "task_id": task_id,
+        };
+        let total = self.task_comments.count_documents(query.clone(), None).await?;
+        let skip = (page - 1) * limit;
+        let find_options = mongodb::options::FindOptions::builder()
+            .sort(doc! { "created_at": -1, "_id": -1 })
+            .limit(limit as i64)
+            .skip(skip)
+            .build();
+        let mut cursor = self.task_comments.find(query, find_options).await?;
+        let mut comments = Vec::new();
+        while let Some(result) = cursor.next().await {
+            match result {
+                Ok(doc) => comments.push(doc),
+                Err(e) => return Err(e),
+            }
+        }
+        Ok((comments, total))
+    }
+
+    pub async fn find_comment_by_id(
+        &self,
+        workspace_id: &ObjectId,
+        task_id: &ObjectId,
+        comment_id: &ObjectId,
+    ) -> mongodb::error::Result<Option<CommentDocument>> {
+        self.task_comments
+            .find_one(
+                doc! { "_id": comment_id, "workspace_id": workspace_id, "task_id": task_id },
+                None,
+            )
+            .await
+    }
+
+    pub async fn find_comments_by_task(
+        &self,
+        workspace_id: &ObjectId,
+        task_id: &ObjectId,
+    ) -> mongodb::error::Result<Vec<CommentDocument>> {
+        let query = doc! {
+            "workspace_id": workspace_id,
+            "task_id": task_id,
+        };
+        let mut cursor = self.task_comments.find(query, None).await?;
+        let mut comments = Vec::new();
+        while let Some(result) = cursor.next().await {
+            match result {
+                Ok(doc) => comments.push(doc),
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(comments)
+    }
+
+    pub async fn find_comment_images_paginated(
+        &self,
+        workspace_id: &ObjectId,
+        task_id: &ObjectId,
+        comment_id: &ObjectId,
+        page: u64,
+        limit: u64,
+    ) -> mongodb::error::Result<Option<(Vec<CommentImage>, u64)>> {
+        let comment = match self.find_comment_by_id(workspace_id, task_id, comment_id).await? {
+            Some(c) => c,
+            None => return Ok(None),
+        };
+        let total = comment.images.len() as u64;
+        let skip = ((page - 1) * limit) as usize;
+        let end = (skip + limit as usize).min(comment.images.len());
+        let items = if skip >= comment.images.len() {
+            Vec::new()
+        } else {
+            comment.images[skip..end].to_vec()
+        };
+        Ok(Some((items, total)))
+    }
+
+    pub async fn delete_comment(
+        &self,
+        workspace_id: &ObjectId,
+        task_id: &ObjectId,
+        comment_id: &ObjectId,
+    ) -> mongodb::error::Result<Option<CommentDocument>> {
+        self.task_comments
+            .find_one_and_delete(
+                doc! { "_id": comment_id, "workspace_id": workspace_id, "task_id": task_id },
+                None,
+            )
+            .await
+    }
+
+    pub async fn delete_comments_by_task(
+        &self,
+        workspace_id: &ObjectId,
+        task_id: &ObjectId,
+    ) -> mongodb::error::Result<u64> {
+        let res = self
+            .task_comments
+            .delete_many(doc! { "workspace_id": workspace_id, "task_id": task_id }, None)
+            .await?;
+        Ok(res.deleted_count)
+    }
+
+    pub async fn update_comment_content(
+        &self,
+        workspace_id: &ObjectId,
+        task_id: &ObjectId,
+        comment_id: &ObjectId,
+        content: String,
+    ) -> mongodb::error::Result<bool> {
+        let res = self
+            .task_comments
+            .update_one(
+                doc! { "_id": comment_id, "workspace_id": workspace_id, "task_id": task_id },
+                doc! { "$set": { "content": content, "updated_at": chrono::Utc::now().to_rfc3339() } },
+                None,
+            )
+            .await?;
+        Ok(res.matched_count > 0)
+    }
+
     // ===== PROJECTS =====
 
     pub async fn find_projects(&self, workspace_id: &ObjectId) -> mongodb::error::Result<Vec<ProjectDocument>> {
@@ -317,6 +484,7 @@ impl DataRepository {
         self.projects.delete_many(doc! { "workspace_id": workspace_id }, None).await?;
         self.assignees.delete_many(doc! { "workspace_id": workspace_id }, None).await?;
         self.sprints.delete_many(doc! { "workspace_id": workspace_id }, None).await?;
+        self.task_comments.delete_many(doc! { "workspace_id": workspace_id }, None).await?;
         Ok(())
     }
 }

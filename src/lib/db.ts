@@ -10,8 +10,12 @@ import type {
   Project,
   Assignee,
   Sprint,
+  TaskComment,
+  CommentImage,
   FilterOptions,
   PaginatedResponse,
+  PaginatedCommentResponse,
+  PaginatedCommentImageResponse,
 } from "./types";
 import { get } from "svelte/store";
 import { api } from "./apis";
@@ -78,6 +82,37 @@ function docToTask(doc: any): Task {
     sprint_id: doc.sprint_id || null,
     is_archived: doc.is_archived || false,
     checklist: doc.checklist || undefined,
+    created_at: doc.created_at || "",
+    updated_at: doc.updated_at || "",
+  };
+}
+
+function docToCommentImage(doc: any): CommentImage {
+  return {
+    id: doc.id || "",
+    filename: doc.filename || "",
+    file_key: doc.file_key || "",
+    mime_type: doc.mime_type || "application/octet-stream",
+    size: doc.size || 0,
+    uploaded_at: doc.uploaded_at || "",
+    uploader_id: doc.uploader_id || "",
+  };
+}
+
+function docToTaskComment(doc: any): TaskComment {
+  return {
+    id: extractId(doc),
+    workspace_id:
+      typeof doc.workspace_id === "object" && doc.workspace_id?.$oid
+        ? doc.workspace_id.$oid
+        : doc.workspace_id || "",
+    task_id:
+      typeof doc.task_id === "object" && doc.task_id?.$oid
+        ? doc.task_id.$oid
+        : doc.task_id || "",
+    content: doc.content || "",
+    images: Array.isArray(doc.images) ? doc.images.map(docToCommentImage) : [],
+    created_by: doc.created_by || "",
     created_at: doc.created_at || "",
     updated_at: doc.updated_at || "",
   };
@@ -182,6 +217,104 @@ export async function deleteTask(id: string | number): Promise<void> {
     throw new Error(data.error || "Failed to delete task");
   }
   broadcastChange("task", "delete", String(id));
+}
+
+export async function getTaskComments(
+  taskId: string | number,
+  options: { page?: number; limit?: number } = {},
+): Promise<PaginatedCommentResponse> {
+  const params: Record<string, string> = {};
+  if (options.page) params.page = String(options.page);
+  if (options.limit) params.limit = String(options.limit);
+
+  const res = await api.data.comments.list(wsId(), String(taskId), params);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to fetch task comments");
+
+  return {
+    success: true,
+    comments: (data.comments || []).map(docToTaskComment),
+    total: data.total || 0,
+    page: data.page || options.page || 1,
+    limit: data.limit || options.limit || 10,
+    pages: data.pages || 0,
+  };
+}
+
+export async function createTaskComment(
+  taskId: string | number,
+  payload: { content?: string; files?: File[] },
+): Promise<TaskComment> {
+  const formData = new FormData();
+  const trimmed = payload.content?.trim() || "";
+  if (trimmed) formData.append("content", trimmed);
+  for (const file of payload.files || []) {
+    formData.append("images", file);
+  }
+
+  const res = await api.data.comments.create(wsId(), String(taskId), formData);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to create comment");
+  const comment = docToTaskComment(data.comment || {});
+  broadcastChange("comment", "create", String(comment.id || ""), comment);
+  return comment;
+}
+
+export async function getCommentImages(
+  taskId: string | number,
+  commentId: string | number,
+  options: { page?: number; limit?: number } = {},
+): Promise<PaginatedCommentImageResponse> {
+  const params: Record<string, string> = {};
+  if (options.page) params.page = String(options.page);
+  if (options.limit) params.limit = String(options.limit);
+
+  const res = await api.data.comments.images(
+    wsId(),
+    String(taskId),
+    String(commentId),
+    params,
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to fetch comment images");
+  return {
+    success: true,
+    images: (data.images || []).map(docToCommentImage),
+    total: data.total || 0,
+    page: data.page || options.page || 1,
+    limit: data.limit || options.limit || 6,
+    pages: data.pages || 0,
+  };
+}
+
+export async function deleteTaskComment(
+  taskId: string | number,
+  commentId: string | number,
+): Promise<void> {
+  const res = await api.data.comments.delete(
+    wsId(),
+    String(taskId),
+    String(commentId),
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to delete comment");
+  broadcastChange("comment", "delete", String(commentId));
+}
+
+export async function updateTaskCommentText(
+  taskId: string | number,
+  commentId: string | number,
+  content: string,
+): Promise<void> {
+  const res = await api.data.comments.update(
+    wsId(),
+    String(taskId),
+    String(commentId),
+    { content },
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to update comment");
+  broadcastChange("comment", "update", String(commentId), { content });
 }
 
 export async function getTasks(

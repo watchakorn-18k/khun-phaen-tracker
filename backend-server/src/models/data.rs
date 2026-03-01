@@ -13,6 +13,46 @@ pub struct Attachment {
     pub uploader_id: String,
 }
 
+// ===== Comment Model =====
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommentImage {
+    pub id: String,
+    pub filename: String,
+    pub file_key: String,
+    pub mime_type: String,
+    pub size: i64,
+    pub uploaded_at: String,
+    pub uploader_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommentDocument {
+    #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
+    pub id: Option<ObjectId>,
+    pub workspace_id: ObjectId,
+    pub task_id: ObjectId,
+    #[serde(default)]
+    pub content: String,
+    #[serde(default)]
+    pub images: Vec<CommentImage>,
+    pub created_by: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<String>,
+}
+
+#[derive(Debug, Default)]
+pub struct CreateCommentMultipart {
+    pub content: String,
+    pub images: Vec<CommentImage>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateCommentRequest {
+    pub content: String,
+}
+
 // ===== Task Document =====
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -223,6 +263,32 @@ pub struct TaskFilterQuery {
 pub struct PaginatedTaskResponse {
     pub success: bool,
     pub tasks: Vec<TaskDocument>,
+    pub total: u64,
+    pub page: u64,
+    pub limit: u64,
+    pub pages: u64,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct CommentPaginationQuery {
+    pub page: Option<u64>,
+    pub limit: Option<u64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaginatedCommentResponse {
+    pub success: bool,
+    pub comments: Vec<CommentDocument>,
+    pub total: u64,
+    pub page: u64,
+    pub limit: u64,
+    pub pages: u64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaginatedCommentImageResponse {
+    pub success: bool,
+    pub images: Vec<CommentImage>,
     pub total: u64,
     pub page: u64,
     pub limit: u64,
