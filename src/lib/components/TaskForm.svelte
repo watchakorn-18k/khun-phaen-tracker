@@ -327,6 +327,58 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 		return comment.created_by || $_('taskForm__comments_unknown_author');
 	}
 
+	function escapeHtml(input: string): string {
+		return input
+			.replaceAll('&', '&amp;')
+			.replaceAll('<', '&lt;')
+			.replaceAll('>', '&gt;')
+			.replaceAll('"', '&quot;')
+			.replaceAll("'", '&#39;');
+	}
+
+	function extractCommentUrls(content?: string): string[] {
+		if (!content) return [];
+		const matches = content.match(/https?:\/\/[^\s<>"']+/g) || [];
+		const normalized = matches
+			.map((url) => {
+				try {
+					return new URL(url).toString();
+				} catch {
+					return '';
+				}
+			})
+			.filter(Boolean);
+		return Array.from(new Set(normalized));
+	}
+
+	function linkifyCommentContent(content?: string): string {
+		if (!content) return '';
+		const escaped = escapeHtml(content);
+		const withLinks = escaped.replace(
+			/(https?:\/\/[^\s<>"']+)/g,
+			'<a href="$1" target="_blank" rel="noreferrer noopener" class="text-primary underline underline-offset-2 break-all">$1</a>'
+		);
+		return withLinks.replaceAll('\n', '<br>');
+	}
+
+	function getUrlMetaPreview(url: string): { host: string; path: string; favicon: string } {
+		try {
+			const parsed = new URL(url);
+			const path = `${parsed.pathname || '/'}${parsed.search || ''}`;
+			return {
+				host: parsed.hostname,
+				path: path.length > 72 ? `${path.slice(0, 72)}...` : path,
+				favicon: `https://www.google.com/s2/favicons?domain=${parsed.hostname}&sz=64`
+			};
+		} catch {
+			return {
+				host: url,
+				path: '',
+				favicon: ''
+			};
+		}
+	}
+
 	function formatCommentTime(value?: string): string {
 		if (!value) return '';
 		const date = new Date(value);
@@ -854,7 +906,32 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 															</div>
 														</div>
 													{:else if comment.content}
-														<p class="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap rounded-lg bg-gray-50 dark:bg-gray-900/60 px-3 py-2">{comment.content}</p>
+														<div class="space-y-2">
+															<p class="text-sm text-gray-800 dark:text-gray-200 rounded-lg bg-gray-50 dark:bg-gray-900/60 px-3 py-2 break-words"><span>{@html linkifyCommentContent(comment.content)}</span></p>
+															{#if extractCommentUrls(comment.content).length > 0}
+																<div class="space-y-1.5">
+																	{#each extractCommentUrls(comment.content) as url}
+																		{@const meta = getUrlMetaPreview(url)}
+																		<a
+																			href={url}
+																			target="_blank"
+																			rel="noreferrer noopener"
+																			class="block rounded-lg border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-gray-900/70 px-2.5 py-2 hover:border-primary/50 transition-colors"
+																		>
+																			<div class="flex items-center gap-2">
+																				{#if meta.favicon}
+																					<img src={meta.favicon} alt={meta.host} class="w-4 h-4 rounded-sm shrink-0" loading="lazy" />
+																				{/if}
+																				<div class="min-w-0">
+																					<p class="text-[11px] font-semibold text-gray-800 dark:text-gray-200 truncate">{meta.host}</p>
+																					<p class="text-[10px] text-gray-500 dark:text-gray-400 truncate">{meta.path}</p>
+																				</div>
+																			</div>
+																		</a>
+																	{/each}
+																</div>
+															{/if}
+														</div>
 													{/if}
 													{#if getImageState(comment.id)?.total > 0}
 														{#if getImageState(comment.id)?.loading}
