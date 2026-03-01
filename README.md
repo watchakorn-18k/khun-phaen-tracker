@@ -136,7 +136,14 @@ STORAGE_BUCKET="khunphaen-assets"
 npm run dev
 
 # Run RustFS storage service (optional but recommended for attachments)
-podman-compose up -d rustfs
+# Create data and logs directories
+mkdir -p data logs
+
+# Change the owner of these directories
+chown -R 10001:10001 data logs
+sudo podman run -d -p 9000:9000 -p 9001:9001 -v $(pwd)/data:/data -v $(pwd)/logs:/logs -e RUSTFS_ACCESS_KEY=khunphaen -e RUSTFS_SECRET_KEY=khunphaen rustfs/rustfs:latest 
+
+# Create Bucket name khunphaen-assets
 
 # In another terminal, run backend
 cd backend-server
