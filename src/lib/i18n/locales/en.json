@@ -604,6 +604,8 @@
 	"dashboard__no_results": "No workspaces match your search",
 	"dashboard__btn_pin": "Pin workspace",
 	"dashboard__btn_unpin": "Unpin workspace",
+	"dashboard__btn_copy_link": "Copy workspace link",
+	"dashboard__copy_success": "Copied!",
 	"users__title": "User Management",
 	"users__subtitle": "Manage your team members and their roles.",
 	"users__total_users": "Total Users",

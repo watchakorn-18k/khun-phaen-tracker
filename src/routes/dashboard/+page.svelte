@@ -10,7 +10,7 @@
     import {
         Plus, LayoutTemplate, ArrowRight, Loader2, FolderOpen,
         Pencil, Trash2, Search, ArrowUpDown, LayoutGrid, List,
-        Star, Clock, Layers
+        Star, Clock, Layers, Copy, Check
     } from 'lucide-svelte';
 
     interface Workspace {
@@ -54,6 +54,16 @@
     let recentEntries: RecentEntry[] = [];
     let workspaceTaskCounts: Record<string, number | null> = {};
     let showSortDropdown = false;
+    let copiedId: string | null = null;
+
+    async function copyWorkspaceLink(wsId: string, roomCode: string) {
+        try {
+            const link = `${window.location.origin}${base}/workspace/${wsId}?room=${roomCode}`;
+            await navigator.clipboard.writeText(link);
+            copiedId = wsId;
+            setTimeout(() => { if (copiedId === wsId) copiedId = null; }, 1500);
+        } catch {}
+    }
 
     // --- localStorage helpers ---
     function loadPinned() {
@@ -545,6 +555,17 @@
                                             >
                                                 <Star size={15} fill="currentColor" />
                                             </button>
+                                            <button
+                                                on:click|stopPropagation={() => copyWorkspaceLink(ws.id, ws.room_code)}
+                                                class="p-1.5 rounded-lg transition-colors {copiedId === ws.id ? 'text-emerald-500' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800'}"
+                                                title={copiedId === ws.id ? $_('dashboard__copy_success') : $_('dashboard__btn_copy_link')}
+                                            >
+                                                {#if copiedId === ws.id}
+                                                    <Check size={15} />
+                                                {:else}
+                                                    <Copy size={15} />
+                                                {/if}
+                                            </button>
                                             {#if isOwner}
                                                 <button
                                                     on:click|stopPropagation={() => openEditModal(ws)}
@@ -601,6 +622,17 @@
                                                 title={$_('dashboard__btn_unpin')}
                                             >
                                                 <Star size={14} fill="currentColor" />
+                                            </button>
+                                            <button
+                                                on:click|stopPropagation={() => copyWorkspaceLink(ws.id, ws.room_code)}
+                                                class="p-1 rounded-lg transition-colors {copiedId === ws.id ? 'text-emerald-500' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800'}"
+                                                title={copiedId === ws.id ? $_('dashboard__copy_success') : $_('dashboard__btn_copy_link')}
+                                            >
+                                                {#if copiedId === ws.id}
+                                                    <Check size={14} />
+                                                {:else}
+                                                    <Copy size={14} />
+                                                {/if}
                                             </button>
                                             {#if isOwner}
                                                 <button on:click|stopPropagation={() => openEditModal(ws)} class="p-1 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors" title={$_('dashboard__btn_edit')}>
@@ -682,6 +714,17 @@
                                             >
                                                 <Star size={15} />
                                             </button>
+                                            <button
+                                                on:click|stopPropagation={() => copyWorkspaceLink(ws.id, ws.room_code)}
+                                                class="p-1.5 rounded-lg transition-colors {copiedId === ws.id ? 'text-emerald-500' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800'}"
+                                                title={copiedId === ws.id ? $_('dashboard__copy_success') : $_('dashboard__btn_copy_link')}
+                                            >
+                                                {#if copiedId === ws.id}
+                                                    <Check size={15} />
+                                                {:else}
+                                                    <Copy size={15} />
+                                                {/if}
+                                            </button>
                                             {#if isOwner}
                                                 <button
                                                     on:click|stopPropagation={() => openEditModal(ws)}
@@ -738,6 +781,17 @@
                                                 title={$_('dashboard__btn_pin')}
                                             >
                                                 <Star size={14} />
+                                            </button>
+                                            <button
+                                                on:click|stopPropagation={() => copyWorkspaceLink(ws.id, ws.room_code)}
+                                                class="p-1 rounded-lg transition-colors {copiedId === ws.id ? 'text-emerald-500' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800'}"
+                                                title={copiedId === ws.id ? $_('dashboard__copy_success') : $_('dashboard__btn_copy_link')}
+                                            >
+                                                {#if copiedId === ws.id}
+                                                    <Check size={14} />
+                                                {:else}
+                                                    <Copy size={14} />
+                                                {/if}
                                             </button>
                                             {#if isOwner}
                                                 <button on:click|stopPropagation={() => openEditModal(ws)} class="p-1 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors" title={$_('dashboard__btn_edit')}>

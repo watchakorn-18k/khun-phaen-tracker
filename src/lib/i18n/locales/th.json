@@ -616,6 +616,8 @@
 	"dashboard__no_results": "ไม่พบ Workspace ที่ตรงกับการค้นหา",
 	"dashboard__btn_pin": "ปักหมุด",
 	"dashboard__btn_unpin": "เลิกปักหมุด",
+	"dashboard__btn_copy_link": "คัดลอกลิงก์ Workspace",
+	"dashboard__copy_success": "คัดลอกแล้ว!",
 	"users__title": "การจัดการผู้ใช้งาน",
 	"users__subtitle": "จัดการสมาชิกในทีมและบทบาทของพวกเขา",
 	"users__total_users": "ผู้ใช้งานทั้งหมด",
