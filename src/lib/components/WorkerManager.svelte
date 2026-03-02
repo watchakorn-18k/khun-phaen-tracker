@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
 	import type { Assignee } from '$lib/types';
-	import { Users, Plus, X, Edit2, Trash2, User, Briefcase, Check, Link, Link2Off, RefreshCw, Mail } from 'lucide-svelte';
+	import { Users, Plus, X, Edit2, Trash2, User, Briefcase, Check, Link, RefreshCw, Mail } from 'lucide-svelte';
 	import { _ } from 'svelte-i18n';
 	import { api } from '$lib/apis';
 	import SearchableSelect from './SearchableSelect.svelte';
@@ -82,7 +82,7 @@
 
 	function handleUserLinkChange(userId: string) {
 		if (userId) {
-			const user = systemUsers.find(u => u.id === userId);
+			const user = systemUsers.find((u) => String(u.id) === String(userId) || String(u.user_id) === String(userId));
 			if (user) {
 				// Only auto-fill when adding a new worker, NOT when editing
 				if (!editingWorker) {
@@ -137,7 +137,7 @@
 
 	function getLinkedUser(userId?: string) {
 		if (!userId) return null;
-		return systemUsers.find(u => u.id === userId);
+		return systemUsers.find((u) => String(u.id) === String(userId) || String(u.user_id) === String(userId));
 	}
 
 	$: usedUserIds = new Set(
@@ -146,7 +146,9 @@
 			.filter((id): id is string => !!id && id !== newWorkerUserId)
 	);
 
-	$: availableSystemUsers = systemUsers.filter((u) => !usedUserIds.has(u.id));
+	$: availableSystemUsers = systemUsers.filter(
+		(u) => !usedUserIds.has(String(u.id)) && !usedUserIds.has(String(u.user_id))
+	);
 	
 	function handleBackdropClick(e: MouseEvent) {
 		if (e.target === e.currentTarget) {
@@ -201,7 +203,7 @@
 								options={[
 									{ value: '', label: '-- ' + $_('workerManager__link_user_placeholder') + ' --' },
 									...availableSystemUsers.map(user => ({
-										value: user.id,
+										value: String(user.id || user.user_id || ''),
 										label: `${user.nickname || user.first_name || user.email.split('@')[0]} (${user.email})`,
 										badge: user.is_active !== undefined,
 										badgeColor: user.is_active ? '#22C55E' : '#FBBF24'
@@ -310,8 +312,8 @@
 				{:else}
 					{#each assignees as worker (worker.id)}
 						{@const linkedUser = getLinkedUser(worker.user_id)}
+						{@const isLinked = !!worker.user_id || !!linkedUser}
 						{@const displayEmail = worker.email || linkedUser?.email}
-						{@const linkedDiscordId = linkedUser?.discord_id || linkedUser?.profile?.discord_id}
 						<div class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 rounded-2xl group hover:border-primary/30 hover:bg-gray-50 dark:hover:bg-white/5 transition-all shadow-sm">
 							<!-- Color Avatar -->
 							<div
@@ -325,8 +327,8 @@
 							<div class="flex-1 min-w-0">
 								<div class="flex items-center gap-2">
 									<h4 class="font-bold text-gray-900 dark:text-white truncate">{worker.name}</h4>
-									{#if linkedUser}
-										<div class="px-1.5 py-0.5 bg-green-500/10 text-green-500 rounded text-[9px] font-black uppercase tracking-tighter flex items-center gap-0.5" title={`${$_('workerManager__linked_status')}: ${linkedUser.email}`}>
+									{#if isLinked}
+										<div class="px-1.5 py-0.5 bg-green-500/10 text-green-500 rounded text-[9px] font-black uppercase tracking-tighter flex items-center gap-0.5" title={`${$_('workerManager__linked_status')}${displayEmail ? `: ${displayEmail}` : ''}`}>
 											<Link size={8} /> {$_('workerManager__linked_status')}
 										</div>
 									{/if}
@@ -342,17 +344,6 @@
 										<Briefcase size={10} />
 										<span>{getTaskCount(worker.id!)} {$_('workerManager__task_count_suffix')}</span>
 									</div>
-									{#if linkedDiscordId}
-										<div class="flex items-center gap-1 text-[11px] text-indigo-500/70 font-medium">
-											<Mail size={10} />
-											<span>{linkedDiscordId}</span>
-										</div>
-									{:else if worker.discord_id}
-										<div class="flex items-center gap-1 text-[11px] text-indigo-500/50 font-medium">
-											<Mail size={10} />
-											<span>{worker.discord_id}</span>
-										</div>
-									{/if}
 								</div>
 							</div>
 
