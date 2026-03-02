@@ -104,8 +104,8 @@
     submitting = true;
     error = "";
 
-    // Combine date and time to ISO string
-    const combinedIso = `${targetDate}T${targetHour}:${targetMinute}:00Z`;
+    // Combine date and time — no 'Z' so it's treated as local time
+    const combinedIso = `${targetDate}T${targetHour}:${targetMinute}:00`;
 
     try {
       let res;
@@ -151,10 +151,13 @@
     description = m.description || "";
 
     const dateObj = new Date(m.target_date);
-    // Use UTC methods to match the 'Z' appended in handleSubmit
-    targetDate = dateObj.toISOString().split("T")[0];
-    targetHour = String(dateObj.getUTCHours()).padStart(2, "0");
-    targetMinute = String(Math.floor(dateObj.getUTCMinutes() / 5) * 5).padStart(
+    // Use local time methods to match local time storage
+    const y = dateObj.getFullYear();
+    const mo = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const d = String(dateObj.getDate()).padStart(2, "0");
+    targetDate = `${y}-${mo}-${d}`;
+    targetHour = String(dateObj.getHours()).padStart(2, "0");
+    targetMinute = String(Math.floor(dateObj.getMinutes() / 5) * 5).padStart(
       2,
       "0",
     );

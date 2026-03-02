@@ -787,6 +787,8 @@
 	"milestone.hide_tooltip": "ซ่อน",
 	"milestone.edit_tooltip": "แก้ไข",
 	"milestone.btn_countdown": "นับถอยหลัง",
+	"milestone.launched": "บรรลุเป้าหมาย!",
+	"milestone.elapsed": "ผ่านไปแล้ว",
 	"milestone.delete_title": "ลบทิ้งถาวร",
 	"users__title": "การจัดการผู้ใช้งาน",
 	"users__subtitle": "จัดการสมาชิกในทีมและบทบาทของพวกเขา",

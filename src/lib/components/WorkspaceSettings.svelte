@@ -28,6 +28,10 @@
     CheckCircle2,
     RefreshCcw,
     Settings,
+    ClipboardList,
+    Loader,
+    FlaskConical,
+    CircleCheckBig,
   } from "lucide-svelte";
   import { fade, scale, slide } from "svelte/transition";
 
@@ -433,19 +437,21 @@
                   {#each ["todo", "in-progress", "in-test", "done"] as status}
                     <button
                       on:click={() => toggleStatus(status)}
-                      class="px-4 py-2 rounded-xl text-xs font-bold transition-all border-2 {notifyOnStatusChange.includes(
+                      class="px-4 py-2 rounded-xl text-xs font-bold transition-all border-2 flex items-center gap-1.5 {notifyOnStatusChange.includes(
                         status,
                       )
                         ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20'
                         : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 text-gray-400 hover:border-gray-200'}"
                     >
-                      {status === "todo"
-                        ? "📝 "
-                        : status === "in-progress"
-                          ? "🔄 "
-                          : status === "in-test"
-                            ? "🧪 "
-                            : "✅ "}
+                      {#if status === "todo"}
+                        <ClipboardList size={14} />
+                      {:else if status === "in-progress"}
+                        <Loader size={14} />
+                      {:else if status === "in-test"}
+                        <FlaskConical size={14} />
+                      {:else}
+                        <CircleCheckBig size={14} />
+                      {/if}
                       {$_(`page__filter_status_${status.replace("-", "_")}`)}
                     </button>
                   {/each}

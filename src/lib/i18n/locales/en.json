@@ -773,6 +773,8 @@
 	"milestone.hide_tooltip": "Hide",
 	"milestone.edit_tooltip": "Edit",
 	"milestone.btn_countdown": "Countdown",
+	"milestone.launched": "LAUNCHED!",
+	"milestone.elapsed": "Elapsed",
 	"milestone.delete_title": "Delete Permanently",
 	"users__title": "User Management",
 	"users__subtitle": "Manage your team members and their roles.",
