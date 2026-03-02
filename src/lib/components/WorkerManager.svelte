@@ -310,6 +310,7 @@
 				{:else}
 					{#each assignees as worker (worker.id)}
 						{@const linkedUser = getLinkedUser(worker.user_id)}
+						{@const displayEmail = worker.email || linkedUser?.email}
 						{@const linkedDiscordId = linkedUser?.discord_id || linkedUser?.profile?.discord_id}
 						<div class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 rounded-2xl group hover:border-primary/30 hover:bg-gray-50 dark:hover:bg-white/5 transition-all shadow-sm">
 							<!-- Color Avatar -->
@@ -331,6 +332,12 @@
 									{/if}
 								</div>
 								<div class="flex items-center gap-3 mt-0.5">
+									{#if displayEmail}
+										<div class="flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400 font-medium truncate">
+											<Mail size={10} />
+											<span class="truncate" title={displayEmail}>{displayEmail}</span>
+										</div>
+									{/if}
 									<div class="flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400 font-medium">
 										<Briefcase size={10} />
 										<span>{getTaskCount(worker.id!)} {$_('workerManager__task_count_suffix')}</span>

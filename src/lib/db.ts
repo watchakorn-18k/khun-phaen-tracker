@@ -150,6 +150,7 @@ function docToAssignee(doc: any): Assignee {
     color: doc.color || "#6366F1",
     discord_id: doc.discord_id || undefined,
     user_id: doc.user_id || undefined,
+    email: doc.email || undefined,
     created_at: doc.created_at || "",
   };
 }

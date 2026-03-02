@@ -1104,8 +1104,69 @@ pub async fn list_assignees(
 
     let repo = DataRepository::new(&state.db);
     match repo.find_assignees(&ws_oid).await {
-        Ok(assignees) => axum::Json(serde_json::json!({ "success": true, "assignees": assignees }))
-            .into_response(),
+        Ok(assignees) => {
+            let linked_user_ids: Vec<String> = assignees
+                .iter()
+                .filter_map(|a| a.user_id.clone())
+                .collect();
+
+            let mut email_by_user_id = std::collections::HashMap::new();
+            if !linked_user_ids.is_empty() {
+                let users_coll = state.db.collection::<crate::models::user::User>("users");
+                let linked_object_ids: Vec<ObjectId> = linked_user_ids
+                    .iter()
+                    .filter_map(|id| ObjectId::parse_str(id).ok())
+                    .collect();
+
+                if let Ok(mut cursor) = users_coll
+                    .find(
+                        doc! {
+                            "$or": [
+                                { "user_id": { "$in": &linked_user_ids } },
+                                { "_id": { "$in": &linked_object_ids } }
+                            ]
+                        },
+                        None,
+                    )
+                    .await
+                {
+                    while let Some(result) = cursor.next().await {
+                        if let Ok(user) = result {
+                            let email = user.email;
+                            // Map by both stable UUID and Mongo ObjectId string to support mixed stored formats.
+                            email_by_user_id.insert(user.user_id, email.clone());
+                            if let Some(oid) = user.id {
+                                email_by_user_id.insert(oid.to_hex(), email);
+                            }
+                        }
+                    }
+                }
+            }
+
+            let assignees_with_email: Vec<serde_json::Value> = assignees
+                .into_iter()
+                .map(|a| {
+                    let mut value = serde_json::to_value(&a).unwrap_or_else(|_| serde_json::json!({}));
+                    if let (Some(user_id), Some(email)) = (
+                        a.user_id.as_ref(),
+                        a.user_id
+                            .as_ref()
+                            .and_then(|id| email_by_user_id.get(id).cloned()),
+                    ) {
+                        if let Some(obj) = value.as_object_mut() {
+                            obj.insert("user_id".to_string(), serde_json::json!(user_id));
+                            obj.insert("email".to_string(), serde_json::json!(email));
+                        }
+                    }
+                    value
+                })
+                .collect();
+
+            axum::Json(
+                serde_json::json!({ "success": true, "assignees": assignees_with_email }),
+            )
+            .into_response()
+        }
         Err(e) => (
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
             axum::Json(serde_json::json!({ "error": format!("{}", e) })),
