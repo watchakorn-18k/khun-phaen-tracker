@@ -37,7 +37,7 @@
   import WorkspaceModals from "$lib/components/WorkspaceModals.svelte";
   import StatsPanel from "$lib/components/StatsPanel.svelte";
   import StatusToast from "$lib/components/StatusToast.svelte";
-  import VideoExportProgress from "$lib/components/VideoExportProgress.svelte";
+  import ExportProgress from "$lib/components/ExportProgress.svelte";
   import AccessDenied from "$lib/components/AccessDenied.svelte";
   import WorkspaceLoading from "$lib/components/WorkspaceLoading.svelte";
   import DailyReflect from "$lib/components/DailyReflect.svelte";
@@ -72,6 +72,7 @@
     loadData,
     debouncedLoadData,
     showMessage,
+    videoExportState,
   } = ws;
 
   const { currentView, pageSize, currentPage } = viewActions;
@@ -168,6 +169,7 @@
       const data = await res.json();
       checkingAccess.set(false);
       if (data.success && data.has_access) {
+        hasAccess.set(true);
         setWorkspaceId(
           workspaceId,
           data.workspace?.name || "",
@@ -175,7 +177,6 @@
           data.workspace?.color,
           data.workspace?.icon,
         );
-        hasAccess.set(true);
         connectRealtime(urlRoom, (payload) =>
           workspaceActions.handleRealtimeUpdate(payload),
         );
@@ -183,9 +184,12 @@
         await fetchMilestones();
         filters.set(restoreFilters($sprints));
         initWasmSearch();
+      } else {
+        hasAccess.set(false);
       }
     } catch (err) {
       checkingAccess.set(false);
+      hasAccess.set(false);
     }
     document.addEventListener("keydown", keyboardHandler);
   });
@@ -215,15 +219,22 @@
   }
 </script>
 
-<VideoExportProgress inProgress={false} percent={0} elapsedMs={0} />
-<StatusToast message={$toast?.message || ""} type={$toast?.type || "success"} />
-
 <div class="max-w-7xl mx-auto space-y-6 pb-24">
   {#if $checkingAccess}
     <WorkspaceLoading />
   {:else if !$hasAccess}
     <AccessDenied />
   {:else}
+    <ExportProgress
+      inProgress={$videoExportState.inProgress}
+      percent={$videoExportState.percent}
+      elapsedMs={$videoExportState.elapsedMs}
+    />
+    <StatusToast
+      message={$toast?.message || ""}
+      type={$toast?.type || "success"}
+    />
+
     {#if visibleMilestones.length > 0}
       <div class="grid gap-6">
         {#each visibleMilestones as milestone}
@@ -244,6 +255,7 @@
     <SearchAndActions
       isFiltersOpen={$modals.filters}
       {isOwner}
+      {videoExportState}
       on:toggleFilters={() => uiActions.toggleModal("filters")}
       on:openWorkerManager={() => uiActions.openModal("workerManager")}
       on:openProjectManager={() => uiActions.openModal("projectManager")}

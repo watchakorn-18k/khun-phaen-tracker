@@ -62,13 +62,18 @@ export function createWorkspacePageStore() {
   const filters = writable<FilterOptions>({ ...DEFAULT_FILTERS });
   const searchInput = writable("");
 
+  const videoExportState = writable({
+    inProgress: false,
+    percent: 0,
+    elapsedMs: 0,
+    timer: null as any,
+  });
+
   const viewActions = createViewActions({
     loadData: () => loadData(),
   });
 
-  const uiActions = createUIActions({
-    notify: (msg, type) => showMessage(msg, type),
-  });
+  const uiActions = createUIActions({});
 
   const searchActions = createSearchActions({
     getFilters: () => get(filters),
@@ -137,13 +142,8 @@ export function createWorkspacePageStore() {
     getMonthlySummary: () =>
       buildMonthlySummary(get(allTasksIncludingArchived)),
     getMonthlySummaryRef: () => undefined,
-    getVideoExportState: () => ({
-      inProgress: false,
-      percent: 0,
-      elapsedMs: 0,
-      timer: null,
-    }),
-    setVideoExportState: (st) => {},
+    getVideoExportState: () => get(videoExportState),
+    setVideoExportState: (st) => videoExportState.set(st),
     getFilters: () => get(filters),
     setFilters: (v) => filters.set(v),
     setSearchInput: (v) => searchInput.set(v),
@@ -221,5 +221,6 @@ export function createWorkspacePageStore() {
     loadData,
     debouncedLoadData,
     showMessage,
+    videoExportState,
   };
 }

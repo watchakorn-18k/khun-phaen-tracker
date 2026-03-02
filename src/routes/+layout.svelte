@@ -22,7 +22,14 @@
   import ProfileModal from "$lib/components/ProfileModal.svelte";
   import { _ } from "svelte-i18n";
   import { initAuth, user, authLoading } from "$lib/stores/auth";
-  import { LogIn, LogOut, User as UserIcon, Settings } from "lucide-svelte";
+  import {
+    LogIn,
+    LogOut,
+    User as UserIcon,
+    Settings,
+    Lock,
+    Unlock,
+  } from "lucide-svelte";
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
   import { base } from "$app/paths";
@@ -43,6 +50,19 @@
   let whiteboardMessage = "";
   let whiteboardMessageType: "success" | "error" = "success";
   let githubStars = "...";
+
+  let scrollY = 0;
+  let showHeader = true;
+  let isNavbarLocked = true;
+
+  $: {
+    showHeader = isNavbarLocked || scrollY < 100;
+  }
+
+  function toggleNavbarLock() {
+    isNavbarLocked = !isNavbarLocked;
+    document.cookie = `navbarLocked=${isNavbarLocked}; path=/; max-age=31536000; SameSite=Lax`;
+  }
 
   async function fetchGithubStars() {
     try {
@@ -78,6 +98,16 @@
   }
 
   onMount(async () => {
+    // Read navbar lock state from cookie
+    if (browser) {
+      const lockCookie = document.cookie
+        .split(";")
+        .find((c) => c.trim().startsWith("navbarLocked="));
+      if (lockCookie) {
+        isNavbarLocked = lockCookie.split("=")[1] === "true";
+      }
+    }
+
     try {
       await Promise.all([initDB(), initAuth()]);
       loading = false;
@@ -196,6 +226,7 @@
   $: isDashboard = $page.url.pathname.includes("/dashboard");
   $: isWorkspacePage = $page.url.pathname.includes("/workspace/");
   $: isUsersPage = $page.url.pathname.includes("/settings/users");
+  $: isErrorPage = $page.status >= 400;
   $: containerWidth =
     isDashboard || isWorkspacePage
       ? "w-full max-w-full px-4 sm:px-8"
@@ -221,6 +252,8 @@
 <svelte:head>
   <link rel="icon" href={favicon} type="image/svg+xml" />
 </svelte:head>
+
+<svelte:window bind:scrollY />
 
 <div
   class="app-surface min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors flex flex-col"
@@ -269,7 +302,9 @@
     </main>
   {:else}
     <header
-      class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-999 transition-colors"
+      class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-999 transition-all duration-300 {showHeader
+        ? 'translate-y-0'
+        : '-translate-y-full'}"
     >
       <div class="{containerWidth} mx-auto">
         <div class="flex items-center justify-between h-16">
@@ -556,6 +591,21 @@
                     </div>
                   {/if}
                 </div>
+
+                <!-- Navbar Lock Toggle -->
+                <button
+                  on:click={toggleNavbarLock}
+                  class="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  title={isNavbarLocked
+                    ? $_("layout__unlock_navbar")
+                    : $_("layout__lock_navbar")}
+                >
+                  {#if isNavbarLocked}
+                    <Unlock size={20} />
+                  {:else}
+                    <Lock size={20} />
+                  {/if}
+                </button>
               </div>
             {:else if !isAuthPage && !$authLoading}
               <a
@@ -588,7 +638,7 @@
     {/if}
 
     <!-- Dev Timer - Fixed Bottom Right -->
-    {#if !isDashboard && !isUsersPage}
+    {#if !isDashboard && !isUsersPage && !isErrorPage}
       <DevTimer
         on:showBookmarks={() => (showBookmarkManager = true)}
         on:showWhiteboard={() => (showWhiteboard = true)}

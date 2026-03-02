@@ -569,6 +569,7 @@ export function createExportActions(deps: ExportActionDeps) {
         stream.addTrack(audioBed.track);
       }
       const exportStart = performance.now();
+
       deps.setVideoExportState({
         inProgress: true,
         percent: 0,
@@ -634,9 +635,14 @@ export function createExportActions(deps: ExportActionDeps) {
           ctx.globalAlpha = 1;
         }
         const st = deps.getVideoExportState();
+        const currentPercent = Math.min(
+          100,
+          Math.round(((frame + 1) / totalFrames) * 100),
+        );
+
         deps.setVideoExportState({
           ...st,
-          percent: Math.min(100, Math.round(((frame + 1) / totalFrames) * 100)),
+          percent: currentPercent,
         });
 
         await new Promise((resolve) => setTimeout(resolve, 1000 / fps));
@@ -1066,7 +1072,34 @@ export function createExportActions(deps: ExportActionDeps) {
       return;
     }
     try {
+      const start = performance.now();
+      deps.setVideoExportState({
+        inProgress: true,
+        percent: 0,
+        elapsedMs: 0,
+        timer: setInterval(() => {
+          deps.setVideoExportState({
+            ...deps.getVideoExportState(),
+            elapsedMs: performance.now() - start,
+          });
+        }, 100),
+      });
+
+      // Give UI time to update
+      await new Promise((r) => setTimeout(r, 100));
+
+      deps.setVideoExportState({
+        ...deps.getVideoExportState(),
+        percent: 30,
+      });
+
       const chartImages = await captureMonthlyChartImages();
+
+      deps.setVideoExportState({
+        ...deps.getVideoExportState(),
+        percent: 70,
+      });
+
       const dataUrl = await composeMonthlyReportImage(
         chartImages,
         deps.getMonthlySummary().periodLabel,
@@ -1076,9 +1109,26 @@ export function createExportActions(deps: ExportActionDeps) {
       link.href = dataUrl;
       link.download = `monthly_summary_${formatExportTimestamp()}.png`;
       link.click();
+
+      const st = deps.getVideoExportState();
+      if (st.timer) clearInterval(st.timer);
+      deps.setVideoExportState({
+        ...st,
+        inProgress: false,
+        percent: 100,
+        timer: null,
+      });
+
       deps.notify(deps.t("page__export_monthly_png_success"));
     } catch (error) {
       console.error("Monthly PNG export failed:", error);
+      const st = deps.getVideoExportState();
+      if (st.timer) clearInterval(st.timer);
+      deps.setVideoExportState({
+        ...st,
+        inProgress: false,
+        timer: null,
+      });
       deps.notify(deps.t("page__export_monthly_png_error"), "error");
     }
   }

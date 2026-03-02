@@ -32,7 +32,7 @@
       </svg>
       <div class="flex-1">
         <div class="text-sm font-semibold">
-          {$_("page__video_export_progress", { values: { percent } })}
+          {$_("page__export_progress", { values: { percent } })}
         </div>
         <div class="text-xs text-blue-100">
           {$_("page__video_export_time", {

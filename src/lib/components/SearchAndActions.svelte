@@ -15,6 +15,7 @@
 
   export let isFiltersOpen: boolean = false;
   export let isOwner: boolean = false;
+  export let videoExportState: any = null;
 
   const dispatch = createEventDispatcher();
 
@@ -168,9 +169,10 @@
 
     <ExportImport
       showImport={isOwner}
+      {videoExportState}
       on:exportCSV={handleExportCSV}
       on:exportPDF={handleExportPDF}
-      on:exportPNG={() => showMessage($_("page__export_png_success"))}
+      on:exportPNG={() => {}}
       on:exportMarkdown={handleExportMarkdown}
       on:exportVideo={handleExportVideo}
       on:exportSlide={handleExportSlide}

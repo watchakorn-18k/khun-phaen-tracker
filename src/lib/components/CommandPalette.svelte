@@ -116,8 +116,8 @@
     {
       id: "view-kanban",
       label: t("page__view_kanban"),
-      description: "Switch to Board view",
-      keywords: ["board", "kanban", "column", "view"],
+      description: t("commandPalette__view_kanban_desc"),
+      keywords: ["board", "kanban", "column", "view", "บอร์ด", "คัมบัง"],
       category: "command",
       icon: Trello,
       run: () => switchView("kanban"),
@@ -125,8 +125,8 @@
     {
       id: "view-list",
       label: t("page__view_list"),
-      description: "Switch to List view",
-      keywords: ["table", "rows", "view"],
+      description: t("commandPalette__view_list_desc"),
+      keywords: ["table", "rows", "view", "รายการ", "ตาราง"],
       category: "command",
       icon: ListIcon,
       run: () => switchView("list"),
@@ -134,8 +134,8 @@
     {
       id: "view-calendar",
       label: t("page__view_calendar"),
-      description: "Switch to Calendar view",
-      keywords: ["schedule", "dates", "view"],
+      description: t("commandPalette__view_calendar_desc"),
+      keywords: ["schedule", "dates", "view", "ปฏิทิน", "วันที่"],
       category: "command",
       icon: Calendar,
       run: () => switchView("calendar"),
@@ -143,8 +143,8 @@
     {
       id: "view-table",
       label: t("page__view_table"),
-      description: "Switch to Advanced Table view",
-      keywords: ["spreadsheet", "grid", "detailed"],
+      description: t("commandPalette__view_table_desc"),
+      keywords: ["spreadsheet", "grid", "detailed", "ตาราง", "สเปรดชีต"],
       category: "command",
       icon: LayoutGrid,
       run: () => switchView("table"),
@@ -152,8 +152,8 @@
     {
       id: "view-gantt",
       label: t("page__view_gantt"),
-      description: "Switch to Gantt Chart view",
-      keywords: ["timeline", "roadmap", "schedule"],
+      description: t("commandPalette__view_gantt_desc"),
+      keywords: ["timeline", "roadmap", "schedule", "แผนงาน", "ก้านต์"],
       category: "command",
       icon: BarChart3,
       run: () => switchView("gantt"),
@@ -161,8 +161,8 @@
     {
       id: "toggle-theme",
       label: t("page__btn_theme"),
-      description: "Toggle Light/Dark mode",
-      keywords: ["dark", "light", "appearance", "mode"],
+      description: t("commandPalette__toggle_theme_desc_v2"),
+      keywords: ["dark", "light", "appearance", "mode", "ธีม", "สว่าง", "มืด"],
       category: "command",
       icon: Sun,
       run: () => toggleTheme(),
@@ -214,9 +214,9 @@
     },
     {
       id: "clear-filters",
-      label: t("page__btn_clear"),
-      description: "Reset all active filters",
-      keywords: ["reset", "all", "filter", "clear"],
+      label: t("commandPalette__clear_filters_label"),
+      description: t("commandPalette__clear_filters_desc"),
+      keywords: ["reset", "all", "filter", "clear", "ล้าง", "กรอง"],
       category: "command",
       icon: ArrowRight,
       run: () => {
@@ -650,7 +650,7 @@
                   </div>
                   <span
                     class="text-[10px] uppercase tracking-wide text-gray-400"
-                    >Enter</span
+                    >{t("commandPalette__enter_key")}</span
                   >
                 </div>
               </button>

@@ -14,6 +14,7 @@
   } from "lucide-svelte";
   import { toPng } from "html-to-image";
   import { _ } from "svelte-i18n";
+  import { showMessage } from "$lib/stores/uiActions";
 
   const dispatch = createEventDispatcher<{
     exportCSV: void;
@@ -33,6 +34,7 @@
 
   export let showImport: boolean = true;
   export let height: string = "h-11";
+  export let videoExportState: any = null;
 
   let fileInput: HTMLInputElement;
   let showImportConfirm = false;
@@ -183,12 +185,30 @@
     try {
       showExportDropdown = false;
 
-      // Show loading feedback
-      const originalTitle = document.title;
-      document.title = "กำลังสร้างรูปภาพ...";
+      // Show loading feedback using the progress overlay if available
+      if (videoExportState) {
+        const start = performance.now();
+        videoExportState.set({
+          inProgress: true,
+          percent: 0,
+          elapsedMs: 0,
+          timer: setInterval(() => {
+            videoExportState.update((s: any) => ({
+              ...s,
+              elapsedMs: performance.now() - start,
+            }));
+          }, 100),
+        });
+      } else {
+        showMessage($_("exportImport__export_png") + "...", "success");
+      }
 
       // Wait a bit for dropdown to close
       await new Promise((r) => setTimeout(r, 100));
+
+      if (videoExportState) {
+        videoExportState.update((s: any) => ({ ...s, percent: 50 }));
+      }
 
       const dataUrl = await toPng(element as HTMLElement, {
         quality: 0.95,
@@ -196,6 +216,13 @@
           ? "#1f2937"
           : "#ffffff",
         pixelRatio: 2,
+        width: (element as HTMLElement).offsetWidth,
+        height: (element as HTMLElement).offsetHeight,
+        style: {
+          transform: "none",
+          margin: "0",
+        },
+        fontEmbedCSS: "",
         filter: (node: any) => {
           // Exclude certain elements from screenshot
           if (node.tagName === "BUTTON" && node.closest(".fixed")) return false;
@@ -213,11 +240,24 @@
       link.href = dataUrl;
       link.click();
 
-      document.title = originalTitle;
+      if (videoExportState) {
+        videoExportState.update((s: any) => {
+          if (s.timer) clearInterval(s.timer);
+          return { ...s, inProgress: false, percent: 100, timer: null };
+        });
+      }
+
+      showMessage($_("page__export_png_success"), "success");
       dispatch("exportPNG");
     } catch (error) {
       console.error("PNG export failed:", error);
-      alert($_("exportImport__error_export_png"));
+      if (videoExportState) {
+        videoExportState.update((s: any) => {
+          if (s.timer) clearInterval(s.timer);
+          return { ...s, inProgress: false, timer: null };
+        });
+      }
+      showMessage($_("exportImport__error_export_png"), "error");
     }
   }
 

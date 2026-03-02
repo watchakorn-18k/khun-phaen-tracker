@@ -37,7 +37,7 @@
       on:click={() => goto(`${base}/dashboard`)}
       class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors shadow-sm focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none dark:focus:ring-offset-slate-900"
     >
-      กลับหน้า Dashboard
+      {$_("page__back_to_dashboard")}
     </button>
   </div>
 </div>
