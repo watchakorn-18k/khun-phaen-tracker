@@ -165,6 +165,7 @@
 	"page__export_monthly_slide_no_data": "No tasks for monthly Slide export",
 	"page__unassigned": "Unassigned",
 	"page__unassigned_project": "No Project",
+	"page__checking_access": "Checking access...",
 	"workload__total_people": "People with tasks",
 	"workload__overdue_tasks": "Overdue tasks",
 	"workload__active_tasks": "Active pending tasks",

@@ -65,7 +65,8 @@ function extractId(doc: any): string {
 }
 
 function docToTask(doc: any): Task {
-  const hasExplicitStartDate = typeof doc.start_date === "string" && doc.start_date.trim() !== "";
+  const hasExplicitStartDate =
+    typeof doc.start_date === "string" && doc.start_date.trim() !== "";
   const resolvedStartDate = hasExplicitStartDate ? doc.start_date : "";
   const canonicalDate = hasExplicitStartDate ? doc.start_date : doc.date || "";
   const resolvedDueDate =
@@ -386,11 +387,9 @@ export async function getTasks(
     params.category = filter.category;
   if (filter?.project && filter.project !== "all")
     params.project = filter.project;
-  if (
-    filter?.assignee_id &&
-    filter.assignee_id !== "all" &&
-    filter.assignee_id !== null
-  ) {
+  if (filter?.assignee_id === null) {
+    params.assignee_id = "none";
+  } else if (filter?.assignee_id && filter.assignee_id !== "all") {
     if (filter.assignee_id === "me") {
       const currentUser = get(userStore);
       if (currentUser) {
@@ -592,7 +591,11 @@ export async function deleteProject(id: string | number): Promise<void> {
 
 export async function getAssignees(forceRefresh = false): Promise<Assignee[]> {
   const now = Date.now();
-  if (!forceRefresh && _assigneesCache && now - _lastAssigneeFetch < CACHE_TTL) {
+  if (
+    !forceRefresh &&
+    _assigneesCache &&
+    now - _lastAssigneeFetch < CACHE_TTL
+  ) {
     return _assigneesCache;
   }
 

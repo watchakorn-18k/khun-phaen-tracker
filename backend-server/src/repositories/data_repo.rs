@@ -112,7 +112,16 @@ impl DataRepository {
             }
         }
         if let Some(assignee_id) = &filter.assignee_id {
-            if assignee_id != "all" {
+            if assignee_id == "none" || assignee_id == "unassigned" {
+                query.insert(
+                    "$or",
+                    Bson::Array(vec![
+                        Bson::Document(doc! { "assignee_ids": { "$exists": false } }),
+                        Bson::Document(doc! { "assignee_ids": Bson::Null }),
+                        Bson::Document(doc! { "assignee_ids": { "$size": 0 } }),
+                    ]),
+                );
+            } else if assignee_id != "all" {
                 query.insert("assignee_ids", doc! { "$in": [assignee_id.as_str()] });
             }
         }

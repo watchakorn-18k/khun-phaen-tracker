@@ -164,6 +164,7 @@
 	"page__export_monthly_slide_no_data": "ไม่มีข้อมูลงานสำหรับส่งออกสรุปรายเดือน Slide",
 	"page__unassigned": "ไม่ระบุผู้รับผิดชอบ",
 	"page__unassigned_project": "ไม่ระบุโปรเจค",
+	"page__checking_access": "กำลังตรวจสอบสิทธิ์",
 	"workload__total_people": "จำนวนคนที่มีงาน",
 	"workload__overdue_tasks": "งานเลยกำหนด",
 	"workload__active_tasks": "งานที่กำลังค้าง",

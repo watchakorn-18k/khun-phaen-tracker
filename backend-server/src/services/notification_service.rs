@@ -1,4 +1,4 @@
-use crate::models::data::TaskFilterQuery;
+
 use crate::repositories::data_repo::DataRepository;
 use crate::repositories::user_repo::UserRepository;
 use crate::repositories::workspace_repo::WorkspaceRepository;
@@ -142,7 +142,6 @@ async fn send_daily_summary_to_discord(
         }
     }
 
-    let total_pending = pending_tasks.len();
     let total_done = done_tasks.len();
 
     // Build Discord Embed Description (Matching Aesthetic Logic)
@@ -198,7 +197,6 @@ async fn send_daily_summary_to_discord(
 
     let discord_payload = serde_json::json!({
         "username": "Khun Phaen Reporter",
-        "avatar_url": "https://raw.githubusercontent.com/watchakorn-18k/khu-phaen-tracker-offline/main/static/logo.png",
         "embeds": [
             {
                 "title": format!("Report for Workspace: {}", workspace_name),

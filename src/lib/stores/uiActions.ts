@@ -27,7 +27,20 @@ export type ModalName =
   | "dailyReflect"
   | "pageSize";
 
-export type ModalState = Record<ModalName, boolean>;
+export type ModalState = {
+  form: boolean;
+  filters: boolean;
+  workerManager: boolean;
+  projectManager: boolean;
+  monthlySummary: boolean;
+  tabSettings: boolean;
+  sprintManager: boolean;
+  changeSprint: boolean;
+  qrExport: boolean;
+  commandPalette: boolean;
+  dailyReflect: boolean;
+  pageSize: boolean;
+};
 
 const initialModalState: ModalState = {
   form: false,
