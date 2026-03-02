@@ -797,12 +797,13 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 	let hasAccess = false;
 	
 	onMount(() => {
+		const initAccess = async () => {
 		// Get workspace_id from route param and room from query
 		const workspaceId = $page.params.workspace_id;
 		const urlParams = new URLSearchParams(window.location.search);
 		const urlRoom = urlParams.get('room');
 		if (!urlRoom || !workspaceId) {
-			goto(`${base}/dashboard`);
+			await goto(`${base}/dashboard`);
 			return;
 		}
 
@@ -814,43 +815,44 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 		setWorkspaceId(workspaceId, savedWsName, savedOwnerId, savedColor, savedIcon);
 
 		// Check access
-		api.workspaces.checkAccess(urlRoom)
-			.then(res => res.json())
-			.then(data => {
-				checkingAccess = false;
-				if (data.success && data.has_access) {
-					if (data.workspace?.id === workspaceId) {
-						setWorkspaceId(
-							workspaceId,
-							data.workspace.name || savedWsName,
-							data.workspace.owner_id || savedOwnerId,
-							data.workspace.color || savedColor,
-							data.workspace.icon || savedIcon
-						);
-					}
-					hasAccess = true;
-					// Connect to real-time collaboration (auto-refresh on remote changes)
-					connectRealtime(urlRoom, (payload) => {
-						if (!payload) return;
-						console.log('📡 Remote data change detected, updating UI optimistically:', payload);
-						handleRealtimeUpdate(payload);
-					});
-					
-					restoreFilters();
-					const savedView = loadSavedViewMode();
-					currentView = savedView;
-					
-					// Reactive filters block will trigger initial loadData
-					initWasmSearch();
-				} else {
-					hasAccess = false;
+		try {
+			const res = await api.workspaces.checkAccess(urlRoom);
+			const data = await res.json();
+			checkingAccess = false;
+			if (data.success && data.has_access) {
+				if (data.workspace?.id === workspaceId) {
+					setWorkspaceId(
+						workspaceId,
+						data.workspace.name || savedWsName,
+						data.workspace.owner_id || savedOwnerId,
+						data.workspace.color || savedColor,
+						data.workspace.icon || savedIcon
+					);
 				}
-			})
-			.catch(err => {
-				console.error('Failed to check access:', err);
-				checkingAccess = false;
+				hasAccess = true;
+				// Connect to real-time collaboration (auto-refresh on remote changes)
+				connectRealtime(urlRoom, (payload) => {
+					if (!payload) return;
+					console.log('📡 Remote data change detected, updating UI optimistically:', payload);
+					handleRealtimeUpdate(payload);
+				});
+				
+				restoreFilters();
+				const savedView = loadSavedViewMode();
+				currentView = savedView;
+				
+				// Reactive filters block will trigger initial loadData
+				initWasmSearch();
+			} else {
 				hasAccess = false;
-			});
+			}
+		} catch (err) {
+			console.error('Failed to check access:', err);
+			checkingAccess = false;
+			hasAccess = false;
+		}
+		};
+		void initAccess();
 
 		// Add keyboard shortcuts listener
 		document.addEventListener('keydown', handleKeydown);
@@ -872,8 +874,14 @@ async function loadData() {
 		loadingData = true;
 		
 		try {
-			// 1. Fetch sprints first so we can properly decide on task filtering
-			const sprintList = await sprints.refresh();
+			// Start all independent API calls immediately (fully parallel on refresh)
+			const sprintListPromise = sprints.refresh();
+			const allTasksPromise = getTasks({ includeArchived: true, limit: 1000 }); // For charts/stats
+			const categoriesPromise = getCategories();
+			const projectsPromise = getProjects();
+			const assigneesPromise = getAssignees(true);
+			const workerStatsPromise = getAssigneeStats();
+			const projectListPromise = getProjectsList();
 
 			// If a specific sprint is selected that is completed, include archived tasks
 			const taskFilters = { ...filters };
@@ -896,7 +904,7 @@ async function loadData() {
 				taskFilters.dueEndDate = addDays(today, 30).toISOString().split('T')[0];
 			}
 			if (filters.sprint_id && filters.sprint_id !== 'all') {
-				const selectedSprint = sprintList.find(s => String(s.id) === String(filters.sprint_id));
+				const selectedSprint = $sprints.find(s => String(s.id) === String(filters.sprint_id));
 				if (selectedSprint?.status === 'completed') {
 					taskFilters.includeArchived = true;
 				}
@@ -906,41 +914,92 @@ async function loadData() {
 			taskFilters.page = currentPage;
 			taskFilters.limit = pageSize;
 
-			// 2. Fetch everything else in parallel
-			// For allTasksIncludingArchived, we might need a higher limit for charts/stats
-			const [paginated, all, , , loadedAssignees, loadedWorkerStats] = await Promise.all([
-				getTasks(taskFilters),
-				getTasks({ includeArchived: true, limit: 1000 }), // Higher limit for background calculations
-				getCategories().then(c => { categories = c; }),
-				getProjects().then(p => { projects = p; }),
-				getAssignees(),
-				getAssigneeStats(),
+			// Fetch paginated tasks and await all in parallel
+			const paginatedPromise = getTasks(taskFilters);
+			const [sprintListRes, paginatedRes, allRes, categoriesRes, projectsRes, assigneesRes, workerStatsRes, projectListRes] = await Promise.allSettled([
+				sprintListPromise,
+				paginatedPromise,
+				allTasksPromise,
+				categoriesPromise,
+				projectsPromise,
+				assigneesPromise,
+				workerStatsPromise,
+				projectListPromise,
 			]);
-			// Also load project list (non-critical)
-			getProjectsList().then(pl => { projectList = pl; });
+			const failedApis: string[] = [];
 
-			if (!Array.isArray(paginated)) {
-				tasks = paginated.tasks;
-				totalTasks = paginated.total;
-				totalPages = paginated.pages;
-			} else {
-				tasks = paginated;
-				totalTasks = paginated.length;
-				totalPages = Math.ceil(totalTasks / pageSize) || 1;
+			if (sprintListRes.status === 'rejected') {
+				failedApis.push('sprints');
+				console.warn('⚠️ sprint refresh failed:', sprintListRes.reason);
 			}
-			
-			// Build base set for view-level filtering
-			let viewTasks = tasks;
-			
-			const allTasks = Array.isArray(all) ? all : all.tasks;
-			allTasksIncludingArchived = allTasks;
-			monthlySummaryTasks = allTasks;
-			assignees = loadedAssignees;
-			workerStats = loadedWorkerStats;
-			
-			// Process stats locally from existing data
-			stats = getStatsFromTasks(allTasks);
-			
+
+			if (categoriesRes.status === 'fulfilled') {
+				categories = categoriesRes.value;
+			} else {
+				failedApis.push('categories');
+				console.warn('⚠️ getCategories failed:', categoriesRes.reason);
+			}
+
+			if (projectsRes.status === 'fulfilled') {
+				projects = projectsRes.value;
+			} else {
+				failedApis.push('projects');
+				console.warn('⚠️ getProjects failed:', projectsRes.reason);
+			}
+
+			if (projectListRes.status === 'fulfilled') {
+				projectList = projectListRes.value;
+			} else {
+				failedApis.push('project list');
+				console.warn('⚠️ getProjectsList failed:', projectListRes.reason);
+			}
+
+			if (assigneesRes.status === 'fulfilled') {
+				assignees = assigneesRes.value;
+			} else {
+				failedApis.push('assignees');
+				console.warn('⚠️ getAssignees failed:', assigneesRes.reason);
+			}
+
+			if (workerStatsRes.status === 'fulfilled') {
+				workerStats = workerStatsRes.value;
+			} else {
+				failedApis.push('assignee stats');
+				console.warn('⚠️ getAssigneeStats failed:', workerStatsRes.reason);
+			}
+
+			if (paginatedRes.status === 'fulfilled') {
+				const paginated = paginatedRes.value;
+				if (!Array.isArray(paginated)) {
+					tasks = paginated.tasks;
+					totalTasks = paginated.total;
+					totalPages = paginated.pages;
+				} else {
+					tasks = paginated;
+					totalTasks = paginated.length;
+					totalPages = Math.ceil(totalTasks / pageSize) || 1;
+				}
+			} else {
+				failedApis.push('tasks');
+				console.warn('⚠️ getTasks(paginated) failed:', paginatedRes.reason);
+			}
+
+			if (allRes.status === 'fulfilled') {
+				const all = allRes.value;
+				const allTasks = Array.isArray(all) ? all : all.tasks;
+				allTasksIncludingArchived = allTasks;
+				monthlySummaryTasks = allTasks;
+				// Process stats locally from existing data
+				stats = getStatsFromTasks(allTasks);
+			} else {
+				failedApis.push('all tasks');
+				console.warn('⚠️ getTasks(all) failed:', allRes.reason);
+			}
+
+			if (failedApis.length > 0) {
+				showMessage(`โหลดข้อมูลบางส่วนไม่สำเร็จ: ${failedApis.join(', ')}`, 'error');
+			}
+
 			// No manual sprintManagerTasks update - it's handled reactively now
 
 			// Index tasks for WASM search
@@ -948,7 +1007,7 @@ async function loadData() {
 				indexTasks(tasks);
 			}
 			
-			filteredTasks = viewTasks;
+			filteredTasks = tasks;
 		} catch (e) {
 			console.error('❌ loadData failed:', e);
 			showMessage(`เกิดข้อผิดพลาดในการโหลดข้อมูล: ${e instanceof Error ? e.message : 'Unknown error'}`, 'error');
@@ -986,7 +1045,7 @@ async function loadData() {
 	
 	let realtimeSyncDebounce: ReturnType<typeof setTimeout>;
 
-	function handleRealtimeUpdate(payload: any) {
+	async function handleRealtimeUpdate(payload: any) {
 		const { entity, action, id, data } = payload;
 		
 		let statNeedsUpdate = false;
@@ -1022,7 +1081,11 @@ async function loadData() {
 		}
 
 		if (statNeedsUpdate) {
-			void getStats().then(s => stats = s);
+			try {
+				stats = await getStats();
+			} catch (e) {
+				console.warn('⚠️ getStats failed:', e);
+			}
 		}
 	}
 
@@ -3104,7 +3167,12 @@ async function loadData() {
 	
 	<!-- Views -->
 	<div class="mt-8">
-		{#if filteredTasks.length === 0}
+		{#if loadingData}
+			<div class="min-h-[360px] flex flex-col items-center justify-center gap-4 bg-white/5 dark:bg-gray-800/20 rounded-3xl border border-dashed border-gray-200 dark:border-gray-700">
+				<div class="w-12 h-12 border-4 border-indigo-200/60 dark:border-indigo-500/20 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin"></div>
+				<p class="text-sm font-semibold text-gray-600 dark:text-gray-300">Loading tasks...</p>
+			</div>
+		{:else if filteredTasks.length === 0}
 			<div class="flex flex-col items-center justify-center py-32 bg-white/5 dark:bg-gray-800/20 rounded-3xl border border-dashed border-gray-200 dark:border-gray-700 space-y-6">
 				<div class="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
 					<ListTodo size={48} class="text-gray-300 dark:text-gray-600" />
@@ -3399,6 +3467,7 @@ async function loadData() {
 		<WorkerManager
 			{assignees}
 			{workerStats}
+			isLoading={loadingData}
 			{isOwner}
 			workspaceId={$page.params.workspace_id}
 			on:close={() => showWorkerManager = false}

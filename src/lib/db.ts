@@ -590,9 +590,9 @@ export async function deleteProject(id: string | number): Promise<void> {
 
 // ===== Assignee Functions =====
 
-export async function getAssignees(): Promise<Assignee[]> {
+export async function getAssignees(forceRefresh = false): Promise<Assignee[]> {
   const now = Date.now();
-  if (_assigneesCache && now - _lastAssigneeFetch < CACHE_TTL) {
+  if (!forceRefresh && _assigneesCache && now - _lastAssigneeFetch < CACHE_TTL) {
     return _assigneesCache;
   }
 

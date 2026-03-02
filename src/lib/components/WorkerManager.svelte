@@ -15,6 +15,7 @@
 	
 	export let assignees: Assignee[] = [];
 	export let workerStats: { id: string | number; taskCount: number }[] = [];
+	export let isLoading = false;
 	export let isOwner = true;
 	export let workspaceId = '';
 	
@@ -301,7 +302,14 @@
 					</button>
 				</div>
 
-				{#if assignees.length === 0}
+				{#if isLoading}
+					<div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-3">
+						<RefreshCw size={12} class="animate-spin" />
+						<span>Loading assignees...</span>
+					</div>
+				{/if}
+
+				{#if !isLoading && assignees.length === 0}
 					<div class="text-center py-12 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-gray-100 dark:border-gray-800">
 						<div class="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
 							<User size={32} />
