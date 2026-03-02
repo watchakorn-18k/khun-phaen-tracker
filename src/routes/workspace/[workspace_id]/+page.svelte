@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy, tick } from "svelte";
+  import { get } from "svelte/store";
   import { browser } from "$app/environment";
   import { goto } from "$app/navigation";
   import { base } from "$app/paths";
@@ -78,6 +79,7 @@
     indexTasks,
     clearSearch,
     searchQuery,
+    createSearchActions,
     wasmReady,
     wasmLoading,
   } from "$lib/stores/search";
@@ -122,6 +124,8 @@
   import { createExportActions } from "$lib/stores/exportActions";
   import { createViewActions } from "$lib/stores/viewActions";
   import { createKeyboardHandler } from "$lib/stores/keyboardActions";
+  import { createUIActions, modals, toast } from "$lib/stores/uiActions";
+  import { normalizeTaskDate, addDays } from "$lib/utils/date";
   import CommandPalette from "$lib/components/CommandPalette.svelte";
   import StatusToast from "$lib/components/StatusToast.svelte";
   import VideoExportProgress from "$lib/components/VideoExportProgress.svelte";
@@ -164,42 +168,28 @@
 
   const { currentView, pageSize, currentPage } = viewActions;
 
+  const uiActions = createUIActions({
+    notify: (msg, type) => showMessage(msg, type),
+  });
+
+  const searchActions = createSearchActions({
+    getFilters: () => filters,
+    setFilters: (f) => {
+      filters = f;
+    },
+  });
+
   let editingTask: Task | null = null;
-  let showForm = false;
-  let showFilters = false;
-  let showWorkerManager = false;
-  let showProjectManager = false;
-  let showMonthlySummary = false;
   let monthlySummaryRef: HTMLDivElement;
   let searchInput = "";
-  let showTabSettings = false;
-  let showSprintManager = false;
-  let showChangeSprintModal = false;
   let selectedTaskIdsForSprintChange: number[] = [];
-  let showQRExport = false;
   let qrExportTasks: Task[] = [];
   let searchInputRef: HTMLInputElement | null = null;
-  let showCommandPalette = false;
-  let showDailyReflect = false;
   let isKanbanDragging = false;
   let pendingLoadData = false;
   let visibleTabs: { id: TabId; icon: string }[] = [];
-  let showPageSizeModal = false;
   let newPageSize = 20;
   let loadDataTimer: ReturnType<typeof setTimeout>;
-
-  function normalizeTaskDate(dateStr: string | undefined): string {
-    if (!dateStr) return "";
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString();
-  }
-
-  function addDays(base: Date, days: number): Date {
-    const next = new Date(base);
-    next.setDate(next.getDate() + days);
-    return next;
-  }
 
   function debouncedLoadData() {
     clearTimeout(loadDataTimer);
@@ -218,11 +208,11 @@
       );
       if (task) {
         editingTask = task;
-        showForm = true;
+        uiActions.openModal("form");
       }
-    } else if (!urlTaskId && showForm && editingTask) {
+    } else if (!urlTaskId && $modals.form && editingTask) {
       // Handle case where user hits back button or URL changes manually
-      showForm = false;
+      uiActions.closeModal("form");
       editingTask = null;
     }
   }
@@ -248,22 +238,6 @@
   let filters: FilterOptions = { ...DEFAULT_FILTERS };
   let selectedSprint: Sprint | null = null;
   // Show all sprints including completed ones in dropdown
-  function openUtilityModalFromCommand(
-    kind: "bookmark" | "whiteboard" | "quick-notes",
-  ) {
-    document.dispatchEvent(
-      new CustomEvent("open-utility-modal", { detail: { kind } }),
-    );
-  }
-
-  function openCommandPalette() {
-    showCommandPalette = true;
-  }
-
-  function closeCommandPalette() {
-    showCommandPalette = false;
-  }
-
   $: visibleTabs = $tabSettings
     .filter((tab) => tab.enabled !== false)
     .map((tab) => ({ id: tab.id, icon: tab.icon }));
@@ -290,50 +264,41 @@
   }
 
   const keyboardHandler = createKeyboardHandler({
-    openCommandPalette,
-    closeCommandPalette,
-    isCommandPaletteOpen: () => showCommandPalette,
-    setShowForm: (v) => {
-      showForm = v;
-    },
+    openCommandPalette: () => uiActions.openModal("commandPalette"),
+    closeCommandPalette: () => uiActions.closeModal("commandPalette"),
+    isCommandPaletteOpen: () => get(modals).commandPalette,
+    setShowForm: (v) => uiActions.setModalState("form", v),
     setEditingTask: (v) => {
       editingTask = v;
     },
     setShowFilters: (v) => {
       if (typeof v === "function") {
-        showFilters = v(showFilters);
+        uiActions.setModalState("filters", v(get(modals).filters));
       } else {
-        showFilters = v;
+        uiActions.setModalState("filters", v);
       }
     },
-    setShowMonthlySummary: (v) => {
-      showMonthlySummary = v;
-    },
-    setShowWorkerManager: (v) => {
-      showWorkerManager = v;
-    },
-    setShowProjectManager: (v) => {
-      showProjectManager = v;
-    },
-    setShowSprintManager: (v) => {
-      showSprintManager = v;
-    },
-    setShowTabSettings: (v) => {
-      showTabSettings = v;
-    },
+    setShowMonthlySummary: (v) => uiActions.setModalState("monthlySummary", v),
+    setShowWorkerManager: (v) => uiActions.setModalState("workerManager", v),
+    setShowProjectManager: (v) => uiActions.setModalState("projectManager", v),
+    setShowSprintManager: (v) => uiActions.setModalState("sprintManager", v),
+    setShowTabSettings: (v) => uiActions.setModalState("tabSettings", v),
     focusSearch: () => searchInputRef?.focus(),
     switchViewByIndex: (index) => {
       if (visibleTabs[index]) viewActions.switchView(visibleTabs[index].id);
     },
-    getModalsState: () => ({
-      showForm,
-      showFilters,
-      showMonthlySummary,
-      showWorkerManager,
-      showProjectManager,
-      showSprintManager,
-      showTabSettings,
-    }),
+    getModalsState: () => {
+      const s = get(modals);
+      return {
+        showForm: s.form,
+        showFilters: s.filters,
+        showMonthlySummary: s.monthlySummary,
+        showWorkerManager: s.workerManager,
+        showProjectManager: s.projectManager,
+        showSprintManager: s.sprintManager,
+        showTabSettings: s.tabSettings,
+      };
+    },
   });
 
   let checkingAccess = true;
@@ -486,17 +451,12 @@
 
   // Handle search input
   function handleSearchInput(event: Event) {
-    const target = event.target as HTMLInputElement;
-    searchInput = target.value;
-    searchQuery.set(searchInput);
-    filters = { ...filters, search: searchInput };
+    searchInput = searchActions.handleSearchInput(event);
   }
 
   // Clear search
   function handleClearSearch() {
-    searchInput = "";
-    clearSearch([]);
-    filters = { ...filters, search: "" };
+    searchInput = searchActions.handleClearSearch();
   }
 
   let realtimeSyncDebounce: ReturnType<typeof setTimeout>;
@@ -572,9 +532,15 @@
   }
 
   function showMessage(msg: string, type: "success" | "error" = "success") {
-    message = msg;
-    messageType = type;
-    setTimeout(() => (message = ""), 3000);
+    uiActions.showMessage(msg, type);
+  }
+
+  function openUtilityModalFromCommand(
+    kind: "bookmark" | "whiteboard" | "quick-notes",
+  ) {
+    document.dispatchEvent(
+      new CustomEvent("open-utility-modal", { detail: { kind } }),
+    );
   }
 
   function queueRealtimeSync(reason: string) {
@@ -604,7 +570,7 @@
       editingTask = v;
     },
     setShowForm: (v) => {
-      showForm = v;
+      uiActions.setModalState("form", v);
     },
     setAssignees: (v) => {
       assignees = v as any;
@@ -687,33 +653,35 @@
     event: CustomEvent<{ checklist: ChecklistItem[] }>,
   ) => taskActions.handleChecklistUpdate(event);
   const handleChecklistToggle = (
-    event: CustomEvent<{ taskId: number; checklistItemId: string }>,
-  ) => taskActions.handleChecklistToggle(event);
+    event: CustomEvent<{ taskId: string | number; checklistItemId: string }>,
+  ) => taskActions.handleChecklistToggle(event as any);
   const handleAddAssignee = (
     event: CustomEvent<{ name: string; color: string }>,
   ) => taskActions.handleAddAssignee(event as any);
   const handleDeleteTask = (event: CustomEvent<string | number>) =>
     taskActions.handleDeleteTask(event);
-  const handleDeleteSelectedTasks = (event: CustomEvent<number[]>) =>
-    taskActions.handleDeleteSelectedTasks(event);
+  const handleDeleteSelectedTasks = (event: CustomEvent<(string | number)[]>) =>
+    taskActions.handleDeleteSelectedTasks(event as any);
   const handleStatusChange = (
     event: CustomEvent<{ id: string | number; status: Task["status"] }>,
   ) => taskActions.handleStatusChange(event);
   const handleKanbanMove = (
-    event: CustomEvent<{ id: number; newStatus: Task["status"] }>,
+    event: CustomEvent<{ id: string | number; newStatus: Task["status"] }>,
   ) => taskActions.handleKanbanMove(event as any);
 
-  function handleExportQR(event: CustomEvent<number[]>) {
+  function handleExportQR(event: CustomEvent<(string | number)[]>) {
     const ids = event.detail;
     if (ids.length === 0) return;
-    qrExportTasks = tasks.filter((t) => t.id != null && ids.includes(t.id));
-    showQRExport = true;
+    qrExportTasks = tasks.filter(
+      (t) => t.id != null && ids.map(String).includes(String(t.id)),
+    );
+    uiActions.openModal("qrExport");
   }
 
   function handleEditTask(event: CustomEvent<Task>) {
     const task = event.detail;
     editingTask = task;
-    showForm = true;
+    uiActions.openModal("form");
 
     // Update URL with task ID for sharing
     if (browser && task?.id) {
@@ -725,7 +693,7 @@
 
   function cancelEdit() {
     editingTask = null;
-    showForm = false;
+    uiActions.closeModal("form");
 
     // Remove task ID from URL
     if (browser) {
@@ -790,7 +758,7 @@
   percent={videoExportPercent}
   elapsedMs={videoExportElapsedMs}
 />
-<StatusToast bind:message bind:type={messageType} />
+<StatusToast message={$toast?.message || ""} type={$toast?.type || "success"} />
 
 <div class="max-w-7xl mx-auto space-y-6 pb-24">
   {#if checkingAccess}
@@ -837,8 +805,8 @@
       >
         <!-- Filter Toggle -->
         <button
-          on:click={() => (showFilters = !showFilters)}
-          class="flex items-center justify-center w-12 h-12 shrink-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all shadow-sm {showFilters
+          on:click={() => uiActions.toggleModal("filters")}
+          class="flex items-center justify-center w-12 h-12 shrink-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all shadow-sm {$modals.filters
             ? 'bg-primary/10 border-primary text-primary'
             : ''}"
           title={$_("page__filters")}
@@ -847,7 +815,7 @@
         </button>
 
         <button
-          on:click={() => (showWorkerManager = true)}
+          on:click={() => uiActions.openModal("workerManager")}
           class="flex items-center justify-center w-12 h-12 shrink-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all shadow-sm"
           title={$_("page__team")}
         >
@@ -859,7 +827,7 @@
         ></div>
 
         <button
-          on:click={() => (showProjectManager = true)}
+          on:click={() => uiActions.openModal("projectManager")}
           class="flex items-center gap-2 px-4 h-12 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-400 font-bold text-[11px] uppercase tracking-widest transition-all shadow-sm hover:text-primary whitespace-nowrap"
         >
           <Folder size={16} />
@@ -867,7 +835,7 @@
         </button>
 
         <button
-          on:click={() => (showSprintManager = true)}
+          on:click={() => uiActions.openModal("sprintManager")}
           class="flex items-center gap-2 px-4 h-12 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-400 font-bold text-[11px] uppercase tracking-widest transition-all shadow-sm hover:text-amber-500 whitespace-nowrap"
         >
           <Flag size={16} />
@@ -875,7 +843,7 @@
         </button>
 
         <button
-          on:click={() => (showMonthlySummary = true)}
+          on:click={() => uiActions.openModal("monthlySummary")}
           class="flex items-center gap-2 px-4 h-12 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-400 font-bold text-[11px] uppercase tracking-widest transition-all shadow-sm hover:text-purple-500 whitespace-nowrap"
         >
           <CalendarDays size={16} />
@@ -883,7 +851,7 @@
         </button>
 
         <button
-          on:click={() => (showDailyReflect = true)}
+          on:click={() => uiActions.openModal("dailyReflect")}
           class="flex items-center gap-2 px-4 h-12 bg-blue-500/5 border border-blue-500/10 rounded-xl hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold text-[11px] uppercase tracking-widest transition-all shadow-sm whitespace-nowrap"
         >
           <MessageSquareQuote size={16} />
@@ -969,27 +937,27 @@
       >
         <!-- Tab Settings -->
         <button
-          on:click={() => (showTabSettings = !showTabSettings)}
+          on:click={() => uiActions.toggleModal("tabSettings")}
           class="flex items-center justify-center w-12 h-12 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all shadow-sm"
           title={$_("page__tab_settings")}
         >
           <Settings2 size={20} />
         </button>
 
-        {#if showTabSettings}
+        {#if $modals.tabSettings}
           <div
             class="absolute top-[calc(100%+1rem)] right-0 z-30 animate-fade-in origin-top-right"
           >
             <TabSettings
-              on:close={() => (showTabSettings = false)}
-              on:save={() => (showTabSettings = false)}
+              on:close={() => uiActions.closeModal("tabSettings")}
+              on:save={() => uiActions.closeModal("tabSettings")}
             />
           </div>
         {/if}
 
         <button
           on:click={() => {
-            showForm = !showForm;
+            uiActions.toggleModal("form");
             editingTask = null;
             // Clear task param from URL
             if (browser) {
@@ -1006,7 +974,7 @@
       </div>
     </div>
     <!-- Filters Panel -->
-    {#if showFilters}
+    {#if $modals.filters}
       <div
         class="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 space-y-3 transition-colors"
       >
@@ -1209,7 +1177,7 @@
 
     <!-- Task Form -->
     <TaskForm
-      show={showForm}
+      show={$modals.form}
       {editingTask}
       {assignees}
       {isOwner}
@@ -1247,7 +1215,7 @@
               viewActions.handlePageChange(e.detail, totalPages)}
             on:pageSizeSettings={() => {
               newPageSize = $pageSize;
-              showPageSizeModal = true;
+              uiActions.openModal("pageSize");
             }}
           />
         </div>
@@ -1267,7 +1235,7 @@
               viewActions.handlePageChange(e.detail, totalPages)}
             on:pageSizeSettings={() => {
               newPageSize = $pageSize;
-              showPageSizeModal = true;
+              uiActions.openModal("pageSize");
             }}
           />
         </div>
@@ -1294,7 +1262,7 @@
               viewActions.handlePageChange(e.detail, totalPages)}
             on:pageSizeSettings={() => {
               newPageSize = $pageSize;
-              showPageSizeModal = true;
+              uiActions.openModal("pageSize");
             }}
           />
         </div>
@@ -1314,22 +1282,22 @@
     </div>
 
     <PageSizeModal
-      show={showPageSizeModal}
+      show={$modals.pageSize}
       value={newPageSize}
-      on:close={() => (showPageSizeModal = false)}
+      on:close={() => uiActions.closeModal("pageSize")}
       on:save={(e) => {
         newPageSize = e.detail.value;
         viewActions.setPageSize(newPageSize);
-        showPageSizeModal = false;
+        uiActions.closeModal("pageSize");
       }}
     />
 
-    {#if showMonthlySummary}
+    {#if $modals.monthlySummary}
       <div
         class="fixed inset-0 bg-black/55 flex items-start justify-center z-20000 p-4 pt-20 backdrop-blur-sm"
-        on:click|self={() => (showMonthlySummary = false)}
+        on:click|self={() => uiActions.closeModal("monthlySummary")}
         on:keydown={(event) =>
-          event.key === "Escape" && (showMonthlySummary = false)}
+          event.key === "Escape" && uiActions.closeModal("monthlySummary")}
         role="button"
         tabindex="0"
         aria-label={$_("page__summary_30_days")}
@@ -1391,7 +1359,7 @@
                 <Presentation size={16} />
               </button>
               <button
-                on:click={() => (showMonthlySummary = false)}
+                on:click={() => uiActions.closeModal("monthlySummary")}
                 class="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-xl"
                 title={$_("taskForm__btn_close")}
               >
@@ -1586,14 +1554,14 @@
     {/if}
 
     <!-- Worker Manager Modal -->
-    {#if showWorkerManager}
+    {#if $modals.workerManager}
       <WorkerManager
         {assignees}
         {workerStats}
         isLoading={loadingData}
         {isOwner}
         workspaceId={$page.params.workspace_id}
-        on:close={() => (showWorkerManager = false)}
+        on:close={() => uiActions.closeModal("workerManager")}
         on:add={handleAddWorker}
         on:update={handleUpdateWorker}
         on:delete={handleDeleteWorker}
@@ -1601,25 +1569,25 @@
     {/if}
 
     <!-- Sprint Manager Modal -->
-    {#if showSprintManager}
+    {#if $modals.sprintManager}
       <SprintManager
         tasks={allTasksIncludingArchived.filter((t) => !t.is_archived)}
-        on:close={() => (showSprintManager = false)}
+        on:close={() => uiActions.closeModal("sprintManager")}
         on:complete={handleCompleteSprint}
         on:completeAndExport={handleCompleteAndExport}
         on:deleteSprint={handleDeleteSprint}
         on:moveTasksToSprint={handleMoveTasksToSprint}
-        on:exportMarkdown={handleExportMarkdown}
-        on:exportVideo={handleExportVideo}
+        on:exportMarkdown={(e) => handleExportMarkdown(e as any)}
+        on:exportVideo={(e) => handleExportVideo(e as any)}
       />
     {/if}
 
     <!-- Project Manager Modal -->
-    {#if showProjectManager}
+    {#if $modals.projectManager}
       <ProjectManager
         projects={projectList}
         {projectStats}
-        on:close={() => (showProjectManager = false)}
+        on:close={() => uiActions.closeModal("projectManager")}
         on:add={handleAddProject}
         on:update={handleUpdateProject}
         on:delete={handleDeleteProject}
@@ -1628,22 +1596,22 @@
 
     <!-- QR Export Modal -->
     <QRExportModal
-      bind:show={showQRExport}
+      show={$modals.qrExport}
       selectedTasks={qrExportTasks}
       allProjects={projectList}
       allAssignees={assignees}
       on:close={() => {
-        showQRExport = false;
+        uiActions.closeModal("qrExport");
         qrExportTasks = [];
       }}
       on:exportCSV={handleExportCSV}
     />
 
-    <DailyReflect bind:show={showDailyReflect} />
+    <DailyReflect bind:show={$modals.dailyReflect} />
 
     <!-- Keyboard Shortcuts Modal -->
     <CommandPalette
-      open={showCommandPalette}
+      open={$modals.commandPalette}
       {tasks}
       sprints={$sprints}
       projects={projectList}
@@ -1652,13 +1620,13 @@
       switchView={(id) => viewActions.switchView(id as any)}
       openTask={(task) => {
         editingTask = task;
-        showForm = true;
+        uiActions.openModal("form");
       }}
       applyGlobalSearch={(q) =>
         handleSearchInput({ target: { value: q } } as any)}
       t={(key, values) => $_(key, values) as string}
       createTask={() => {
-        showForm = true;
+        uiActions.openModal("form");
         editingTask = null;
       }}
       startTimer={() => taskActions.startTimerFromCommandPalette()}
@@ -1666,13 +1634,13 @@
       openBookmarks={() => openUtilityModalFromCommand("bookmark")}
       openWhiteboard={() => openUtilityModalFromCommand("whiteboard")}
       dailyReflect={() => {
-        showDailyReflect = true;
+        uiActions.openModal("dailyReflect");
       }}
       openPageSize={() => {
         newPageSize = $pageSize;
-        showPageSizeModal = true;
+        uiActions.openModal("pageSize");
       }}
-      on:close={closeCommandPalette}
+      on:close={() => uiActions.closeModal("commandPalette")}
       on:clearFilters={clearFilters}
       on:filterProject={(e) => {
         filters = { ...filters, project: e.detail.project as any };
