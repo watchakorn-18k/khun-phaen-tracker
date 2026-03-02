@@ -58,6 +58,7 @@
   import MarkdownEditor from "./MarkdownEditor.svelte";
   import Pagination from "./Pagination.svelte";
   import SearchableSelect from "./SearchableSelect.svelte";
+  import TaskDependencySelector from "./TaskDependencySelector.svelte";
 
   const dispatch = createEventDispatcher<{
     submit: Omit<Task, "id" | "created_at">;
@@ -72,6 +73,7 @@
   export let assignees: Assignee[] = [];
   export let projects: Project[] = [];
   export let sprints: Sprint[] = [];
+  export let allTasks: Task[] = [];
   export let isOwner = true;
 
   let title = "";
@@ -85,6 +87,7 @@
   let assignee_id_to_add: string | number | null = null;
   let sprint_id: string | number | null = null;
   let checklist: ChecklistItem[] = [];
+  let dependencies: (string | number)[] = [];
   let showBranchDialog = false;
   let formInitKey = "closed";
   let copySuccess = false;
@@ -197,6 +200,9 @@
       );
       sprint_id = editingTask.sprint_id || null;
       checklist = editingTask.checklist ? [...editingTask.checklist] : [];
+      dependencies = editingTask.dependencies
+        ? [...editingTask.dependencies]
+        : [];
     } else {
       title = "";
       project = $taskDefaults.project || "";
@@ -210,6 +216,7 @@
         : [];
       sprint_id = activeSprint?.id || null;
       checklist = [];
+      dependencies = [];
     }
 
     assignee_id_to_add = null;
@@ -1070,7 +1077,9 @@
 </script>
 
 {#if show}
-  <div class="fixed inset-0 bg-black/35 backdrop-blur-sm z-20000 pointer-events-none m-0!"></div>
+  <div
+    class="fixed inset-0 bg-black/35 backdrop-blur-sm z-20000 pointer-events-none m-0!"
+  ></div>
   <div
     class="fixed inset-0 z-20000 overflow-y-auto m-0!"
     on:click|self={handleClose}
@@ -1255,6 +1264,12 @@
                   readonly={!isOwner}
                   on:addAssignee={handleAddAssignee}
                 />
+                <TaskDependencySelector
+                  {allTasks}
+                  bind:dependencies
+                  currentTaskId={editingTask?.id}
+                  readonly={!isOwner}
+                />
                 <ChecklistManager
                   bind:checklist
                   autoDispatch={!!editingTask}
@@ -1310,21 +1325,21 @@
                     ></textarea>
                     {#if commentComposerActive || commentContent.trim() || commentFiles.length > 0}
                       <div class="flex items-center gap-3">
-                          <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-                          <label
-                            on:mousedown={holdCommentComposerOpen}
-                            on:mouseup={releaseCommentComposerOpen}
-                            class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-200 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                            ><ImageIcon size={14} /><span
-                              >{$_("taskForm__comments_attach_images")}</span
-                            ><input
-                              type="file"
-                              accept="image/*"
-                              multiple
-                              class="hidden"
-                              on:change={handleCommentFileChange}
-                            /></label
-                          >
+                        <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+                        <label
+                          on:mousedown={holdCommentComposerOpen}
+                          on:mouseup={releaseCommentComposerOpen}
+                          class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-200 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                          ><ImageIcon size={14} /><span
+                            >{$_("taskForm__comments_attach_images")}</span
+                          ><input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            class="hidden"
+                            on:change={handleCommentFileChange}
+                          /></label
+                        >
                         <button
                           type="button"
                           on:mousedown={holdCommentComposerOpen}

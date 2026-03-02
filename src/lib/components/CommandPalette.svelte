@@ -263,7 +263,7 @@
           label: t("commandPalette__open_task_label", {
             values: { title: task.title },
           }),
-          description: `${task.project || t("commandPalette__no_project")} · ${task.status}`,
+          description: `${task.project || t("commandPalette__no_project")} · ${getCommandStatusInfo(task.status).label}`,
           keywords: [
             task.title,
             task.project || "",
@@ -544,7 +544,7 @@
     on:click|self={close}
     role="button"
     tabindex="-1"
-    aria-label="Close command palette"
+    aria-label={t("commandPalette__close_label")}
   >
     <div
       class="w-full max-w-2xl rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 shadow-2xl overflow-hidden"
@@ -557,7 +557,7 @@
         </p>
         <kbd
           class="px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-xs text-gray-600 dark:text-gray-300"
-          >⌘K / Ctrl+K</kbd
+          >{t("commandPalette__shortcut_hint")}</kbd
         >
       </div>
 

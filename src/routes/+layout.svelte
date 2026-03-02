@@ -55,8 +55,22 @@
   let showHeader = true;
   let isNavbarLocked = true;
 
+  let lastScrollY = 0;
   $: {
-    showHeader = isNavbarLocked || scrollY < 100;
+    if (isNavbarLocked) {
+      showHeader = true;
+    } else {
+      // Auto-hide logic: show at top or when scrolling up
+      if (scrollY < 20) {
+        showHeader = true;
+      } else if (scrollY > lastScrollY + 5) {
+        // Add a small buffer to prevent jitter
+        showHeader = false;
+      } else if (scrollY < lastScrollY - 5) {
+        showHeader = true;
+      }
+    }
+    lastScrollY = scrollY;
   }
 
   function toggleNavbarLock() {
@@ -601,9 +615,9 @@
                     : $_("layout__lock_navbar")}
                 >
                   {#if isNavbarLocked}
-                    <Unlock size={20} />
+                    <Lock size={18} />
                   {:else}
-                    <Lock size={20} />
+                    <Unlock size={18} />
                   {/if}
                 </button>
               </div>

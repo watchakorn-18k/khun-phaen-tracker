@@ -11,11 +11,11 @@
     class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 md:p-12 text-center max-w-md w-full shadow-sm"
   >
     <div
-      class="w-20 h-20 bg-red-50 dark:bg-red-500/10 text-red-500 rounded-2xl mx-auto flex items-center justify-center mb-6"
+      class="w-16 h-16 bg-red-50 dark:bg-red-500/10 text-red-500 rounded-2xl mx-auto flex items-center justify-center mb-6"
     >
       <svg
-        width="40"
-        height="40"
+        width="28"
+        height="28"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"

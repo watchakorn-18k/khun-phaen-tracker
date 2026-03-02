@@ -91,7 +91,8 @@ export type ViewMode =
   | "kanban"
   | "table"
   | "gantt"
-  | "workload";
+  | "workload"
+  | "dependency";
 
 export interface FilterOptions {
   startDate?: string;
