@@ -319,6 +319,22 @@ async fn main() {
             "/api/workspaces/:ws_id/sprints/:sprint_id",
             delete(handlers::data_handler::delete_sprint),
         )
+        .route(
+            "/api/workspaces/:ws_id/milestones",
+            get(handlers::milestone_handler::list_milestones),
+        )
+        .route(
+            "/api/workspaces/:ws_id/milestones",
+            post(handlers::milestone_handler::create_milestone),
+        )
+        .route(
+            "/api/workspaces/:ws_id/milestones/:id",
+            put(handlers::milestone_handler::update_milestone),
+        )
+        .route(
+            "/api/workspaces/:ws_id/milestones/:id",
+            delete(handlers::milestone_handler::delete_milestone),
+        )
         .route("/ws", get(handlers::ws_handler::ws_handler))
         .layer(
             tower_http::cors::CorsLayer::new()

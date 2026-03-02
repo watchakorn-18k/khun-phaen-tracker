@@ -5,3 +5,4 @@ pub mod profile;
 pub mod room;
 pub mod user;
 pub mod workspace;
+pub mod milestone;

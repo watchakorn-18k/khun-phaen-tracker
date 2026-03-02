@@ -327,6 +327,84 @@ export const api = {
         body: JSON.stringify(config),
       });
     },
+    getMilestones: async (id: string): Promise<Response> => {
+      let token = "";
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(
+          new RegExp("(^| )_khun_ph_token=([^;]+)"),
+        );
+        if (match) token = match[2];
+      }
+      const headers: Record<string, string> = { Accept: "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      return fetch(`${API_BASE_URL}/workspaces/${id}/milestones`, {
+        headers,
+        credentials: "include",
+      });
+    },
+    createMilestone: async (
+      id: string,
+      milestone: Record<string, any>,
+    ): Promise<Response> => {
+      let token = "";
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(
+          new RegExp("(^| )_khun_ph_token=([^;]+)"),
+        );
+        if (match) token = match[2];
+      }
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      return fetch(`${API_BASE_URL}/workspaces/${id}/milestones`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify(milestone),
+      });
+    },
+    updateMilestone: async (
+      wsId: string,
+      id: string,
+      updates: Record<string, any>,
+    ): Promise<Response> => {
+      let token = "";
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(
+          new RegExp("(^| )_khun_ph_token=([^;]+)"),
+        );
+        if (match) token = match[2];
+      }
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      return fetch(`${API_BASE_URL}/workspaces/${wsId}/milestones/${id}`, {
+        method: "PUT",
+        headers,
+        credentials: "include",
+        body: JSON.stringify(updates),
+      });
+    },
+    deleteMilestone: async (wsId: string, id: string): Promise<Response> => {
+      let token = "";
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(
+          new RegExp("(^| )_khun_ph_token=([^;]+)"),
+        );
+        if (match) token = match[2];
+      }
+      const headers: Record<string, string> = { Accept: "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      return fetch(`${API_BASE_URL}/workspaces/${wsId}/milestones/${id}`, {
+        method: "DELETE",
+        headers,
+        credentials: "include",
+      });
+    },
   },
 
   // Workspace-scoped data APIs
@@ -419,12 +497,15 @@ export const api = {
       ): Promise<Response> => {
         const headers = api.data._headers();
         delete headers["Content-Type"];
-        return fetch(`${API_BASE_URL}/workspaces/${wsId}/tasks/${taskId}/comments`, {
-          method: "POST",
-          headers,
-          credentials: "include",
-          body: formData,
-        });
+        return fetch(
+          `${API_BASE_URL}/workspaces/${wsId}/tasks/${taskId}/comments`,
+          {
+            method: "POST",
+            headers,
+            credentials: "include",
+            body: formData,
+          },
+        );
       },
       delete: (
         wsId: string,

@@ -10,6 +10,7 @@
     CalendarDays,
     MessageSquareQuote,
     Settings,
+    Rocket,
   } from "lucide-svelte";
   import ExportImport from "./ExportImport.svelte";
 
@@ -50,6 +51,10 @@
 
   function openDailyReflect() {
     dispatch("openDailyReflect");
+  }
+
+  function openMilestoneManager() {
+    dispatch("openMilestoneManager");
   }
 
   function handleExportCSV() {
@@ -119,7 +124,7 @@
 
   <!-- Action Row -->
   <div
-    class="flex flex-wrap md:flex-nowrap items-center gap-2.5 pb-1 md:pb-0 w-full md:w-auto overflow-x-auto scrollbar-hide"
+    class="flex items-center gap-2.5 pb-1 md:pb-0 w-full md:w-auto overflow-x-auto scrollbar-hide"
   >
     <!-- Filter Toggle -->
     <button
@@ -184,6 +189,15 @@
     >
       <MessageSquareQuote size={16} />
       <span class="hidden lg:inline">Daily Summary</span>
+    </button>
+
+    <button
+      on:click={openMilestoneManager}
+      class="flex items-center gap-2 px-4 h-12 bg-indigo-500/5 border border-indigo-500/10 rounded-xl hover:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-[11px] uppercase tracking-widest transition-all shadow-sm whitespace-nowrap"
+      title={$_("milestone.add_btn")}
+    >
+      <Rocket size={16} />
+      <span class="hidden lg:inline">Countdown</span>
     </button>
 
     <ExportImport

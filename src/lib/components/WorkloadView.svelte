@@ -10,6 +10,7 @@
     ArrowRight,
   } from "lucide-svelte";
   import CustomDatePicker from "./CustomDatePicker.svelte";
+  import BattleHealthDashboard from "./BattleHealthDashboard.svelte";
 
   export let tasks: Task[] = [];
   export let assignees: Assignee[] = [];
@@ -225,6 +226,9 @@
       </div>
     {/if}
   </div>
+
+  <!-- Battle Health Dashboard -->
+  <BattleHealthDashboard {tasks} />
 
   <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
     <div

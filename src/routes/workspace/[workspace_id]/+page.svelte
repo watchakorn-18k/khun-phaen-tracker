@@ -8,6 +8,7 @@
   import { api } from "$lib/apis";
   import { _ } from "svelte-i18n";
   import type { Task, FilterOptions } from "$lib/types";
+  import type { Milestone } from "$lib/types/milestone";
   import { initWasmSearch, indexTasks, wasmReady } from "$lib/stores/search";
   import { connectRealtime, disconnectRealtime } from "$lib/stores/realtime";
   import { user } from "$lib/stores/auth";
@@ -41,6 +42,7 @@
   import WorkspaceLoading from "$lib/components/WorkspaceLoading.svelte";
   import DailyReflect from "$lib/components/DailyReflect.svelte";
   import CommandPalette from "$lib/components/CommandPalette.svelte";
+  import MilestoneCountdown from "$lib/components/MilestoneCountdown.svelte";
 
   const ws = createWorkspacePageStore();
   const {
@@ -80,6 +82,18 @@
   let isKanbanDragging = false;
   let qrExportTasks: Task[] = [];
   let newPageSize = 20;
+  let milestones: Milestone[] = [];
+
+  async function fetchMilestones() {
+    const wsId = $page.params.workspace_id;
+    if (!wsId) return;
+    try {
+      const res = await api.workspaces.getMilestones(wsId);
+      if (res.ok) {
+        milestones = await res.json();
+      }
+    } catch (e) {}
+  }
 
   // Auto-open task from URL
   $: if (browser && !$loadingData && $allTasksIncludingArchived.length > 0) {
@@ -155,6 +169,7 @@
           workspaceActions.handleRealtimeUpdate(payload),
         );
         await sprints.refresh();
+        await fetchMilestones();
         filters.set(restoreFilters($sprints));
         initWasmSearch();
       }
@@ -198,6 +213,18 @@
   {:else if !$hasAccess}
     <AccessDenied />
   {:else}
+    {#if milestones.length > 0}
+      <div class="grid gap-6">
+        {#each milestones as milestone}
+          <MilestoneCountdown
+            {milestone}
+            {isOwner}
+            onEdit={() => uiActions.openModal("milestoneManager")}
+            onDelete={() => uiActions.openModal("milestoneManager")}
+          />
+        {/each}
+      </div>
+    {/if}
     <StatsPanel stats={$stats} />
     <SearchAndActions
       searchInput={$searchInput}
@@ -213,6 +240,7 @@
       on:openSprintManager={() => uiActions.openModal("sprintManager")}
       on:openMonthlySummary={() => uiActions.openModal("monthlySummary")}
       on:openDailyReflect={() => uiActions.openModal("dailyReflect")}
+      on:openMilestoneManager={() => uiActions.openModal("milestoneManager")}
       on:openWorkspaceSettings={() => uiActions.openModal("workspaceSettings")}
       on:exportCSV={() => exportActions.handleExportCSV()}
       on:exportPDF={() => exportActions.handleExportPDF()}
@@ -222,6 +250,7 @@
       on:exportDatabase={(e) => exportActions.handleExportDatabase(e)}
       on:importCSV={(e) => exportActions.handleImportCSV(e)}
       on:showMessage={(e) => showMessage(e.detail)}
+      on:openMilestoneManager={() => uiActions.openModal("milestoneManager")}
     />
 
     {#if $modals.filters}
@@ -335,6 +364,7 @@
       on:updateProject={(e) => workspaceActions.handleUpdateProject(e)}
       on:deleteProject={(e) => workspaceActions.handleDeleteProject(e)}
       on:exportMonthlyPDF={() => exportActions.handleExportMonthlyPDF()}
+      on:milestonesUpdated={fetchMilestones}
     />
     <DailyReflect bind:show={$modals.dailyReflect} />
     <CommandPalette

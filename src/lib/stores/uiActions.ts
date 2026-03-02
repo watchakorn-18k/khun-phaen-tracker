@@ -26,7 +26,8 @@ export type ModalName =
   | "commandPalette"
   | "dailyReflect"
   | "pageSize"
-  | "workspaceSettings";
+  | "workspaceSettings"
+  | "milestoneManager";
 
 export type ModalState = {
   form: boolean;
@@ -42,6 +43,7 @@ export type ModalState = {
   dailyReflect: boolean;
   pageSize: boolean;
   workspaceSettings: boolean;
+  milestoneManager: boolean;
 };
 
 const initialModalState: ModalState = {
@@ -58,6 +60,7 @@ const initialModalState: ModalState = {
   dailyReflect: false,
   pageSize: false,
   workspaceSettings: false,
+  milestoneManager: false,
 };
 
 export const modals = writable<ModalState>(initialModalState);
