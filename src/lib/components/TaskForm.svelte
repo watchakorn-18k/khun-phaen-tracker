@@ -1070,11 +1070,9 @@
 </script>
 
 {#if show}
+  <div class="fixed inset-0 bg-black/35 backdrop-blur-sm z-20000 pointer-events-none m-0!"></div>
   <div
-    class="fixed inset-0 bg-black/35 backdrop-blur-sm z-[20000] pointer-events-none !m-0"
-  ></div>
-  <div
-    class="fixed inset-0 z-[20000] overflow-y-auto !m-0"
+    class="fixed inset-0 z-20000 overflow-y-auto m-0!"
     on:click|self={handleClose}
     on:keydown|self={(e) => e.key === "Escape" && handleClose()}
     role="button"
@@ -1278,7 +1276,7 @@
 
               {#if editingTask?.id}
                 <div
-                  class="xl:col-span-2 rounded-xl dark:bg-[#0f1b2d] p-4 space-y-3 h-full min-h-[560px] xl:max-h-[calc(90vh-11rem)] flex flex-col"
+                  class="xl:col-span-2 rounded-xl dark:bg-[#0f1b2d] p-4 space-y-3 h-full min-h-140 xl:max-h-[calc(90vh-11rem)] flex flex-col"
                 >
                   <div
                     class="flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-gray-100"
@@ -1307,25 +1305,26 @@
                       on:dragleave|preventDefault={handleCommentDragLeave}
                       on:drop|preventDefault={handleCommentDrop}
                       class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-800 dark:text-white transition-colors {commentDropActive
-                        ? 'border-primary bg-primary/[0.08] dark:bg-primary/[0.14]'
+                        ? 'border-primary bg-primary/8 dark:bg-primary/14'
                         : 'border-gray-300 dark:border-gray-600'}"
                     ></textarea>
                     {#if commentComposerActive || commentContent.trim() || commentFiles.length > 0}
                       <div class="flex items-center gap-3">
-                        <label
-                          on:mousedown={holdCommentComposerOpen}
-                          on:mouseup={releaseCommentComposerOpen}
-                          class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-200 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                          ><ImageIcon size={14} /><span
-                            >{$_("taskForm__comments_attach_images")}</span
-                          ><input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            class="hidden"
-                            on:change={handleCommentFileChange}
-                          /></label
-                        >
+                          <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+                          <label
+                            on:mousedown={holdCommentComposerOpen}
+                            on:mouseup={releaseCommentComposerOpen}
+                            class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-200 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                            ><ImageIcon size={14} /><span
+                              >{$_("taskForm__comments_attach_images")}</span
+                            ><input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              class="hidden"
+                              on:change={handleCommentFileChange}
+                            /></label
+                          >
                         <button
                           type="button"
                           on:mousedown={holdCommentComposerOpen}
@@ -1380,7 +1379,7 @@
                       </p>
                     {:else if comments.length === 0}
                       <div
-                        class="h-full min-h-[200px] flex items-center justify-center p-3"
+                        class="h-full min-h-50 flex items-center justify-center p-3"
                       >
                         <p class="text-sm text-gray-400 text-center">
                           {$_("taskForm__comments_empty")}
@@ -1436,7 +1435,7 @@
                             {:else if comment.content}
                               <div class="space-y-2">
                                 <p
-                                  class="text-sm text-gray-800 dark:text-gray-200 rounded-lg bg-gray-50 dark:bg-gray-900/60 px-3 py-2 break-words"
+                                  class="text-sm text-gray-800 dark:text-gray-200 rounded-lg bg-gray-50 dark:bg-gray-900/60 px-3 py-2 wrap-break-word"
                                 >
                                   <span
                                     >{@html linkifyCommentContent(
@@ -1609,7 +1608,7 @@
                                 </button>
                                 {#if reactionPickerForCommentId === String(comment.id || "")}
                                   <div
-                                    class="absolute left-0 bottom-full mb-2 z-20 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-xl p-2 w-[228px]"
+                                    class="absolute left-0 bottom-full mb-2 z-20 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-xl p-2 w-57"
                                   >
                                     <div class="grid grid-cols-5 gap-1.5">
                                       {#each commentReactionEmojis as emoji}
@@ -1679,12 +1678,12 @@
             <button
               type="button"
               on:click={handleClose}
-              class="min-w-[96px] px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
+              class="min-w-24 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
               >{$_("taskForm__btn_cancel")}</button
             >
             <button
               type="submit"
-              class="min-w-[96px] bg-primary hover:bg-primary-dark text-white py-2 px-4 rounded-lg font-medium transition-colors"
+              class="min-w-24 bg-primary hover:bg-primary-dark text-white py-2 px-4 rounded-lg font-medium transition-colors"
               >{editingTask
                 ? $_("taskForm__btn_save")
                 : $_("taskForm__btn_add")}</button
@@ -1703,7 +1702,7 @@
 
   {#if lightboxOpen}
     <div
-      class="fixed inset-0 z-[20020] bg-black/80 backdrop-blur-sm flex items-center justify-center !m-0"
+      class="fixed inset-0 z-20020 bg-black/80 backdrop-blur-sm flex items-center justify-center m-0!"
       on:click|self={closeLightbox}
       on:wheel|preventDefault={handleLightboxWheel}
       on:keydown={handleLightboxKeydown}
@@ -1860,7 +1859,7 @@
   {#if showDeleteCommentConfirm && pendingDeleteComment}
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <div
-      class="fixed inset-0 z-[20010] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+      class="fixed inset-0 z-20010 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
       on:click|self={closeDeleteCommentConfirm}
       role="button"
       tabindex="-1"
