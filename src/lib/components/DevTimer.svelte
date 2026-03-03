@@ -327,7 +327,7 @@
   <button
     onclick={toggleUtils}
     class="util-btn bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-white hover:border-primary/50 transition-all duration-300 shadow-2xl scale-110 active:scale-95"
-    title={isUtilsExpanded ? "ซ่อนเมนูเครื่องมือ" : "แสดงเมนูเครื่องมือ"}
+    title={isUtilsExpanded ? $_("timer__hide_utils") : $_("timer__show_utils")}
   >
     {#if isUtilsExpanded}
       <ChevronRight size={22} strokeWidth={2.5} />
@@ -409,7 +409,9 @@
               <button
                 onclick={togglePin}
                 class="icon-btn {isPinned ? 'text-primary bg-primary/10' : ''}"
-                title={isPinned ? "ปลดหมุดแดชบอร์ด" : "ปักหมุดแดชบอร์ด"}
+                title={isPinned
+                  ? $_("timer__unpin_dashboard")
+                  : $_("timer__pin_dashboard")}
               >
                 {#if isPinned}<Pin size={16} />{:else}<PinOff size={16} />{/if}
               </button>

@@ -332,3 +332,35 @@ pub struct PaginatedCommentImageResponse {
     pub limit: u64,
     pub pages: u64,
 }
+// ===== Checklist Template Document =====
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChecklistTemplateDocument {
+    #[serde(rename = "_id")]
+    pub id: String, // UUID
+    pub workspace_id: ObjectId,
+    pub name: String,
+    pub items: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateChecklistTemplateRequest {
+    pub name: String,
+    pub items: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateChecklistTemplateRequest {
+    pub name: Option<String>,
+    pub items: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ChecklistTemplateResponse {
+    pub success: bool,
+    pub templates: Vec<ChecklistTemplateDocument>,
+}

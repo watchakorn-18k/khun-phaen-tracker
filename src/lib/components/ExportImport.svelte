@@ -178,7 +178,7 @@
       document.querySelector(".space-y-6") ||
       (document.querySelector(".max-w-7xl") as HTMLElement);
     if (!element) {
-      alert("ไม่พบเนื้อหาที่จะส่งออก");
+      alert($_("exportImport__error_no_content"));
       return;
     }
 

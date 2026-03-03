@@ -1,6 +1,6 @@
 use crate::models::data::{
-    AssigneeDocument, CommentDocument, CommentImage, CommentReaction, ProjectDocument,
-    SprintDocument, TaskDocument, TaskFilterQuery,
+    AssigneeDocument, ChecklistTemplateDocument, CommentDocument, CommentImage, CommentReaction,
+    ProjectDocument, SprintDocument, TaskDocument, TaskFilterQuery,
 };
 use futures::stream::StreamExt;
 use mongodb::{
@@ -17,6 +17,7 @@ pub struct DataRepository {
     assignees: Collection<AssigneeDocument>,
     sprints: Collection<SprintDocument>,
     task_comments: Collection<CommentDocument>,
+    checklist_templates: Collection<ChecklistTemplateDocument>,
 }
 
 impl DataRepository {
@@ -27,6 +28,7 @@ impl DataRepository {
             assignees: db.collection("assignees"),
             sprints: db.collection("sprints"),
             task_comments: db.collection("task_comments"),
+            checklist_templates: db.collection("checklist_templates"),
         }
     }
 
@@ -782,6 +784,83 @@ impl DataRepository {
         self.task_comments
             .delete_many(doc! { "workspace_id": workspace_id }, None)
             .await?;
+        self.checklist_templates
+            .delete_many(doc! { "workspace_id": workspace_id }, None)
+            .await?;
         Ok(())
+    }
+    // ===== CHECKLIST TEMPLATES =====
+
+    pub async fn find_checklist_templates(
+        &self,
+        workspace_id: &ObjectId,
+    ) -> mongodb::error::Result<Vec<ChecklistTemplateDocument>> {
+        let mut cursor = self
+            .checklist_templates
+            .find(doc! { "workspace_id": workspace_id }, None)
+            .await?;
+        let mut templates = Vec::new();
+        while let Some(result) = cursor.next().await {
+            match result {
+                Ok(doc) => templates.push(doc),
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(templates)
+    }
+
+    pub async fn create_checklist_template(
+        &self,
+        mut template: ChecklistTemplateDocument,
+    ) -> mongodb::error::Result<ChecklistTemplateDocument> {
+        let now = chrono::Utc::now().to_rfc3339();
+        template.created_at = Some(now.clone());
+        template.updated_at = Some(now);
+        self.checklist_templates
+            .insert_one(template.clone(), None)
+            .await?;
+        Ok(template)
+    }
+
+    pub async fn update_checklist_template(
+        &self,
+        id: &str,
+        workspace_id: &ObjectId,
+        updates: Document,
+    ) -> mongodb::error::Result<bool> {
+        let mut set_doc = updates;
+        set_doc.insert("updated_at", chrono::Utc::now().to_rfc3339());
+        let res = self
+            .checklist_templates
+            .update_one(
+                doc! { "_id": id, "workspace_id": workspace_id },
+                doc! { "$set": set_doc },
+                None,
+            )
+            .await?;
+        Ok(res.matched_count > 0)
+    }
+
+    pub async fn delete_checklist_template(
+        &self,
+        id: &str,
+        workspace_id: &ObjectId,
+    ) -> mongodb::error::Result<bool> {
+        let res = self
+            .checklist_templates
+            .delete_one(doc! { "_id": id, "workspace_id": workspace_id }, None)
+            .await?;
+        Ok(res.deleted_count > 0)
+    }
+
+    #[allow(dead_code)]
+    pub async fn find_checklist_template_by_id(
+        &self,
+        id: &str,
+        workspace_id: &ObjectId,
+    ) -> mongodb::error::Result<Option<ChecklistTemplateDocument>> {
+        self.checklist_templates
+            .find_one(doc! { "_id": id, "workspace_id": workspace_id }, None)
+            .await
     }
 }

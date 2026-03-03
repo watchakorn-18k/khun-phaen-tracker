@@ -58,7 +58,6 @@
   import MarkdownEditor from "./MarkdownEditor.svelte";
   import Pagination from "./Pagination.svelte";
   import SearchableSelect from "./SearchableSelect.svelte";
-  import TaskDependencySelector from "./TaskDependencySelector.svelte";
 
   const dispatch = createEventDispatcher<{
     submit: Omit<Task, "id" | "created_at">;
@@ -73,7 +72,6 @@
   export let assignees: Assignee[] = [];
   export let projects: Project[] = [];
   export let sprints: Sprint[] = [];
-  export let allTasks: Task[] = [];
   export let isOwner = true;
 
   let title = "";
@@ -1264,12 +1262,7 @@
                   readonly={!isOwner}
                   on:addAssignee={handleAddAssignee}
                 />
-                <TaskDependencySelector
-                  {allTasks}
-                  bind:dependencies
-                  currentTaskId={editingTask?.id}
-                  readonly={!isOwner}
-                />
+
                 <ChecklistManager
                   bind:checklist
                   autoDispatch={!!editingTask}

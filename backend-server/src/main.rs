@@ -335,6 +335,23 @@ async fn main() {
             "/api/workspaces/:ws_id/milestones/:id",
             delete(handlers::milestone_handler::delete_milestone),
         )
+        // Checklist template routes
+        .route(
+            "/api/workspaces/:ws_id/checklist-templates",
+            get(handlers::checklist_template_handler::list_checklist_templates),
+        )
+        .route(
+            "/api/workspaces/:ws_id/checklist-templates",
+            post(handlers::checklist_template_handler::create_checklist_template),
+        )
+        .route(
+            "/api/workspaces/:ws_id/checklist-templates/:template_id",
+            put(handlers::checklist_template_handler::update_checklist_template),
+        )
+        .route(
+            "/api/workspaces/:ws_id/checklist-templates/:template_id",
+            delete(handlers::checklist_template_handler::delete_checklist_template),
+        )
         .route("/ws", get(handlers::ws_handler::ws_handler))
         .layer(
             tower_http::cors::CorsLayer::new()

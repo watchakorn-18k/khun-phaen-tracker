@@ -709,5 +709,50 @@ export const api = {
         });
       },
     },
+    // Checklist Templates
+    checklistTemplates: {
+      list: (wsId: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/checklist-templates`, {
+          headers: api.data._headers(),
+          credentials: "include",
+        });
+      },
+      create: (
+        wsId: string,
+        template: Record<string, any>,
+      ): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/checklist-templates`, {
+          method: "POST",
+          headers: api.data._headers(true),
+          credentials: "include",
+          body: JSON.stringify(template),
+        });
+      },
+      update: (
+        wsId: string,
+        templateId: string,
+        updates: Record<string, any>,
+      ): Promise<Response> => {
+        return fetch(
+          `${API_BASE_URL}/workspaces/${wsId}/checklist-templates/${templateId}`,
+          {
+            method: "PUT",
+            headers: api.data._headers(true),
+            credentials: "include",
+            body: JSON.stringify(updates),
+          },
+        );
+      },
+      delete: (wsId: string, templateId: string): Promise<Response> => {
+        return fetch(
+          `${API_BASE_URL}/workspaces/${wsId}/checklist-templates/${templateId}`,
+          {
+            method: "DELETE",
+            headers: api.data._headers(),
+            credentials: "include",
+          },
+        );
+      },
+    },
   },
 };

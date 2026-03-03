@@ -2,6 +2,7 @@
   import { createEventDispatcher } from "svelte";
   import type { Sprint } from "$lib/types";
   import { sprints } from "$lib/stores/sprintStore";
+  import { _ } from "svelte-i18n";
   import {
     Flag,
     Plus,
@@ -165,9 +166,7 @@
     } else {
       // Check if can create new sprint
       if (!canCreateSprint) {
-        alert(
-          "ไม่สามารถสร้าง Sprint ใหม่ได้: มี Sprint ที่ยังดำเนินการอยู่หรือยังไม่หมดอายุ",
-        );
+        alert($_("sprintManager__error_active_exists"));
         return;
       }
 
@@ -276,7 +275,7 @@
   }
 
   async function handleDelete(id: string | number) {
-    if (confirm("คุณแน่ใจหรือไม่ที่จะลบ Sprint นี้?")) {
+    if (confirm($_("sprintManager__delete_confirm"))) {
       dispatch("deleteSprint", id);
       await sprints.delete(id);
     }
@@ -332,15 +331,19 @@
   function formatDuration(startDate: string, endDate: string): string {
     const days = getDurationDays(startDate, endDate);
     if (days < 7) {
-      return `${days} วัน`;
+      return $_("sprintManager__duration_day", { values: { count: days } });
     } else if (days === 7) {
-      return `1 สัปดาห์`;
+      return $_("sprintManager__duration_week", { values: { count: 1 } });
     } else if (days % 7 === 0) {
-      return `${days / 7} สัปดาห์`;
+      return $_("sprintManager__duration_week", {
+        values: { count: days / 7 },
+      });
     } else {
       const weeks = Math.floor(days / 7);
       const remainingDays = days % 7;
-      return `${weeks} สัปดาห์ ${remainingDays} วัน`;
+      return $_("sprintManager__duration_week_day", {
+        values: { weeks, days: remainingDays },
+      });
     }
   }
 
@@ -377,10 +380,11 @@
         </div>
         <div>
           <h2 class="text-xl font-bold text-gray-900 dark:text-white">
-            จัดการ | Sprint
+            {$_("sprintManager__manage_title")}
           </h2>
           <p class="text-sm text-gray-500 dark:text-gray-400">
-            {$sprints.length} Sprint
+            {$sprints.length}
+            {$_("sprintManager__count_suffix")}
           </p>
         </div>
       </div>
@@ -410,9 +414,9 @@
                 {activeSprint.name}
               </h3>
               <p class="text-sm text-green-600 dark:text-green-500">
-                กำลังดำเนินการ · {formatDate(activeSprint.start_date)} - {formatDate(
-                  activeSprint.end_date,
-                )}
+                {$_("sprintManager__active_status")} · {formatDate(
+                  activeSprint.start_date,
+                )} - {formatDate(activeSprint.end_date)}
                 <span
                   class="inline-flex items-center gap-1 ml-2 px-2 py-0.5 bg-green-100 dark:bg-green-800/50 rounded text-xs font-medium"
                 >
@@ -433,7 +437,7 @@
                 ).total}
               </div>
               <div class="text-xs text-green-600 dark:text-green-500">
-                งานเสร็จแล้ว
+                {$_("sprintManager__tasks_done")}
               </div>
             </div>
           </div>
@@ -447,13 +451,13 @@
             <label
               for="sprint-name-input"
               class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >ชื่อ Sprint</label
+              >{$_("sprintManager__label_name")}</label
             >
             <input
               id="sprint-name-input"
               type="text"
               bind:value={newSprintName}
-              placeholder="เช่น Sprint 1, สัปดาห์ที่ 1..."
+              placeholder={$_("sprintManager__placeholder_name")}
               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-800 dark:text-white"
             />
           </div>
@@ -463,7 +467,7 @@
               <label
                 for="sprint-start-input"
                 class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                >วันเริ่มต้น</label
+                >{$_("sprintManager__label_start")}</label
               >
               <input
                 id="sprint-start-input"
@@ -484,7 +488,7 @@
               <label
                 for="sprint-end-input"
                 class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                >วันสิ้นสุด</label
+                >{$_("sprintManager__label_end")}</label
               >
               <input
                 id="sprint-end-input"
@@ -502,7 +506,8 @@
                 <span
                   class="text-sm text-blue-700 dark:text-blue-300 font-medium"
                 >
-                  ระยะเวลา: {formatDuration(newSprintStart, newSprintEnd)}
+                  {$_("sprintManager__duration_label")}
+                  {formatDuration(newSprintStart, newSprintEnd)}
                 </span>
               </div>
             {/if}
@@ -518,17 +523,17 @@
             >
               {#if editingSprint}
                 <Edit2 size={16} />
-                บันทึก
+                {$_("common.save")}
               {:else}
                 <Plus size={16} />
-                สร้าง Sprint
+                {$_("sprintManager__btn_create")}
               {/if}
             </button>
             <button
               on:click={cancelEdit}
               class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
             >
-              ยกเลิก
+              {$_("common.cancel")}
             </button>
           </div>
         </div>
@@ -541,16 +546,20 @@
               class="w-full py-3 px-4 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-gray-400 dark:text-gray-600 cursor-not-allowed flex items-center justify-center gap-2"
             >
               <Plus size={18} />
-              สร้าง Sprint ใหม่
+              {$_("sprintManager__btn_create_new")}
             </button>
             <!-- Tooltip -->
             <div
               class="absolute bottom-full left-1/2 -translate-x-1/2 translate-y-1 group-hover:translate-y-0 mb-2 px-3 py-2 bg-gray-800 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 ease-out pointer-events-none whitespace-nowrap z-10"
             >
               {#if blockingSprint.status === "active"}
-                มี Sprint "{blockingSprint.name}" กำลังดำเนินการอยู่
+                {$_("sprintManager__blocking_active", {
+                  values: { name: blockingSprint.name },
+                })}
               {:else}
-                Sprint "{blockingSprint.name}" ยังไม่หมดอายุ
+                {$_("sprintManager__blocking_planned", {
+                  values: { name: blockingSprint.name },
+                })}
               {/if}
               <div
                 class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800 dark:border-t-gray-700"
@@ -573,14 +582,14 @@
         <h3
           class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide"
         >
-          รายการ Sprint
+          {$_("sprintManager__list_title")}
         </h3>
 
         {#if $sprints.length === 0}
           <div class="text-center py-8 text-gray-400 dark:text-gray-500">
             <Flag size={48} class="mx-auto mb-3 opacity-50" />
-            <p>ยังไม่มี Sprint</p>
-            <p class="text-sm">คลิกปุ่มด้านบนเพื่อสร้าง</p>
+            <p>{$_("sprintManager__no_sprints")}</p>
+            <p class="text-sm">{$_("sprintManager__no_sprints_hint")}</p>
           </div>
         {:else}
           <div class="space-y-3">
@@ -624,10 +633,10 @@
                             : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}"
                       >
                         {sprint.status === "active"
-                          ? "กำลังทำ"
+                          ? $_("sprintManager__status_active")
                           : sprint.status === "completed"
-                            ? "เสร็จสิ้น"
-                            : "วางแผน"}
+                            ? $_("sprintManager__status_completed")
+                            : $_("sprintManager__status_planned")}
                       </span>
                     </div>
                     <p class="text-sm text-gray-500 dark:text-gray-400">
@@ -645,7 +654,9 @@
                           class="inline-flex items-center gap-1 ml-1 px-1.5 py-0.5 bg-green-100 dark:bg-green-800/50 text-green-700 dark:text-green-300 rounded text-xs"
                         >
                           <CheckCircle2 size={10} />
-                          จบ {formatDate(sprint.completed_at)}
+                          {$_("sprintManager__completed_on", {
+                            values: { date: formatDate(sprint.completed_at) },
+                          })}
                         </span>
                       {/if}
                     </p>
@@ -653,13 +664,16 @@
                       <!-- Completed Sprint: Show archived count -->
                       <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">
                         <Archive size={14} class="inline mr-1 text-gray-400" />
-                        {sprint.archived_count || 0} งาน Archive
+                        {$_("sprintManager__archived_tasks", {
+                          values: { count: sprint.archived_count || 0 },
+                        })}
                         {#if sprint.archived_count}
-                          <span class="text-gray-400 ml-1">(เสร็จสิ้นแล้ว)</span
+                          <span class="text-gray-400 ml-1"
+                            >{$_("sprintManager__archived_tasks_done")}</span
                           >
                         {:else}
                           <span class="text-gray-400 ml-1"
-                            >(ไม่มีงานใน Sprint)</span
+                            >{$_("sprintManager__no_tasks")}</span
                           >
                         {/if}
                       </p>
@@ -668,7 +682,8 @@
                       <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">
                         {getTaskCount(sprint.id!).done}/{getTaskCount(
                           sprint.id!,
-                        ).total} งานเสร็จแล้ว
+                        ).total}
+                        {$_("sprintManager__tasks_done")}
                         {#if getTaskCount(sprint.id!).total > 0}
                           <span class="text-gray-400"
                             >({Math.round(
@@ -704,14 +719,14 @@
                           on:click={() =>
                             dispatch("exportMarkdown", sprint.id!)}
                           class="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                          title="ส่งออก Markdown จากงานที่ Archive ใน Sprint นี้"
+                          title={$_("sprintManager__export_markdown_hint")}
                         >
                           <FileCode size={16} />
                         </button>
                         <button
                           on:click={() => dispatch("exportVideo", sprint.id!)}
                           class="p-2 text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors"
-                          title="ส่งออก Video จากงานที่ Archive ใน Sprint นี้"
+                          title={$_("sprintManager__export_video_hint")}
                         >
                           <Video size={16} />
                         </button>
@@ -721,7 +736,7 @@
                         <button
                           on:click={() => handleStartSprint(sprint.id!)}
                           class="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
-                          title="เริ่ม Sprint"
+                          title={$_("sprintManager__start_hint")}
                         >
                           <Play size={16} />
                         </button>
@@ -731,7 +746,7 @@
                         <button
                           on:click={() => startComplete(sprint.id!)}
                           class="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
-                          title="จบ Sprint"
+                          title={$_("sprintManager__complete_hint")}
                         >
                           <CheckCircle2 size={16} />
                         </button>
@@ -740,7 +755,7 @@
                       <button
                         on:click={() => startEdit(sprint)}
                         class="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
-                        title="แก้ไข"
+                        title={$_("common.update")}
                       >
                         <Edit2 size={16} />
                       </button>
@@ -749,7 +764,7 @@
                         <button
                           on:click={() => handleDelete(sprint.id!)}
                           class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                          title="ลบ"
+                          title={$_("workerManager__btn_delete")}
                         >
                           <X size={16} />
                         </button>
@@ -786,7 +801,7 @@
             สร้าง Sprint ใหม่
           </h3>
           <p class="text-sm text-gray-500 dark:text-gray-400">
-            ยืนยันการสร้างและย้ายงาน
+            {$_("sprintManager__move_tasks_subtitle")}
           </p>
         </div>
       </div>
@@ -817,11 +832,12 @@
             class="bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg p-3"
           >
             <p class="text-sm text-gray-700 dark:text-gray-300">
-              <span class="font-medium">{tasksToMove.length} งาน</span> จะถูกย้ายมายัง
-              Sprint นี้
+              {@html $_("sprintManager__tasks_to_move", {
+                values: { count: tasksToMove.length },
+              })}
             </p>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              รวมงานที่ไม่มี Sprint และงานจาก Sprint เก่า
+              {$_("sprintManager__tasks_to_move_hint")}
             </p>
           </div>
         {/if}
@@ -833,19 +849,19 @@
           class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm"
         >
           <CheckCircle2 size={16} />
-          สร้างและย้ายงาน
+          {$_("sprintManager__btn_create_and_move")}
         </button>
         <button
           on:click={() => confirmCreateSprint(false)}
           class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
         >
-          สร้างอย่างเดียว
+          {$_("sprintManager__btn_create_only")}
         </button>
         <button
           on:click={cancelMoveTasks}
           class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
         >
-          ยกเลิก
+          {$_("common.cancel")}
         </button>
       </div>
     </div>
@@ -875,10 +891,10 @@
         </div>
         <div>
           <h3 class="text-lg font-bold text-gray-900 dark:text-white">
-            จบ Sprint
+            {$_("sprintManager__complete_title")}
           </h3>
           <p class="text-sm text-gray-500 dark:text-gray-400">
-            ยืนยันการจบ Sprint
+            {$_("sprintManager__complete_subtitle")}
           </p>
         </div>
       </div>
@@ -889,8 +905,9 @@
         >
           <p class="text-sm text-green-800 dark:text-green-300">
             <CheckCircle2 size={14} class="inline mr-1" />
-            <span class="font-medium">{completedTasks.length} งาน</span> ที่เสร็จแล้วจะถูก
-            Archive
+            {@html $_("sprintManager__completed_tasks_msg", {
+              values: { count: completedTasks.length },
+            })}
           </p>
         </div>
 
@@ -900,11 +917,12 @@
           >
             <p class="text-sm text-amber-800 dark:text-amber-300">
               <AlertCircle size={14} class="inline mr-1" />
-              <span class="font-medium">{incompleteTasks.length} งาน</span> ที่ยังไม่เสร็จจะถูกนำออกจาก
-              Sprint
+              {@html $_("sprintManager__incomplete_tasks_msg", {
+                values: { count: incompleteTasks.length },
+              })}
             </p>
             <p class="text-xs text-amber-600 dark:text-amber-400 mt-1">
-              งานเหล่านี้จะรอ Sprint ใหม่
+              {$_("sprintManager__incomplete_tasks_wait")}
             </p>
           </div>
         {/if}
@@ -917,13 +935,13 @@
             class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
           >
             <CheckCircle2 size={16} />
-            ยืนยันจบ Sprint
+            {$_("sprintManager__btn_confirm_complete")}
           </button>
           <button
             on:click={cancelComplete}
             class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
-            ยกเลิก
+            {$_("common.cancel")}
           </button>
         </div>
         <div class="grid grid-cols-2 gap-2">
@@ -932,14 +950,14 @@
             class="px-3 py-2 border border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors text-sm flex items-center justify-center gap-2"
           >
             <FileCode size={14} />
-            จบและส่งออก MD
+            {$_("sprintManager__btn_complete_export_md")}
           </button>
           <button
             on:click={() => confirmCompleteWithExport("video")}
             class="px-3 py-2 border border-orange-200 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors text-sm flex items-center justify-center gap-2"
           >
             <Video size={14} />
-            จบและส่งออกวิดีโอ
+            {$_("sprintManager__btn_complete_export_video")}
           </button>
         </div>
       </div>

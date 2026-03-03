@@ -168,3 +168,16 @@ export interface CommandPaletteItem {
   project?: string;
   status?: string;
 }
+export interface ChecklistTemplate {
+  id: string; // UUID
+  workspace_id: string;
+  name: string;
+  items: string[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ChecklistTemplateResponse {
+  success: boolean;
+  templates: ChecklistTemplate[];
+}

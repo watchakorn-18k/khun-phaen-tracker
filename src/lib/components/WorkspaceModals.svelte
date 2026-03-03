@@ -114,7 +114,6 @@
   {isOwner}
   projects={projectList}
   {sprints}
-  allTasks={allTasksIncludingArchived.filter((t) => !t.is_archived)}
   on:submit={handleAddTask}
   on:close={cancelEdit}
   on:addAssignee={handleAddAssignee}
