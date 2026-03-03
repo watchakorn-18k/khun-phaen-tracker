@@ -12,6 +12,7 @@
     Clock,
     Globe,
     Users,
+    Star,
   } from "lucide-svelte";
   import { theme } from "$lib/stores/theme";
   import favicon from "$lib/assets/favicon.svg";
@@ -37,6 +38,7 @@
   import { api } from "$lib/apis";
 
   import { clearWorkspaceId } from "$lib/stores/workspace";
+  import { githubStore } from "$lib/stores/github";
 
   let loading = true;
   let error = "";
@@ -50,7 +52,7 @@
   let showProfileModal = false;
   let whiteboardMessage = "";
   let whiteboardMessageType: "success" | "error" = "success";
-  let githubStars = "...";
+  let githubInterval: ReturnType<typeof setInterval>;
 
   let scrollY = 0;
   let showHeader = true;
@@ -77,23 +79,6 @@
   function toggleNavbarLock() {
     isNavbarLocked = !isNavbarLocked;
     document.cookie = `navbarLocked=${isNavbarLocked}; path=/; max-age=31536000; SameSite=Lax`;
-  }
-
-  async function fetchGithubStars() {
-    try {
-      const res = await fetch(
-        "https://api.github.com/repos/fakduai-logistics-and-digital-platform/khun-phaen-tracker",
-      );
-      const data = await res.json();
-      if (data.stargazers_count !== undefined) {
-        githubStars = data.stargazers_count.toLocaleString();
-      } else {
-        githubStars = "0";
-      }
-    } catch (e) {
-      console.error("Failed to fetch stars:", e);
-      githubStars = "0";
-    }
   }
 
   function handleOpenUtilityModal(event: Event) {
@@ -138,11 +123,19 @@
 
     document.addEventListener("open-utility-modal", handleOpenUtilityModal);
 
-    fetchGithubStars();
+    // Initial fetch for stars
+    githubStore.fetchStars();
+    // Refresh stars every 5 minutes for realtime experience
+    githubInterval = setInterval(
+      () => {
+        githubStore.fetchStars();
+      },
+      1000 * 60 * 5,
+    );
   });
 
   onDestroy(() => {
-    if (timeInterval) clearInterval(timeInterval);
+    if (githubInterval) clearInterval(githubInterval);
     if (browser) {
       document.removeEventListener(
         "open-utility-modal",
@@ -376,10 +369,10 @@
                 class="flex items-center gap-1.5 pl-2 ml-1 border-l border-gray-200 dark:border-gray-600"
               >
                 <div
-                  class="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-indigo-500/10 dark:bg-indigo-500/20 text-[10px] text-indigo-600 dark:text-indigo-400 font-black"
+                  class="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-indigo-500/10 dark:bg-indigo-500/20 text-[10px] text-indigo-600 dark:text-indigo-400 font-bold"
                 >
-                  <span class="text-xs text-amber-500 leading-none">★</span>
-                  {githubStars}
+                  <Star size={10} class="text-amber-500 fill-amber-500" />
+                  {$githubStore.stars}
                 </div>
               </div>
             </a>
