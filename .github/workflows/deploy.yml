@@ -132,3 +132,27 @@ jobs:
       - name: 🚀 Khun Phaen Launch
         id: deployment
         uses: actions/deploy-pages@v4
+
+  deploy-backend:
+    runs-on: ubuntu-latest
+    needs: build-backend
+    # Only run on main/master branch, not on PRs
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to server via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script_stop: true
+          script: |
+            cd projects/khun-phaen-tracker/
+            git fetch
+            git pull
+            podman pull ghcr.io/${{ github.repository }}/backend:latest
+            podman-compose -f backend-server/docker-compose.atlas.yml up -d --force-recreate
