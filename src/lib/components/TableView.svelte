@@ -598,26 +598,28 @@
                   </div>
 
                   <div class="flex items-center gap-1 flex-wrap">
-                    {#each task.assignees as assignee, idx}
+                    {#each task.assignees.slice(0, 2) as assignee, idx}
                       <div
                         class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium text-white shrink-0 {idx >
                         0
-                          ? '-ml-1'
+                          ? '-ml-1.5 border-2 border-white dark:border-gray-900'
                           : ''}"
                         style="background-color: {assignee.color || '#6366F1'}"
                       >
                         {assignee.name.charAt(0)}
                       </div>
                     {/each}
+
                     {#if task.assignees.length === 1}
                       <span
-                        class="text-xs text-gray-700 dark:text-gray-300 truncate max-w-15"
+                        class="text-xs text-gray-700 dark:text-gray-300 truncate max-w-24 ml-1"
                       >
                         {task.assignees[0].name}
                       </span>
-                    {:else if task.assignees.length > 1}
-                      <span class="text-[10px] text-gray-500 dark:text-gray-400"
-                        >+{task.assignees.length - 1}</span
+                    {:else if task.assignees.length > 2}
+                      <span
+                        class="text-[10px] text-gray-500 dark:text-gray-400 font-medium ml-0.5"
+                        >+{task.assignees.length - 2}</span
                       >
                     {/if}
                   </div>
