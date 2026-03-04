@@ -666,6 +666,27 @@ export async function addAssigneeGroup(
   return newGroup;
 }
 
+export async function updateAssigneeGroup(
+  id: string | number,
+  updates: { name?: string; assignee_ids?: (string | number)[] },
+): Promise<AssigneeGroup> {
+  const payload: Record<string, any> = {};
+  if (updates.name !== undefined) payload.name = updates.name;
+  if (updates.assignee_ids !== undefined)
+    payload.assignee_ids = updates.assignee_ids.map(String);
+  const res = await api.data.assigneeGroups.update(
+    wsId(),
+    String(id),
+    payload,
+  );
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || "Failed to update assignee group");
+  }
+  _assigneeGroupsCache = null;
+  return docToAssigneeGroup(data.group || {});
+}
+
 export async function deleteAssigneeGroup(id: string | number): Promise<void> {
   const res = await api.data.assigneeGroups.delete(wsId(), String(id));
   if (!res.ok) {

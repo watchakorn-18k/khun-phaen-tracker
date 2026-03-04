@@ -1,14 +1,12 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, tick } from 'svelte';
 	import type { Assignee, AssigneeGroup } from '$lib/types';
-	import { Users, User, Plus, Trash2, X } from 'lucide-svelte';
+	import { Users, User, Plus, X } from 'lucide-svelte';
 	import { _ } from 'svelte-i18n';
 	import SearchableSelect from './SearchableSelect.svelte';
 
 	const dispatch = createEventDispatcher<{
 		addAssignee: { name: string; color: string };
-		addAssigneeGroup: { name: string; assignee_ids: (string | number)[] };
-		deleteAssigneeGroup: { id: string | number };
 	}>();
 
 	export let assignees: Assignee[] = [];
@@ -17,12 +15,42 @@
 	export let assignee_id_to_add: string | number | null = null;
 	export let readonly = false;
 	let showAddAssigneeForm = false;
-	let showAddGroupForm = false;
 	let newAssigneeName = '';
 	let newAssigneeColor = '#6366F1';
-	let newGroupName = '';
-	let selectedGroupAssigneeIds: (string | number)[] = [];
-	let selectedGroupIdToAdd: string | number | null = null;
+
+	// Combined selection - can be either group ID or assignee ID
+	let selectedValue: string | number | null = null;
+
+	// Watch for selection changes and handle them
+	$: if (selectedValue !== null) {
+		const valueStr = String(selectedValue);
+
+		if (valueStr.startsWith('group_')) {
+			// Group selected - add all members
+			const groupId = valueStr.replace('group_', '');
+			const group = assigneeGroups.find((g) => isSameId(g.id, groupId));
+			if (group) {
+				const next = [...assignee_ids];
+				for (const memberId of group.assignee_ids || []) {
+					if (!next.some((id) => isSameId(id, memberId))) {
+						next.push(memberId);
+					}
+				}
+				assignee_ids = next;
+			}
+		} else if (valueStr.startsWith('assignee_')) {
+			// Individual assignee selected
+			const assigneeId = valueStr.replace('assignee_', '');
+			if (!assignee_ids.some((id) => isSameId(id, assigneeId))) {
+				assignee_ids = [...assignee_ids, assigneeId];
+			}
+		}
+
+		// Reset selection after handling (using tick to avoid infinite loop)
+		tick().then(() => {
+			selectedValue = null;
+		});
+	}
 
 	const colorOptions = [
 		'#EF4444', '#F97316', '#F59E0B', '#84CC16', '#22C55E',
@@ -37,27 +65,38 @@
 	$: selectedAssignees = assignee_ids
 		.map((id) => assignees.find((a) => isSameId(a.id, id)))
 		.filter(Boolean) as Assignee[];
+
 	$: availableAssignees = assignees.filter((a) => a.id != null && !assignee_ids.some((id) => isSameId(a.id, id)));
-	$: selectedGroupToAdd = assigneeGroups.find((g) => isSameId(g.id, selectedGroupIdToAdd));
 
-	function addAssigneeToTask() {
-		if (assignee_id_to_add !== null && !assignee_ids.some((id) => isSameId(id, assignee_id_to_add))) {
-			assignee_ids = [...assignee_ids, assignee_id_to_add];
-			assignee_id_to_add = null;
-		}
-	}
-
-	function addSelectedGroupMembersToTask() {
-		if (!selectedGroupToAdd) return;
-		const next = [...assignee_ids];
-		for (const memberId of selectedGroupToAdd.assignee_ids || []) {
-			if (!next.some((id) => isSameId(id, memberId))) {
-				next.push(memberId);
-			}
-		}
-		assignee_ids = next;
-		selectedGroupIdToAdd = null;
-	}
+	// Build combined options: groups first, then individual assignees
+	$: combinedOptions = [
+		// Placeholder
+		{ value: null, label: $_('taskForm__assignee_placeholder'), disabled: true },
+		// Group separator
+		{ value: '__GROUPS__' as any, label: '─── ' + $_('workerManager__groups_title') + ' ───', disabled: true },
+		// Groups
+		...assigneeGroups
+			.filter((g) => g.id !== undefined && g.assignee_ids.length > 0)
+			.map((group) => ({
+				value: 'group_' + String(group.id),
+				label: `${group.name} (${group.assignee_ids.length})`,
+				isGroup: true,
+				groupId: group.id
+			})),
+		// Individual separator
+		{ value: '__INDIVIDUALS__' as any, label: '─── ' + $_('workerManager__list_title') + ' ───', disabled: true },
+		// Individual assignees
+		...availableAssignees
+			.filter((assignee) => assignee.id !== undefined)
+			.map((assignee) => ({
+				value: 'assignee_' + String(assignee.id),
+				label: assignee.name,
+				badge: true,
+				badgeColor: assignee.color,
+				isAssignee: true,
+				assigneeId: assignee.id
+			}))
+	];
 
 	function removeAssigneeFromTask(id: string | number) {
 		assignee_ids = assignee_ids.filter((assigneeId) => !isSameId(assigneeId, id));
@@ -76,41 +115,10 @@
 		showAddAssigneeForm = false;
 	}
 
-	function handleCreateGroup() {
-		if (!newGroupName.trim()) return;
-		dispatch('addAssigneeGroup', {
-			name: newGroupName.trim(),
-			assignee_ids: selectedGroupAssigneeIds
-		});
-		newGroupName = '';
-		selectedGroupAssigneeIds = [];
-		showAddGroupForm = false;
-	}
-
-	function handleDeleteGroup(groupId: string | number | undefined) {
-		if (groupId == null) return;
-		dispatch('deleteAssigneeGroup', { id: groupId });
-	}
-
-	function toggleGroupMember(id: string | number | undefined) {
-		if (id == null) return;
-		if (selectedGroupAssigneeIds.some((x) => isSameId(x, id))) {
-			selectedGroupAssigneeIds = selectedGroupAssigneeIds.filter((x) => !isSameId(x, id));
-			return;
-		}
-		selectedGroupAssigneeIds = [...selectedGroupAssigneeIds, id];
-	}
-
 	function cancelAddAssignee() {
 		newAssigneeName = '';
 		newAssigneeColor = '#6366F1';
 		showAddAssigneeForm = false;
-	}
-
-	function cancelAddGroup() {
-		newGroupName = '';
-		selectedGroupAssigneeIds = [];
-		showAddGroupForm = false;
 	}
 </script>
 
@@ -202,137 +210,23 @@
 		{/if}
 
 		{#if !readonly}
-			<div class="space-y-2">
-				<div class="flex gap-2">
-					<div class="flex-1">
-						<SearchableSelect
-							bind:value={assignee_id_to_add}
-							options={[
-								{ value: null, label: $_('taskForm__assignee_placeholder') },
-								...availableAssignees
-								.filter((assignee) => assignee.id !== undefined)
-								.map(assignee => ({
-									value: assignee.id!,
-									label: assignee.name,
-									badge: true,
-									badgeColor: assignee.color
-								}))
-							]}
-							placeholder={$_('taskForm__assignee_placeholder')}
-						/>
-					</div>
-					<button
-						type="button"
-						on:click={addAssigneeToTask}
-						disabled={assignee_id_to_add === null}
-						class="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
-						title="Add selected assignee"
-					>
-						<Plus size={16} />
-					</button>
-					<button
-						type="button"
-						on:click={() => showAddAssigneeForm = true}
-						class="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-1"
-						title={$_('taskForm__add_assignee')}
-					>
-						<User size={16} />
-						<Plus size={12} />
-					</button>
+			<div class="flex gap-2">
+				<div class="flex-1">
+					<SearchableSelect
+						bind:value={selectedValue}
+						options={combinedOptions}
+						placeholder={$_('taskForm__assignee_placeholder')}
+					/>
 				</div>
-
-				<div class="rounded-lg border border-gray-200 dark:border-gray-700 p-2 space-y-2">
-					<div class="text-xs font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-1"><Users size={13} />Assignee Groups</div>
-					{#if showAddGroupForm}
-						<div class="space-y-2">
-							<input
-								type="text"
-								bind:value={newGroupName}
-								placeholder="Group name"
-								class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none text-sm dark:bg-gray-700 dark:text-white"
-							/>
-							<div class="max-h-28 overflow-y-auto space-y-1">
-								{#each assignees.filter((a) => a.id != null) as assignee (assignee.id)}
-									<label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-										<input
-											type="checkbox"
-											checked={selectedGroupAssigneeIds.some((id) => isSameId(id, assignee.id))}
-											on:change={() => toggleGroupMember(assignee.id)}
-										/>
-										<span class="w-2.5 h-2.5 rounded-full" style="background-color: {assignee.color}"></span>
-										<span>{assignee.name}</span>
-									</label>
-								{/each}
-							</div>
-							<div class="flex gap-2">
-								<button
-									type="button"
-									on:click={handleCreateGroup}
-									disabled={!newGroupName.trim()}
-									class="flex-1 bg-primary hover:bg-primary-dark disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white py-1.5 px-3 rounded-lg text-sm font-medium transition-colors"
-								>
-									Create Group
-								</button>
-								<button
-									type="button"
-									on:click={cancelAddGroup}
-									class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-								>
-									Cancel
-								</button>
-							</div>
-						</div>
-					{:else}
-						<div class="flex gap-2">
-							<div class="flex-1">
-								<SearchableSelect
-									bind:value={selectedGroupIdToAdd}
-									options={[
-										{ value: null, label: 'เลือกกลุ่มผู้รับผิดชอบ' },
-										...assigneeGroups
-											.filter((g) => g.id !== undefined)
-											.map((group) => ({
-												value: group.id!,
-												label: `${group.name} (${group.assignee_ids.length})`
-											}))
-									]}
-									placeholder="เลือกกลุ่มผู้รับผิดชอบ"
-								/>
-							</div>
-							<button
-								type="button"
-								on:click={addSelectedGroupMembersToTask}
-								disabled={selectedGroupIdToAdd === null}
-								class="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-								title="Add members from selected group"
-							>
-								<Plus size={16} />
-							</button>
-							<button
-								type="button"
-								on:click={() => showAddGroupForm = true}
-								class="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-								title="Create group"
-							>
-								<Users size={16} />
-								<Plus size={12} />
-							</button>
-						</div>
-					{/if}
-
-					{#if assigneeGroups.length > 0}
-						<div class="flex flex-wrap gap-1.5 pt-1">
-							{#each assigneeGroups as group (group.id)}
-								<div class="inline-flex items-center gap-1 px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-xs text-gray-700 dark:text-gray-300">
-									<span>{group.name} ({group.assignee_ids.length})</span>
-									<button type="button" class="text-gray-400 hover:text-red-500" on:click={() => handleDeleteGroup(group.id)} title="Delete group">
-										<Trash2 size={12} />
-									</button>
-								</div>
-							{/each}
-						</div>
-					{/if}
-				</div>
+				<button
+					type="button"
+					on:click={() => showAddAssigneeForm = true}
+					class="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-1"
+					title={$_('taskForm__add_assignee')}
+				>
+					<User size={16} />
+					<Plus size={12} />
+				</button>
 			</div>
 		{:else if selectedAssignees.length === 0}
 			<p class="text-sm text-gray-500 dark:text-gray-400 italic">{$_('taskForm__unassigned')}</p>

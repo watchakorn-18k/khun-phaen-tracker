@@ -1,7 +1,7 @@
 <script lang="ts">
 	export let id: string = 'select';
 	export let value: string | number | null = 'all';
-	export let options: Array<{ value: string | number | null; label: string; badge?: boolean; badgeColor?: string }> = [];
+	export let options: Array<{ value: string | number | null; label: string; badge?: boolean; badgeColor?: string; disabled?: boolean }> = [];
 	export let placeholder: string = 'ค้นหา...';
 	export let emptyText: string = 'ไม่พบรายการ';
 	export let showSearch: boolean = true;
@@ -111,25 +111,31 @@
 					</div>
 				{:else}
 					{#each displayOptions as option}
-						<button
-							type="button"
-							class="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors {isSameValue(value, option.value) ? 'bg-primary/10 text-primary font-medium' : 'text-gray-900 dark:text-gray-100'}"
-							on:click={() => selectOption(option.value)}
-						>
-							{#if option.badge}
-								{#if option.badgeColor?.startsWith('#')}
-								<span class="shrink-0 w-2 h-2 rounded-full" style="background-color: {option.badgeColor}"></span>
-							{:else}
-								<span class="shrink-0 w-2 h-2 rounded-full {option.badgeColor || 'bg-gray-400'}"></span>
-							{/if}
+						{#if option.disabled}
+							<div class="px-4 py-1.5 text-xs text-gray-400 dark:text-gray-500 font-medium text-center uppercase tracking-wider border-t border-b border-gray-100 dark:border-gray-700">
+								{option.label}
+							</div>
+						{:else}
+							<button
+								type="button"
+								class="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors {isSameValue(value, option.value) ? 'bg-primary/10 text-primary font-medium' : 'text-gray-900 dark:text-gray-100'}"
+								on:click={() => selectOption(option.value)}
+							>
+								{#if option.badge}
+									{#if option.badgeColor?.startsWith('#')}
+										<span class="shrink-0 w-2 h-2 rounded-full" style="background-color: {option.badgeColor}"></span>
+									{:else}
+										<span class="shrink-0 w-2 h-2 rounded-full {option.badgeColor || 'bg-gray-400'}"></span>
+									{/if}
+								{/if}
+								<span class="truncate flex-1">{option.label}</span>
+								{#if isSameValue(value, option.value)}
+									<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+									</svg>
+								{/if}
+							</button>
 						{/if}
-						<span class="truncate flex-1">{option.label}</span>
-						{#if isSameValue(value, option.value)}
-							<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-							</svg>
-							{/if}
-						</button>
 					{/each}
 
 					{#if hasMore}

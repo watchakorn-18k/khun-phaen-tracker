@@ -691,6 +691,21 @@ export const api = {
           body: JSON.stringify(payload),
         });
       },
+      update: (
+        wsId: string,
+        groupId: string,
+        payload: Record<string, any>,
+      ): Promise<Response> => {
+        return fetch(
+          `${API_BASE_URL}/workspaces/${wsId}/assignee-groups/${groupId}`,
+          {
+            method: "PUT",
+            headers: api.data._headers(true),
+            credentials: "include",
+            body: JSON.stringify(payload),
+          },
+        );
+      },
       delete: (wsId: string, groupId: string): Promise<Response> => {
         return fetch(
           `${API_BASE_URL}/workspaces/${wsId}/assignee-groups/${groupId}`,

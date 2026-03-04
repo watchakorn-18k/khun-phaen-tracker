@@ -1620,6 +1620,83 @@ pub async fn create_assignee_group(
     }
 }
 
+pub async fn update_assignee_group(
+    State(state): State<SharedState>,
+    Path((ws_id, group_id)): Path<(String, String)>,
+    headers: HeaderMap,
+    jar: CookieJar,
+    Json(payload): Json<UpdateAssigneeGroupRequest>,
+) -> axum::response::Response {
+    let ws_oid = match verify_workspace_access(&state, &headers, &jar, &ws_id).await {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+
+    let group_oid = match ObjectId::parse_str(&group_id) {
+        Ok(id) => id,
+        Err(_) => {
+            return (
+                axum::http::StatusCode::BAD_REQUEST,
+                axum::Json(serde_json::json!({ "error": "Invalid group ID" })),
+            )
+                .into_response()
+        }
+    };
+
+    let trimmed_name = payload.name.as_deref().map(|n| n.trim());
+    if let Some(name) = trimmed_name {
+        if name.is_empty() {
+            return (
+                axum::http::StatusCode::BAD_REQUEST,
+                axum::Json(serde_json::json!({ "error": "Group name cannot be empty" })),
+            )
+                .into_response();
+        }
+    }
+
+    // Sanitize assignee_ids if provided
+    let sanitized_ids = if let Some(ids) = payload.assignee_ids {
+        let repo = DataRepository::new(&state.db);
+        let assignees = match repo.find_assignees(&ws_oid).await {
+            Ok(rows) => rows,
+            Err(e) => {
+                return (
+                    axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    axum::Json(serde_json::json!({ "error": format!("{}", e) })),
+                )
+                    .into_response()
+            }
+        };
+        let valid_ids: HashSet<String> = assignees
+            .into_iter()
+            .filter_map(|a| a.id.map(|id| id.to_hex()))
+            .collect();
+        Some(ids.into_iter().filter(|id| valid_ids.contains(id)).collect())
+    } else {
+        None
+    };
+
+    let repo = DataRepository::new(&state.db);
+    match repo
+        .update_assignee_group(&group_oid, &ws_oid, trimmed_name, sanitized_ids)
+        .await
+    {
+        Ok(Some(updated)) => {
+            axum::Json(serde_json::json!({ "success": true, "group": updated })).into_response()
+        }
+        Ok(None) => (
+            axum::http::StatusCode::NOT_FOUND,
+            axum::Json(serde_json::json!({ "error": "Group not found" })),
+        )
+            .into_response(),
+        Err(e) => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            axum::Json(serde_json::json!({ "error": format!("{}", e) })),
+        )
+            .into_response(),
+    }
+}
+
 pub async fn delete_assignee_group(
     State(state): State<SharedState>,
     Path((ws_id, group_id)): Path<(String, String)>,

@@ -255,6 +255,12 @@ pub struct CreateAssigneeGroupRequest {
     pub assignee_ids: Vec<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct UpdateAssigneeGroupRequest {
+    pub name: Option<String>,
+    pub assignee_ids: Option<Vec<String>>,
+}
+
 // ===== Sprint Document =====
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

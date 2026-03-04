@@ -757,6 +757,37 @@ impl DataRepository {
         Ok(group)
     }
 
+    pub async fn update_assignee_group(
+        &self,
+        id: &ObjectId,
+        workspace_id: &ObjectId,
+        name: Option<&str>,
+        assignee_ids: Option<Vec<String>>,
+    ) -> mongodb::error::Result<Option<AssigneeGroupDocument>> {
+        let filter = doc! { "_id": id, "workspace_id": workspace_id };
+        let mut set_doc = mongodb::bson::Document::new();
+        if let Some(n) = name {
+            set_doc.insert("name", n);
+        }
+        if let Some(ids) = assignee_ids {
+            set_doc.insert(
+                "assignee_ids",
+                ids.into_iter()
+                    .map(mongodb::bson::Bson::String)
+                    .collect::<Vec<_>>(),
+            );
+        }
+        if set_doc.is_empty() {
+            return Ok(self.assignee_groups.find_one(filter, None).await?);
+        }
+        let opts = mongodb::options::FindOneAndUpdateOptions::builder()
+            .return_document(mongodb::options::ReturnDocument::After)
+            .build();
+        self.assignee_groups
+            .find_one_and_update(filter, doc! { "$set": set_doc }, Some(opts))
+            .await
+    }
+
     pub async fn delete_assignee_group(
         &self,
         id: &ObjectId,

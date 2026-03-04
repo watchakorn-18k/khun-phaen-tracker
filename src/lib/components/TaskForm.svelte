@@ -3,9 +3,7 @@
   import { browser } from "$app/environment";
   import { API_BASE_URL } from "$lib/apis";
   import {
-    addAssigneeGroup,
     createTaskComment,
-    deleteAssigneeGroup,
     deleteTaskComment,
     getAssigneeGroups,
     getCommentImages,
@@ -1044,30 +1042,6 @@
     }
   }
 
-  async function handleAddAssigneeGroup(
-    event: CustomEvent<{ name: string; assignee_ids: (string | number)[] }>,
-  ) {
-    try {
-      await addAssigneeGroup({
-        name: event.detail.name,
-        assignee_ids: event.detail.assignee_ids,
-      });
-      assigneeGroups = await getAssigneeGroups(true);
-    } catch (error) {
-      console.error("Failed to create assignee group:", error);
-    }
-  }
-
-  async function handleDeleteAssigneeGroup(
-    event: CustomEvent<{ id: string | number }>,
-  ) {
-    try {
-      await deleteAssigneeGroup(event.detail.id);
-      assigneeGroups = await getAssigneeGroups(true);
-    } catch (error) {
-      console.error("Failed to delete assignee group:", error);
-    }
-  }
 
   function openBranchDialog() {
     showBranchDialog = true;
@@ -1302,8 +1276,6 @@
                   bind:assignee_id_to_add
                   readonly={!isOwner}
                   on:addAssignee={handleAddAssignee}
-                  on:addAssigneeGroup={handleAddAssigneeGroup}
-                  on:deleteAssigneeGroup={handleDeleteAssigneeGroup}
                 />
 
                 <ChecklistManager

@@ -317,7 +317,8 @@ async fn main() {
         )
         .route(
             "/api/workspaces/:ws_id/assignee-groups/:group_id",
-            delete(handlers::data_handler::delete_assignee_group),
+            put(handlers::data_handler::update_assignee_group)
+                .delete(handlers::data_handler::delete_assignee_group),
         )
         .route(
             "/api/workspaces/:ws_id/sprints",

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from "svelte";
-  import type { Assignee } from "$lib/types";
+  import type { Assignee, AssigneeGroup } from "$lib/types";
   import {
     Users,
     Plus,
@@ -18,6 +18,12 @@
   } from "lucide-svelte";
   import { _ } from "svelte-i18n";
   import { api } from "$lib/apis";
+  import {
+    addAssigneeGroup,
+    deleteAssigneeGroup,
+    getAssigneeGroups,
+    updateAssigneeGroup,
+  } from "$lib/db";
   import SearchableSelect from "./SearchableSelect.svelte";
   import { fade, slide, scale } from "svelte/transition";
 
@@ -31,6 +37,7 @@
       user_id?: string;
     };
     delete: string | number;
+    groupsChanged: void;
   }>();
 
   export let assignees: Assignee[] = [];
@@ -38,6 +45,8 @@
   export let isLoading = false;
   export let isOwner = true;
   export let workspaceId = "";
+
+  let assigneeGroups: AssigneeGroup[] = [];
 
   let showAddForm = false;
   let editingWorker: Assignee | null = null;
@@ -122,7 +131,17 @@
 
   onMount(async () => {
     await fetchSystemUsers();
+    await refreshGroups();
   });
+
+  async function refreshGroups() {
+    try {
+      assigneeGroups = await getAssigneeGroups(true);
+    } catch (e) {
+      console.error("Failed to load assignee groups:", e);
+      assigneeGroups = [];
+    }
+  }
 
   async function fetchSystemUsers() {
     loadingUsers = true;
@@ -242,6 +261,119 @@
     (u) =>
       !usedUserIds.has(String(u.id)) && !usedUserIds.has(String(u.user_id)),
   );
+
+  // --- Assignee Group Management ---
+  let showAddGroupForm = false;
+  let newGroupName = '';
+  let selectedGroupAssigneeIds: (string | number)[] = [];
+  let deleteGroupConfirmId: string | number | null = null;
+  let editingGroup: AssigneeGroup | null = null;
+  let editGroupName = '';
+  let editGroupAssigneeIds: (string | number)[] = [];
+
+  const isSameId = (a: string | number | null | undefined, b: string | number | null | undefined) =>
+    a !== null && a !== undefined && b !== null && b !== undefined && String(a) === String(b);
+
+  // IDs of assignees already taken by other groups (excluding the group being edited)
+  $: takenAssigneeIds = new Set(
+    assigneeGroups
+      .filter((g) => !editingGroup || !isSameId(g.id, editingGroup.id))
+      .flatMap((g) => g.assignee_ids.map(String))
+  );
+
+  function isAssigneeTaken(id: string | number | undefined): boolean {
+    if (id == null) return false;
+    return takenAssigneeIds.has(String(id));
+  }
+
+  function toggleGroupMember(id: string | number | undefined) {
+    if (id == null || isAssigneeTaken(id)) return;
+    if (selectedGroupAssigneeIds.some((x) => isSameId(x, id))) {
+      selectedGroupAssigneeIds = selectedGroupAssigneeIds.filter((x) => !isSameId(x, id));
+      return;
+    }
+    selectedGroupAssigneeIds = [...selectedGroupAssigneeIds, id];
+  }
+
+  async function handleCreateGroup() {
+    if (!newGroupName.trim()) return;
+    try {
+      await addAssigneeGroup({
+        name: newGroupName.trim(),
+        assignee_ids: selectedGroupAssigneeIds,
+      });
+      newGroupName = '';
+      selectedGroupAssigneeIds = [];
+      showAddGroupForm = false;
+      await refreshGroups();
+      dispatch('groupsChanged');
+    } catch (error) {
+      console.error("Failed to create assignee group:", error);
+    }
+  }
+
+  function cancelAddGroup() {
+    newGroupName = '';
+    selectedGroupAssigneeIds = [];
+    showAddGroupForm = false;
+  }
+
+  function startEditGroup(group: AssigneeGroup) {
+    editingGroup = group;
+    editGroupName = group.name;
+    editGroupAssigneeIds = [...group.assignee_ids];
+    // Close other forms
+    showAddGroupForm = false;
+    deleteGroupConfirmId = null;
+  }
+
+  function cancelEditGroup() {
+    editingGroup = null;
+    editGroupName = '';
+    editGroupAssigneeIds = [];
+  }
+
+  function toggleEditGroupMember(id: string | number | undefined) {
+    if (id == null || isAssigneeTaken(id)) return;
+    if (editGroupAssigneeIds.some((x) => isSameId(x, id))) {
+      editGroupAssigneeIds = editGroupAssigneeIds.filter((x) => !isSameId(x, id));
+      return;
+    }
+    editGroupAssigneeIds = [...editGroupAssigneeIds, id];
+  }
+
+  async function handleUpdateGroup() {
+    if (!editingGroup?.id || !editGroupName.trim()) return;
+    try {
+      await updateAssigneeGroup(editingGroup.id, {
+        name: editGroupName.trim(),
+        assignee_ids: editGroupAssigneeIds,
+      });
+      cancelEditGroup();
+      await refreshGroups();
+      dispatch('groupsChanged');
+    } catch (error) {
+      console.error("Failed to update assignee group:", error);
+    }
+  }
+
+  async function handleDeleteGroup(groupId: string | number | undefined) {
+    if (groupId == null) return;
+    try {
+      await deleteAssigneeGroup(groupId);
+      deleteGroupConfirmId = null;
+      await refreshGroups();
+      dispatch('groupsChanged');
+    } catch (error) {
+      console.error("Failed to delete assignee group:", error);
+    }
+  }
+
+  function getGroupMembers(group: AssigneeGroup): Assignee[] {
+    return group.assignee_ids
+      .map((id) => assignees.find((a) => isSameId(a.id, id)))
+      .filter(Boolean) as Assignee[];
+  }
 
   function handleBackdropClick(e: MouseEvent) {
     if (e.target === e.currentTarget) {
@@ -616,6 +748,200 @@
                     {$_("workerManager__btn_cancel")}
                   </button>
                 </div>
+              </div>
+            {/if}
+          {/each}
+        {/if}
+      </div>
+
+      <!-- Assignee Groups Section -->
+      <div class="mt-8 space-y-3">
+        <div class="flex items-center justify-between mb-2">
+          <h3
+            class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]"
+          >
+            <span class="flex items-center gap-1"><Users size={10} /> {$_("workerManager__groups_title")}</span>
+          </h3>
+        </div>
+
+        {#if isOwner}
+          {#if showAddGroupForm}
+            <div
+              transition:slide={{ duration: 300 }}
+              class="bg-gray-50 dark:bg-gray-700/50 rounded-2xl p-4 space-y-3 border border-gray-100 dark:border-gray-600 shadow-inner"
+            >
+              <input
+                type="text"
+                bind:value={newGroupName}
+                placeholder={$_("workerManager__groups_name_placeholder")}
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none text-sm dark:bg-gray-700 dark:text-white"
+              />
+              <div class="max-h-36 overflow-y-auto space-y-1">
+                {#each assignees.filter((a) => a.id != null) as assignee (assignee.id)}
+                  {@const taken = isAssigneeTaken(assignee.id)}
+                  <label class="flex items-center gap-2 text-sm p-1 rounded cursor-pointer {taken ? 'text-gray-400 dark:text-gray-500 opacity-50 cursor-not-allowed' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'}">
+                    <input
+                      type="checkbox"
+                      checked={selectedGroupAssigneeIds.some((id) => isSameId(id, assignee.id))}
+                      on:change={() => toggleGroupMember(assignee.id)}
+                      disabled={taken}
+                      class="accent-primary"
+                    />
+                    <span class="w-3 h-3 rounded-full shrink-0" style="background-color: {assignee.color}"></span>
+                    <span class="truncate">{assignee.name}</span>
+                    {#if taken}
+                      <span class="text-[10px] text-gray-400 dark:text-gray-500 ml-auto whitespace-nowrap">{$_("workerManager__groups_member_taken")}</span>
+                    {/if}
+                  </label>
+                {/each}
+              </div>
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  on:click={handleCreateGroup}
+                  disabled={!newGroupName.trim() || selectedGroupAssigneeIds.length === 0}
+                  class="flex-1 bg-primary hover:bg-primary-dark disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white py-2 px-4 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 active:scale-95 shadow-sm"
+                >
+                  <Plus size={14} />
+                  {$_("workerManager__groups_create_btn")}
+                </button>
+                <button
+                  type="button"
+                  on:click={cancelAddGroup}
+                  class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                >
+                  {$_("workerManager__btn_cancel")}
+                </button>
+              </div>
+            </div>
+          {:else}
+            <button
+              on:click={() => showAddGroupForm = true}
+              class="w-full py-3 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl text-gray-500 dark:text-gray-400 hover:border-primary hover:text-primary hover:bg-primary/5 transition-all flex items-center justify-center gap-2 group active:scale-[0.98] text-sm"
+            >
+              <Users size={14} />
+              <Plus size={12} />
+              <span class="font-bold uppercase tracking-wider text-xs">{$_("workerManager__groups_add_btn_short")}</span>
+            </button>
+          {/if}
+        {/if}
+
+        {#if assigneeGroups.length === 0 && !showAddGroupForm}
+          <div class="text-center py-6 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-gray-100 dark:border-gray-800">
+            <p class="text-sm text-gray-400 dark:text-gray-500">{$_("workerManager__groups_no_groups")}</p>
+          </div>
+        {:else}
+          {#each assigneeGroups as group (group.id)}
+            {@const members = getGroupMembers(group)}
+            {#if editingGroup && isSameId(editingGroup.id, group.id)}
+              <!-- Edit Group Form -->
+              <div
+                transition:slide={{ duration: 300 }}
+                class="bg-gray-50 dark:bg-gray-700/50 rounded-2xl p-4 space-y-3 border border-primary/30 shadow-inner"
+              >
+                <input
+                  type="text"
+                  bind:value={editGroupName}
+                  placeholder={$_("workerManager__groups_name_placeholder")}
+                  class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none text-sm dark:bg-gray-700 dark:text-white"
+                />
+                <div class="max-h-36 overflow-y-auto space-y-1">
+                  {#each assignees.filter((a) => a.id != null) as assignee (assignee.id)}
+                    {@const taken = isAssigneeTaken(assignee.id)}
+                    <label class="flex items-center gap-2 text-sm p-1 rounded cursor-pointer {taken ? 'text-gray-400 dark:text-gray-500 opacity-50 cursor-not-allowed' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'}">
+                      <input
+                        type="checkbox"
+                        checked={editGroupAssigneeIds.some((id) => isSameId(id, assignee.id))}
+                        on:change={() => toggleEditGroupMember(assignee.id)}
+                        disabled={taken}
+                        class="accent-primary"
+                      />
+                      <span class="w-3 h-3 rounded-full shrink-0" style="background-color: {assignee.color}"></span>
+                      <span class="truncate">{assignee.name}</span>
+                      {#if taken}
+                        <span class="text-[10px] text-gray-400 dark:text-gray-500 ml-auto whitespace-nowrap">{$_("workerManager__groups_member_taken")}</span>
+                      {/if}
+                    </label>
+                  {/each}
+                </div>
+                <div class="flex gap-2">
+                  <button
+                    type="button"
+                    on:click={handleUpdateGroup}
+                    disabled={!editGroupName.trim()}
+                    class="flex-1 bg-primary hover:bg-primary-dark disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white py-2 px-4 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 active:scale-95 shadow-sm"
+                  >
+                    <Check size={14} />
+                    {$_("workerManager__groups_save_btn")}
+                  </button>
+                  <button
+                    type="button"
+                    on:click={cancelEditGroup}
+                    class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    {$_("workerManager__btn_cancel")}
+                  </button>
+                </div>
+              </div>
+            {:else}
+              <!-- Group Card -->
+              <div class="bg-white dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 rounded-2xl p-3 group/grp hover:border-primary/30 transition-all shadow-sm">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <div class="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
+                      <Users size={14} class="text-primary" />
+                    </div>
+                    <div class="min-w-0">
+                      <h4 class="font-bold text-sm text-gray-900 dark:text-white truncate">{group.name}</h4>
+                      <p class="text-[11px] text-gray-500 dark:text-gray-400">{members.length} {$_("workerManager__groups_members")}</p>
+                    </div>
+                  </div>
+                  {#if isOwner}
+                    {#if deleteGroupConfirmId === group.id}
+                      <div class="flex items-center gap-1">
+                        <button
+                          on:click={() => handleDeleteGroup(group.id)}
+                          class="px-2 py-1 bg-red-500 text-white rounded text-xs font-bold hover:bg-red-600 transition-all"
+                        >
+                          {$_("workerManager__groups_delete_btn")}
+                        </button>
+                        <button
+                          on:click={() => deleteGroupConfirmId = null}
+                          class="px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded text-xs font-bold hover:bg-gray-300 transition-colors"
+                        >
+                          {$_("workerManager__btn_cancel")}
+                        </button>
+                      </div>
+                    {:else}
+                      <div class="flex items-center gap-1 opacity-0 group-hover/grp:opacity-100 transition-all">
+                        <button
+                          on:click={() => startEditGroup(group)}
+                          class="p-1.5 text-gray-400 dark:text-gray-500 hover:text-primary hover:bg-white dark:hover:bg-gray-700 rounded-lg transition-colors"
+                          title={$_("workerManager__groups_edit_title")}
+                        >
+                          <Edit2 size={13} />
+                        </button>
+                        <button
+                          on:click={() => deleteGroupConfirmId = group.id ?? null}
+                          class="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-500 hover:bg-white dark:hover:bg-gray-700 rounded-lg transition-colors"
+                          title={$_("workerManager__groups_delete_title")}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    {/if}
+                  {/if}
+                </div>
+                {#if members.length > 0}
+                  <div class="flex flex-wrap gap-1 mt-2">
+                    {#each members as member (member.id)}
+                      <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded-full text-[11px] text-gray-600 dark:text-gray-300">
+                        <span class="w-2 h-2 rounded-full" style="background-color: {member.color}"></span>
+                        {member.name}
+                      </span>
+                    {/each}
+                  </div>
+                {/if}
               </div>
             {/if}
           {/each}

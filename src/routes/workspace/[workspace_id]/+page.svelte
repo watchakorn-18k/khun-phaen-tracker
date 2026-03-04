@@ -7,8 +7,9 @@
   import { page } from "$app/stores";
   import { api } from "$lib/apis";
   import { _ } from "svelte-i18n";
-  import type { Task, FilterOptions } from "$lib/types";
+  import type { Task, FilterOptions, AssigneeGroup } from "$lib/types";
   import type { Milestone } from "$lib/types/milestone";
+  import { getAssigneeGroups } from "$lib/db";
   import { initWasmSearch, indexTasks, wasmReady } from "$lib/stores/search";
   import { connectRealtime, disconnectRealtime } from "$lib/stores/realtime";
   import { user } from "$lib/stores/auth";
@@ -86,7 +87,17 @@
   let newPageSize = 20;
   let milestones: Milestone[] = [];
   let editingMilestone: Milestone | null = null;
+  let assigneeGroups: AssigneeGroup[] = [];
   $: visibleMilestones = milestones.filter((m) => !m.is_hidden);
+
+  async function loadAssigneeGroups() {
+    try {
+      assigneeGroups = await getAssigneeGroups(true);
+    } catch (e) {
+      console.error("Failed to load assignee groups:", e);
+      assigneeGroups = [];
+    }
+  }
 
   async function fetchMilestones() {
     const wsId = $page.params.workspace_id;
@@ -183,6 +194,7 @@
         );
         await sprints.refresh();
         await fetchMilestones();
+        await loadAssigneeGroups();
         filters.set(restoreFilters($sprints));
         initWasmSearch();
       } else {
@@ -378,6 +390,7 @@
       on:addWorker={(e) => workspaceActions.handleAddWorker(e)}
       on:updateWorker={(e) => workspaceActions.handleUpdateWorker(e)}
       on:deleteWorker={(e) => workspaceActions.handleDeleteWorker(e)}
+      on:groupsChanged={loadAssigneeGroups}
       on:closeSprintManager={() => uiActions.closeModal("sprintManager")}
       on:completeSprint={(e) => sprintActions.handleCompleteSprint(e)}
       on:completeAndExport={(e) => exportActions.handleCompleteAndExport(e)}

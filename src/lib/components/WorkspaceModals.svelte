@@ -67,6 +67,9 @@
   function handleDeleteWorker(event: CustomEvent<any>) {
     dispatch("deleteWorker", event.detail);
   }
+  function handleGroupsChanged() {
+    dispatch("groupsChanged");
+  }
 
   // Sprint actions
   function closeSprintManager() {
@@ -153,6 +156,7 @@
     on:add={handleAddWorker}
     on:update={handleUpdateWorker}
     on:delete={handleDeleteWorker}
+    on:groupsChanged={handleGroupsChanged}
   />
 {/if}
 
