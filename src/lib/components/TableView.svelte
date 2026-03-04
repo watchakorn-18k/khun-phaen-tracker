@@ -30,6 +30,7 @@
     FlaskConical as FlaskConicalIcon,
   } from "lucide-svelte"; // Renamed FlaskConical to avoid conflict with type
   import PaginationFooter from "./PaginationFooter.svelte";
+  import Tooltip from "./Tooltip.svelte";
 
   export let tasks: Task[] = [];
   export let sprints: Sprint[] = [];
@@ -580,32 +581,47 @@
             </td>
             <td class="px-3 py-2">
               {#if task.assignees && task.assignees.length > 0}
-                <div class="flex items-center gap-1 flex-wrap">
-                  {#each task.assignees as assignee, idx}
-                    <div
-                      class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium text-white shrink-0 {idx >
-                      0
-                        ? '-ml-1'
-                        : ''}"
-                      style="background-color: {assignee.color || '#6366F1'}"
-                      title={assignee.name}
-                    >
-                      {assignee.name.charAt(0)}
-                    </div>
-                  {/each}
-                  {#if task.assignees.length === 1}
-                    <span
-                      class="text-xs text-gray-700 dark:text-gray-300 truncate max-w-15"
-                      title={task.assignees[0].name}
-                    >
-                      {task.assignees[0].name}
-                    </span>
-                  {:else if task.assignees.length > 1}
-                    <span class="text-[10px] text-gray-500 dark:text-gray-400"
-                      >+{task.assignees.length - 1}</span
-                    >
-                  {/if}
-                </div>
+                <Tooltip>
+                  <div slot="content" class="space-y-1.5 py-1">
+                    {#each task.assignees as assignee}
+                      <div class="flex items-center gap-2">
+                        <div
+                          class="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
+                          style="background-color: {assignee.color ||
+                            '#6366F1'}"
+                        >
+                          {assignee.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span class="font-medium">{assignee.name}</span>
+                      </div>
+                    {/each}
+                  </div>
+
+                  <div class="flex items-center gap-1 flex-wrap">
+                    {#each task.assignees as assignee, idx}
+                      <div
+                        class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium text-white shrink-0 {idx >
+                        0
+                          ? '-ml-1'
+                          : ''}"
+                        style="background-color: {assignee.color || '#6366F1'}"
+                      >
+                        {assignee.name.charAt(0)}
+                      </div>
+                    {/each}
+                    {#if task.assignees.length === 1}
+                      <span
+                        class="text-xs text-gray-700 dark:text-gray-300 truncate max-w-15"
+                      >
+                        {task.assignees[0].name}
+                      </span>
+                    {:else if task.assignees.length > 1}
+                      <span class="text-[10px] text-gray-500 dark:text-gray-400"
+                        >+{task.assignees.length - 1}</span
+                      >
+                    {/if}
+                  </div>
+                </Tooltip>
               {:else}
                 <span class="text-gray-400 dark:text-gray-500 text-sm">-</span>
               {/if}
