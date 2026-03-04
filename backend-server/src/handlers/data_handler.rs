@@ -7,6 +7,7 @@ use axum_extra::extract::cookie::CookieJar;
 use chrono::Utc;
 use mongodb::bson::{doc, oid::ObjectId, Document};
 use uuid::Uuid;
+use std::collections::HashSet;
 
 use crate::handlers::auth_handler::extract_user_id;
 use crate::models::data::*;
@@ -1523,6 +1524,130 @@ pub async fn delete_assignee(
         Ok(false) => (
             axum::http::StatusCode::NOT_FOUND,
             axum::Json(serde_json::json!({ "error": "Assignee not found" })),
+        )
+            .into_response(),
+        Err(e) => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            axum::Json(serde_json::json!({ "error": format!("{}", e) })),
+        )
+            .into_response(),
+    }
+}
+
+pub async fn list_assignee_groups(
+    State(state): State<SharedState>,
+    Path(ws_id): Path<String>,
+    headers: HeaderMap,
+    jar: CookieJar,
+) -> axum::response::Response {
+    let ws_oid = match verify_workspace_access(&state, &headers, &jar, &ws_id).await {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+
+    let repo = DataRepository::new(&state.db);
+    match repo.find_assignee_groups(&ws_oid).await {
+        Ok(groups) => {
+            axum::Json(serde_json::json!({ "success": true, "groups": groups })).into_response()
+        }
+        Err(e) => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            axum::Json(serde_json::json!({ "error": format!("{}", e) })),
+        )
+            .into_response(),
+    }
+}
+
+pub async fn create_assignee_group(
+    State(state): State<SharedState>,
+    Path(ws_id): Path<String>,
+    headers: HeaderMap,
+    jar: CookieJar,
+    Json(payload): Json<CreateAssigneeGroupRequest>,
+) -> axum::response::Response {
+    let ws_oid = match verify_workspace_access(&state, &headers, &jar, &ws_id).await {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+
+    let trimmed_name = payload.name.trim();
+    if trimmed_name.is_empty() {
+        return (
+            axum::http::StatusCode::BAD_REQUEST,
+            axum::Json(serde_json::json!({ "error": "Group name is required" })),
+        )
+            .into_response();
+    }
+
+    let repo = DataRepository::new(&state.db);
+    let assignees = match repo.find_assignees(&ws_oid).await {
+        Ok(rows) => rows,
+        Err(e) => {
+            return (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                axum::Json(serde_json::json!({ "error": format!("{}", e) })),
+            )
+                .into_response()
+        }
+    };
+    let valid_ids: HashSet<String> = assignees
+        .into_iter()
+        .filter_map(|a| a.id.map(|id| id.to_hex()))
+        .collect();
+    let sanitized_ids: Vec<String> = payload
+        .assignee_ids
+        .into_iter()
+        .filter(|id| valid_ids.contains(id))
+        .collect();
+
+    let group = AssigneeGroupDocument {
+        id: None,
+        workspace_id: ws_oid,
+        name: trimmed_name.to_string(),
+        assignee_ids: sanitized_ids,
+        created_at: None,
+    };
+
+    match repo.create_assignee_group(group).await {
+        Ok(created) => {
+            axum::Json(serde_json::json!({ "success": true, "group": created })).into_response()
+        }
+        Err(e) => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            axum::Json(serde_json::json!({ "error": format!("{}", e) })),
+        )
+            .into_response(),
+    }
+}
+
+pub async fn delete_assignee_group(
+    State(state): State<SharedState>,
+    Path((ws_id, group_id)): Path<(String, String)>,
+    headers: HeaderMap,
+    jar: CookieJar,
+) -> axum::response::Response {
+    let ws_oid = match verify_workspace_access(&state, &headers, &jar, &ws_id).await {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+
+    let group_oid = match ObjectId::parse_str(&group_id) {
+        Ok(id) => id,
+        Err(_) => {
+            return (
+                axum::http::StatusCode::BAD_REQUEST,
+                axum::Json(serde_json::json!({ "error": "Invalid group ID" })),
+            )
+                .into_response()
+        }
+    };
+
+    let repo = DataRepository::new(&state.db);
+    match repo.delete_assignee_group(&group_oid, &ws_oid).await {
+        Ok(true) => axum::Json(serde_json::json!({ "success": true })).into_response(),
+        Ok(false) => (
+            axum::http::StatusCode::NOT_FOUND,
+            axum::Json(serde_json::json!({ "error": "Group not found" })),
         )
             .into_response(),
         Err(e) => (

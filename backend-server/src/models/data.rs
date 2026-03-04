@@ -234,6 +234,27 @@ pub struct UpdateAssigneeRequest {
     pub user_id: Option<Option<String>>,
 }
 
+// ===== Assignee Group Document =====
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AssigneeGroupDocument {
+    #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
+    pub id: Option<ObjectId>,
+    pub workspace_id: ObjectId,
+    pub name: String,
+    #[serde(default)]
+    pub assignee_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateAssigneeGroupRequest {
+    pub name: String,
+    #[serde(default)]
+    pub assignee_ids: Vec<String>,
+}
+
 // ===== Sprint Document =====
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

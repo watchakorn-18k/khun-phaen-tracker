@@ -3,8 +3,11 @@
   import { browser } from "$app/environment";
   import { API_BASE_URL } from "$lib/apis";
   import {
+    addAssigneeGroup,
     createTaskComment,
+    deleteAssigneeGroup,
     deleteTaskComment,
+    getAssigneeGroups,
     getCommentImages,
     getTaskComments,
     toggleTaskCommentReaction,
@@ -14,6 +17,7 @@
   import { taskDefaults } from "$lib/stores/taskDefaults";
   import type {
     Assignee,
+    AssigneeGroup,
     ChecklistItem,
     CommentImage,
     Project,
@@ -83,6 +87,7 @@
   let notes = "";
   let assignee_ids: (string | number)[] = [];
   let assignee_id_to_add: string | number | null = null;
+  let assigneeGroups: AssigneeGroup[] = [];
   let sprint_id: string | number | null = null;
   let checklist: ChecklistItem[] = [];
   let dependencies: (string | number)[] = [];
@@ -227,6 +232,16 @@
     commentsTotal = 0;
     imagePaginationByComment = {};
     lastCommentsKey = "";
+    void loadAssigneeGroups();
+  }
+
+  async function loadAssigneeGroups() {
+    try {
+      assigneeGroups = await getAssigneeGroups(true);
+    } catch (error) {
+      console.error("Failed to load assignee groups:", error);
+      assigneeGroups = [];
+    }
   }
 
   function getCommentImageUrl(fileKey: string): string {
@@ -1029,6 +1044,31 @@
     }
   }
 
+  async function handleAddAssigneeGroup(
+    event: CustomEvent<{ name: string; assignee_ids: (string | number)[] }>,
+  ) {
+    try {
+      await addAssigneeGroup({
+        name: event.detail.name,
+        assignee_ids: event.detail.assignee_ids,
+      });
+      assigneeGroups = await getAssigneeGroups(true);
+    } catch (error) {
+      console.error("Failed to create assignee group:", error);
+    }
+  }
+
+  async function handleDeleteAssigneeGroup(
+    event: CustomEvent<{ id: string | number }>,
+  ) {
+    try {
+      await deleteAssigneeGroup(event.detail.id);
+      assigneeGroups = await getAssigneeGroups(true);
+    } catch (error) {
+      console.error("Failed to delete assignee group:", error);
+    }
+  }
+
   function openBranchDialog() {
     showBranchDialog = true;
   }
@@ -1257,10 +1297,13 @@
 
                 <AssigneeSelector
                   {assignees}
+                  {assigneeGroups}
                   bind:assignee_ids
                   bind:assignee_id_to_add
                   readonly={!isOwner}
                   on:addAssignee={handleAddAssignee}
+                  on:addAssigneeGroup={handleAddAssigneeGroup}
+                  on:deleteAssigneeGroup={handleDeleteAssigneeGroup}
                 />
 
                 <ChecklistManager

@@ -19,6 +19,8 @@
 
   let newChecklistItem = "";
   let isAddingChecklistItem = false;
+  let isBulkAddModalOpen = false;
+  let bulkChecklistText = "";
   let deletingChecklistItemId: string | null = null;
   let checklistVisibleCount = 10;
   let checklistSelectMode = false;
@@ -70,6 +72,42 @@
     ];
     newChecklistItem = "";
     notifyUpdate();
+  }
+
+  function createChecklistItemId() {
+    return Date.now().toString() + Math.random().toString(36).substring(2);
+  }
+
+  function openBulkAddModal() {
+    isBulkAddModalOpen = true;
+    bulkChecklistText = "";
+  }
+
+  function closeBulkAddModal() {
+    isBulkAddModalOpen = false;
+    bulkChecklistText = "";
+  }
+
+  function addChecklistItemsFromBulkText() {
+    const lines = bulkChecklistText
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    if (lines.length === 0) {
+      closeBulkAddModal();
+      return;
+    }
+
+    const newItems: ChecklistItem[] = lines.map((text) => ({
+      id: createChecklistItemId(),
+      text,
+      completed: false,
+    }));
+
+    checklist = [...checklist, ...newItems];
+    notifyUpdate();
+    closeBulkAddModal();
   }
 
   function removeChecklistItem(id: string) {
@@ -194,10 +232,10 @@
   function handleImportTemplate(event: any) {
     const template: ChecklistTemplate = event.detail;
     const newItems: ChecklistItem[] = template.items.map((text) => ({
-      id: Date.now().toString() + Math.random().toString(36).substring(2),
-      text,
-      completed: false,
-    }));
+        id: createChecklistItemId(),
+        text,
+        completed: false,
+      }));
 
     checklist = [...checklist, ...newItems];
     notifyUpdate();
@@ -358,7 +396,10 @@
         </div>
 
         <div
-          class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+          class="flex items-center gap-1 transition-opacity {deletingChecklistItemId ===
+          item.id
+            ? 'opacity-100'
+            : 'opacity-0 group-hover:opacity-100'}"
         >
           {#if deletingChecklistItemId === item.id}
             <button
@@ -367,22 +408,28 @@
                 removeChecklistItem(item.id);
                 deletingChecklistItemId = null;
               }}
-              class="p-1 text-green-500 hover:bg-green-50 rounded-lg transition-colors"
+              class="w-7 h-7 flex items-center justify-center rounded-lg bg-transparent hover:bg-emerald-500/10 transition-colors"
+              aria-label="Confirm delete checklist item"
             >
-              <Check size={14} strokeWidth={3} />
+              <Check
+                size={14}
+                strokeWidth={3}
+                class="text-emerald-500 hover:text-emerald-400"
+              />
             </button>
             <button
               type="button"
               on:click={() => (deletingChecklistItemId = null)}
-              class="p-1 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+              class="w-7 h-7 flex items-center justify-center rounded-lg bg-transparent hover:bg-red-500/10 transition-colors"
+              aria-label="Cancel delete checklist item"
             >
-              <X size={14} strokeWidth={3} />
+              <X size={14} strokeWidth={3} class="text-red-500 hover:text-red-400" />
             </button>
           {:else}
             <button
               type="button"
               on:click={() => (deletingChecklistItemId = item.id)}
-              class="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+              class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
             >
               <Trash2 size={14} />
             </button>
@@ -409,18 +456,28 @@
   {/if}
 
   {#if !isAddingChecklistItem}
-    <button
-      type="button"
-      on:click={() => (isAddingChecklistItem = true)}
-      class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-xl transition-all shadow-sm active:scale-95 group"
-    >
-      <div
-        class="w-5 h-5 rounded-full bg-gray-100 dark:bg-gray-900 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors"
+    <div class="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        on:click={() => (isAddingChecklistItem = true)}
+        class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-xl transition-all shadow-sm active:scale-95 group"
       >
-        <X size={14} class="rotate-45" />
-      </div>
-      {$_("checklistManager__add_item")}
-    </button>
+        <div
+          class="w-5 h-5 rounded-full bg-gray-100 dark:bg-gray-900 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors"
+        >
+          <X size={14} class="rotate-45" />
+        </div>
+        {$_("checklistManager__add_item")}
+      </button>
+      <button
+        type="button"
+        on:click={openBulkAddModal}
+        class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20 rounded-xl transition-all active:scale-95"
+      >
+        <ListTodo size={14} />
+        {$_("checklistManager__add_multiple")}
+      </button>
+    </div>
   {:else}
     <div
       class="space-y-3 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-gray-100 dark:border-gray-800 animate-in fade-in slide-in-from-top-2 duration-200"
@@ -479,6 +536,61 @@
     on:delete={handleDeleteTemplate}
     on:import={handleImportTemplate}
   />
+{/if}
+
+{#if isBulkAddModalOpen}
+  <div
+    class="fixed inset-0 z-[10001] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+    on:click={closeBulkAddModal}
+    role="button"
+    tabindex="0"
+    on:keydown={(e) => e.key === "Escape" && closeBulkAddModal()}
+  >
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div
+      class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl w-full max-w-lg p-5 space-y-4"
+      on:mousedown|stopPropagation
+      on:click|stopPropagation
+    >
+      <div class="space-y-1">
+        <h3 class="text-base font-bold text-gray-900 dark:text-white">
+          {$_("checklistManager__bulk_modal_title")}
+        </h3>
+        <p class="text-xs text-gray-500 dark:text-gray-400">
+          {$_("checklistManager__bulk_modal_desc")}
+        </p>
+      </div>
+      <textarea
+        bind:value={bulkChecklistText}
+        rows="8"
+        placeholder={$_("checklistManager__bulk_modal_placeholder")}
+        class="w-full px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-colors text-gray-900 dark:text-white"
+        on:keydown={(e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+            e.preventDefault();
+            addChecklistItemsFromBulkText();
+          }
+        }}
+      ></textarea>
+      <div class="flex justify-end items-center gap-2">
+        <button
+          type="button"
+          on:click={closeBulkAddModal}
+          class="px-4 py-2 text-sm font-bold text-gray-500 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+        >
+          {$_("checklistManager__cancel")}
+        </button>
+        <button
+          type="button"
+          on:click={addChecklistItemsFromBulkText}
+          class="px-4 py-2 text-sm font-bold text-white bg-primary hover:bg-primary-dark rounded-xl transition-colors"
+        >
+          {$_("checklistManager__bulk_modal_add")}
+        </button>
+      </div>
+    </div>
+  </div>
 {/if}
 
 {#if toastMessage}

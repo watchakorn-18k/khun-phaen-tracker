@@ -676,6 +676,33 @@ export const api = {
       },
     },
 
+    assigneeGroups: {
+      list: (wsId: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/assignee-groups`, {
+          headers: api.data._headers(),
+          credentials: "include",
+        });
+      },
+      create: (wsId: string, payload: Record<string, any>): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/assignee-groups`, {
+          method: "POST",
+          headers: api.data._headers(true),
+          credentials: "include",
+          body: JSON.stringify(payload),
+        });
+      },
+      delete: (wsId: string, groupId: string): Promise<Response> => {
+        return fetch(
+          `${API_BASE_URL}/workspaces/${wsId}/assignee-groups/${groupId}`,
+          {
+            method: "DELETE",
+            headers: api.data._headers(),
+            credentials: "include",
+          },
+        );
+      },
+    },
+
     // Sprints
     sprints: {
       list: (wsId: string): Promise<Response> => {

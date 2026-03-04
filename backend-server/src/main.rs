@@ -308,6 +308,18 @@ async fn main() {
             delete(handlers::data_handler::delete_assignee),
         )
         .route(
+            "/api/workspaces/:ws_id/assignee-groups",
+            get(handlers::data_handler::list_assignee_groups),
+        )
+        .route(
+            "/api/workspaces/:ws_id/assignee-groups",
+            post(handlers::data_handler::create_assignee_group),
+        )
+        .route(
+            "/api/workspaces/:ws_id/assignee-groups/:group_id",
+            delete(handlers::data_handler::delete_assignee_group),
+        )
+        .route(
             "/api/workspaces/:ws_id/sprints",
             get(handlers::data_handler::list_sprints),
         )

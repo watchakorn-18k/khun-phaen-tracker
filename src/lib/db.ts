@@ -9,6 +9,7 @@ import type {
   Task,
   Project,
   Assignee,
+  AssigneeGroup,
   Sprint,
   TaskComment,
   CommentImage,
@@ -27,9 +28,11 @@ import { user as userStore } from "./stores/auth";
 
 let _initialized = false;
 let _assigneesCache: Assignee[] | null = null;
+let _assigneeGroupsCache: AssigneeGroup[] | null = null;
 let _projectsCache: Project[] | null = null;
 let _sprintsCache: Sprint[] | null = null;
 let _lastAssigneeFetch = 0;
+let _lastAssigneeGroupFetch = 0;
 let _lastProjectFetch = 0;
 let _lastSprintFetch = 0;
 const CACHE_TTL = 2000; // 2 seconds cache for metadata
@@ -152,6 +155,17 @@ function docToAssignee(doc: any): Assignee {
     discord_id: doc.discord_id || undefined,
     user_id: doc.user_id || undefined,
     email: doc.email || undefined,
+    created_at: doc.created_at || "",
+  };
+}
+
+function docToAssigneeGroup(doc: any): AssigneeGroup {
+  return {
+    id: extractId(doc),
+    name: doc.name || "",
+    assignee_ids: Array.isArray(doc.assignee_ids)
+      ? doc.assignee_ids.map((id: any) => String(id))
+      : [],
     created_at: doc.created_at || "",
   };
 }
@@ -614,6 +628,51 @@ export async function getAssigneeStats(): Promise<
     id: String(s.id),
     taskCount: Number(s.taskCount || 0),
   }));
+}
+
+export async function getAssigneeGroups(
+  forceRefresh = false,
+): Promise<AssigneeGroup[]> {
+  const now = Date.now();
+  if (
+    !forceRefresh &&
+    _assigneeGroupsCache &&
+    now - _lastAssigneeGroupFetch < CACHE_TTL
+  ) {
+    return _assigneeGroupsCache;
+  }
+
+  const res = await api.data.assigneeGroups.list(wsId());
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to fetch assignee groups");
+  _assigneeGroupsCache = (data.groups || []).map(docToAssigneeGroup);
+  _lastAssigneeGroupFetch = now;
+  return _assigneeGroupsCache || [];
+}
+
+export async function addAssigneeGroup(
+  group: Omit<AssigneeGroup, "id" | "created_at">,
+): Promise<AssigneeGroup> {
+  const res = await api.data.assigneeGroups.create(wsId(), {
+    name: group.name,
+    assignee_ids: (group.assignee_ids || []).map(String),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || "Failed to create assignee group");
+  }
+  const newGroup = docToAssigneeGroup(data.group || {});
+  _assigneeGroupsCache = null;
+  return newGroup;
+}
+
+export async function deleteAssigneeGroup(id: string | number): Promise<void> {
+  const res = await api.data.assigneeGroups.delete(wsId(), String(id));
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || "Failed to delete assignee group");
+  }
+  _assigneeGroupsCache = null;
 }
 
 export async function addAssignee(

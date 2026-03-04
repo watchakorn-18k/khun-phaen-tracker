@@ -15,6 +15,13 @@ export interface Assignee {
   created_at?: string;
 }
 
+export interface AssigneeGroup {
+  id?: string | number;
+  name: string;
+  assignee_ids: (string | number)[];
+  created_at?: string;
+}
+
 export interface Sprint {
   id?: string | number;
   name: string;

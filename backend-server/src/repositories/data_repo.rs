@@ -1,6 +1,6 @@
 use crate::models::data::{
-    AssigneeDocument, ChecklistTemplateDocument, CommentDocument, CommentImage, CommentReaction,
-    ProjectDocument, SprintDocument, TaskDocument, TaskFilterQuery,
+    AssigneeDocument, AssigneeGroupDocument, ChecklistTemplateDocument, CommentDocument,
+    CommentImage, CommentReaction, ProjectDocument, SprintDocument, TaskDocument, TaskFilterQuery,
 };
 use futures::stream::StreamExt;
 use mongodb::{
@@ -15,6 +15,7 @@ pub struct DataRepository {
     tasks: Collection<TaskDocument>,
     projects: Collection<ProjectDocument>,
     assignees: Collection<AssigneeDocument>,
+    assignee_groups: Collection<AssigneeGroupDocument>,
     sprints: Collection<SprintDocument>,
     task_comments: Collection<CommentDocument>,
     checklist_templates: Collection<ChecklistTemplateDocument>,
@@ -26,6 +27,7 @@ impl DataRepository {
             tasks: db.collection("tasks"),
             projects: db.collection("projects"),
             assignees: db.collection("assignees"),
+            assignee_groups: db.collection("assignee_groups"),
             sprints: db.collection("sprints"),
             task_comments: db.collection("task_comments"),
             checklist_templates: db.collection("checklist_templates"),
@@ -723,6 +725,50 @@ impl DataRepository {
         Ok(res.deleted_count > 0)
     }
 
+    // ===== ASSIGNEE GROUPS =====
+
+    pub async fn find_assignee_groups(
+        &self,
+        workspace_id: &ObjectId,
+    ) -> mongodb::error::Result<Vec<AssigneeGroupDocument>> {
+        let mut cursor = self
+            .assignee_groups
+            .find(doc! { "workspace_id": workspace_id }, None)
+            .await?;
+        let mut groups = Vec::new();
+        while let Some(result) = cursor.next().await {
+            match result {
+                Ok(doc) => groups.push(doc),
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(groups)
+    }
+
+    pub async fn create_assignee_group(
+        &self,
+        mut group: AssigneeGroupDocument,
+    ) -> mongodb::error::Result<AssigneeGroupDocument> {
+        group.created_at = Some(chrono::Utc::now().to_rfc3339());
+        let res = self.assignee_groups.insert_one(group.clone(), None).await?;
+        if let Some(id) = res.inserted_id.as_object_id() {
+            group.id = Some(id);
+        }
+        Ok(group)
+    }
+
+    pub async fn delete_assignee_group(
+        &self,
+        id: &ObjectId,
+        workspace_id: &ObjectId,
+    ) -> mongodb::error::Result<bool> {
+        let res = self
+            .assignee_groups
+            .delete_one(doc! { "_id": id, "workspace_id": workspace_id }, None)
+            .await?;
+        Ok(res.deleted_count > 0)
+    }
+
     // ===== SPRINTS =====
 
     pub async fn find_sprints(
@@ -798,6 +844,9 @@ impl DataRepository {
             .delete_many(doc! { "workspace_id": workspace_id }, None)
             .await?;
         self.assignees
+            .delete_many(doc! { "workspace_id": workspace_id }, None)
+            .await?;
+        self.assignee_groups
             .delete_many(doc! { "workspace_id": workspace_id }, None)
             .await?;
         self.sprints
