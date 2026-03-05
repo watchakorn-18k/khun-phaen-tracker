@@ -163,7 +163,7 @@
 <!-- Sprint Manager Modal -->
 {#if modals.sprintManager}
   <SprintManager
-    tasks={allTasksIncludingArchived.filter((t) => !t.is_archived)}
+    tasks={allTasksIncludingArchived}
     {isOwner}
     on:close={closeSprintManager}
     on:complete={handleCompleteSprint}

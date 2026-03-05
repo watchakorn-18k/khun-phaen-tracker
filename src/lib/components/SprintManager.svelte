@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
-  import type { Sprint } from "$lib/types";
+  import type { Sprint, Task } from "$lib/types";
   import { sprints } from "$lib/stores/sprintStore";
   import { _ } from "svelte-i18n";
   import {
@@ -14,7 +14,9 @@
     AlertCircle,
     Archive,
     FileCode,
+    FileText,
     Video,
+    Eye,
   } from "lucide-svelte";
   import CustomDatePicker from "./CustomDatePicker.svelte";
   import { requestConfirm } from "$lib/stores/confirmStore";
@@ -36,11 +38,7 @@
     exportVideo: string | number; // sprint id
   }>();
 
-  export let tasks: {
-    id?: string | number;
-    status: string;
-    sprint_id?: string | number | null;
-  }[] = [];
+  export let tasks: Task[] = [];
   export let isOwner = true;
 
   let showAddForm = false;
@@ -61,6 +59,10 @@
   let newSprintStart = getTodayString();
   let newSprintEnd = getDateAfterDays(getTodayString(), 14); // Default 2 weeks
   let completeConfirmId: string | number | null = null;
+  let viewingCompletedSprint: Sprint | null = null;
+  let viewingMarkdownSprint: Sprint | null = null;
+  let sprintMarkdownText = "";
+  let markdownCopied = false;
   let showMoveTasksConfirm = false;
   let pendingSprintData: {
     name: string;
@@ -356,6 +358,85 @@
   function handleBackdropClick(e: MouseEvent) {
     if (e.target === e.currentTarget) {
       dispatch("close");
+    }
+  }
+
+  function openCompletedTasksModal(sprint: Sprint) {
+    viewingCompletedSprint = sprint;
+  }
+
+  function closeCompletedTasksModal() {
+    viewingCompletedSprint = null;
+  }
+
+  function getCompletedTasksInSprint(sprintId: string | number): Task[] {
+    return tasks.filter(
+      (t) => String(t.sprint_id) === String(sprintId) && t.status === "done",
+    );
+  }
+
+  function buildCompletedSprintMarkdown(sprint: Sprint): string {
+    const doneTasks = getCompletedTasksInSprint(sprint.id!);
+    const today = new Date();
+    const reportDate = today.toISOString().split("T")[0];
+    const lines = [
+      `# Sprint Report - ${sprint.name}`,
+      "",
+      `- วันที่รายงาน: ${reportDate}`,
+      `- ช่วง Sprint: ${formatDate(sprint.start_date)} - ${formatDate(sprint.end_date)}`,
+      `- งานที่เสร็จแล้ว: ${doneTasks.length} งาน`,
+      "",
+      "## ✅ งานที่เสร็จแล้ว",
+      ...(doneTasks.length > 0
+        ? doneTasks.map((task) => {
+            const title = task.title || "ไม่ระบุชื่องาน";
+            const project = task.project || "-";
+            const assignee = task.assignee?.name || "ไม่ระบุ";
+            const dateText = task.date || "-";
+            return `- [x] ${title} (${project}) - ผู้รับผิดชอบ: ${assignee} - ${dateText}`;
+          })
+        : ["- ไม่มีงาน"]),
+    ];
+
+    return lines.join("\n");
+  }
+
+  function openSprintMarkdownModal(sprint: Sprint) {
+    viewingMarkdownSprint = sprint;
+    sprintMarkdownText = buildCompletedSprintMarkdown(sprint);
+    markdownCopied = false;
+  }
+
+  function closeSprintMarkdownModal() {
+    viewingMarkdownSprint = null;
+    sprintMarkdownText = "";
+    markdownCopied = false;
+  }
+
+  async function copySprintMarkdown() {
+    try {
+      await navigator.clipboard.writeText(sprintMarkdownText);
+      markdownCopied = true;
+      setTimeout(() => {
+        markdownCopied = false;
+      }, 1800);
+    } catch (error) {
+      console.error("Copy markdown failed", error);
+    }
+  }
+
+  function getStatusLabel(status: Task["status"]) {
+    switch (status) {
+      case "pending":
+        return "Pending";
+      case "todo":
+        return "To Do";
+      case "in-progress":
+        return "In Progress";
+      case "in-test":
+        return "In Test";
+      case "done":
+        return "Done";
     }
   }
 
@@ -722,6 +803,20 @@
                     <div class="flex items-center gap-1">
                       {#if sprint.status === "completed"}
                         <button
+                          on:click={() => openSprintMarkdownModal(sprint)}
+                          class="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
+                          title="ดูข้อความสรุปสำหรับคัดลอก"
+                        >
+                          <FileText size={16} />
+                        </button>
+                        <button
+                          on:click={() => openCompletedTasksModal(sprint)}
+                          class="p-2 text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-lg transition-colors"
+                          title="ดูงานที่สำเร็จ"
+                        >
+                          <Eye size={16} />
+                        </button>
+                        <button
                           on:click={() =>
                             dispatch("exportMarkdown", sprint.id!)}
                           class="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
@@ -869,6 +964,133 @@
         >
           {$_("common.cancel")}
         </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Sprint Markdown Modal -->
+{#if viewingMarkdownSprint}
+  <div
+    class="fixed inset-0 bg-black/60 z-20003 flex items-center justify-center p-4"
+    on:click={(e) => e.target === e.currentTarget && closeSprintMarkdownModal()}
+    on:keydown={(e) => e.key === "Escape" && closeSprintMarkdownModal()}
+    role="button"
+    tabindex="-1"
+  >
+    <div
+      class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[85vh] flex flex-col animate-modal-in"
+    >
+      <div class="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-700">
+        <div>
+          <h3 class="text-lg font-bold text-gray-900 dark:text-white">
+            ข้อความสรุป Sprint (Markdown)
+          </h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400">
+            {viewingMarkdownSprint.name}
+          </p>
+        </div>
+        <button
+          on:click={closeSprintMarkdownModal}
+          class="p-2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          aria-label="ปิด"
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      <div class="p-5 overflow-auto">
+        <div class="flex justify-end mb-3">
+          <button
+            on:click={copySprintMarkdown}
+            class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors {markdownCopied ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-indigo-600 text-white hover:bg-indigo-700'}"
+          >
+            {markdownCopied ? "คัดลอกแล้ว" : "คัดลอกข้อความ"}
+          </button>
+        </div>
+
+        <textarea
+          readonly
+          value={sprintMarkdownText}
+          class="w-full min-h-[360px] resize-y rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 text-gray-800 dark:text-gray-100 p-4 font-mono text-sm leading-6 focus:outline-none"
+        ></textarea>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Completed Tasks Modal -->
+{#if viewingCompletedSprint}
+  {@const completedTasks = getCompletedTasksInSprint(viewingCompletedSprint.id!)}
+  <div
+    class="fixed inset-0 bg-black/60 z-20003 flex items-center justify-center p-4"
+    on:click={(e) => e.target === e.currentTarget && closeCompletedTasksModal()}
+    on:keydown={(e) => e.key === "Escape" && closeCompletedTasksModal()}
+    role="button"
+    tabindex="-1"
+  >
+    <div
+      class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[85vh] flex flex-col animate-modal-in"
+    >
+      <div class="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-700">
+        <div>
+          <h3 class="text-lg font-bold text-gray-900 dark:text-white">
+            งานที่สำเร็จแล้ว
+          </h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400">
+            {viewingCompletedSprint.name} • {completedTasks.length} งาน
+          </p>
+        </div>
+        <button
+          on:click={closeCompletedTasksModal}
+          class="p-2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          aria-label="ปิด"
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      <div class="p-5 overflow-auto">
+        {#if completedTasks.length === 0}
+          <div class="text-sm text-gray-500 dark:text-gray-400 py-6 text-center">
+            ยังไม่มีงานที่สถานะ Done ใน Sprint นี้
+          </div>
+        {:else}
+          <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+            <table class="min-w-full text-sm">
+              <thead class="bg-gray-50 dark:bg-gray-700/60 text-gray-600 dark:text-gray-300">
+                <tr>
+                  <th class="px-4 py-3 text-left font-semibold">#</th>
+                  <th class="px-4 py-3 text-left font-semibold">Task</th>
+                  <th class="px-4 py-3 text-left font-semibold">Category</th>
+                  <th class="px-4 py-3 text-left font-semibold">Date</th>
+                  <th class="px-4 py-3 text-left font-semibold">Status</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                {#each completedTasks as task, index (task.id)}
+                  <tr class="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors">
+                    <td class="px-4 py-3 text-gray-500 dark:text-gray-400">{index + 1}</td>
+                    <td class="px-4 py-3 text-gray-900 dark:text-gray-100 font-medium">
+                      {task.title}
+                    </td>
+                    <td class="px-4 py-3 text-gray-600 dark:text-gray-300">
+                      {task.category || "-"}
+                    </td>
+                    <td class="px-4 py-3 text-gray-600 dark:text-gray-300">
+                      {task.date ? formatDate(task.date) : "-"}
+                    </td>
+                    <td class="px-4 py-3">
+                      <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                        {getStatusLabel(task.status)}
+                      </span>
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        {/if}
       </div>
     </div>
   </div>
