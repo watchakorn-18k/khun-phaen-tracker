@@ -256,7 +256,7 @@
                     <a
                       href={project.repo_url +
                         (project.repo_url.includes("?") ? "&" : "?") +
-                        "ref=khun-phaen-tracker-offline"}
+                        "ref=khun-phaen-tracker"}
                       target="_blank"
                       rel="noopener noreferrer"
                       class="flex items-center gap-1 text-primary hover:underline"
