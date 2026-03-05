@@ -331,7 +331,7 @@
   }
 
   function dueDateOf(task: Task): string {
-    return task.due_date || task.end_date || task.date || "";
+    return task.due_date || task.end_date || "";
   }
 </script>
 
