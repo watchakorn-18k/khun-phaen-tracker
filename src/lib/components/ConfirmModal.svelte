@@ -26,7 +26,7 @@
 
 {#if show}
   <div
-    class="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md"
+    class="fixed inset-0 z-[30000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md"
     in:fade={{ duration: 300 }}
     out:fade={{ duration: 250 }}
   >

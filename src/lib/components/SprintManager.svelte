@@ -135,7 +135,7 @@
   function startAdd() {
     showAddForm = true;
     editingSprint = null;
-    newSprintName = "";
+    newSprintName = getNextSprintName();
     newSprintStart = getTodayString();
     newSprintEnd = getDateAfterDays(newSprintStart, 14); // Default 2 weeks from today
   }
@@ -438,6 +438,26 @@
       case "done":
         return "Done";
     }
+  }
+
+  function getNextSprintName(): string {
+    if ($sprints.length === 0) return "";
+
+    const latestSprint = $sprints[$sprints.length - 1];
+    const latestName = latestSprint?.name?.trim() || "";
+    if (!latestName) return "";
+
+    // Increment trailing number only (e.g. "Sprint 34" -> "Sprint 35", "2" -> "3")
+    const match = latestName.match(/^(.*?)(\d+)$/);
+    if (!match) return "";
+
+    const prefix = match[1] || "";
+    const numberText = match[2];
+    const nextNumber = String(Number.parseInt(numberText, 10) + 1).padStart(
+      numberText.length,
+      "0",
+    );
+    return `${prefix}${nextNumber}`;
   }
 
   $: activeSprint = $sprints.find((s) => s.status === "active");
@@ -801,7 +821,7 @@
                   <!-- Actions -->
                   {#if isOwner}
                     <div class="flex items-center gap-1">
-                      {#if sprint.status === "completed"}
+                      {#if sprint.status === "completed" || sprint.status === "active"}
                         <button
                           on:click={() => openSprintMarkdownModal(sprint)}
                           class="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
@@ -824,13 +844,15 @@
                         >
                           <FileCode size={16} />
                         </button>
-                        <button
-                          on:click={() => dispatch("exportVideo", sprint.id!)}
-                          class="p-2 text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors"
-                          title={$_("sprintManager__export_video_hint")}
-                        >
-                          <Video size={16} />
-                        </button>
+                        {#if sprint.status === "completed"}
+                          <button
+                            on:click={() => dispatch("exportVideo", sprint.id!)}
+                            class="p-2 text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors"
+                            title={$_("sprintManager__export_video_hint")}
+                          >
+                            <Video size={16} />
+                          </button>
+                        {/if}
                       {/if}
 
                       {#if sprint.status === "planned"}
