@@ -409,7 +409,16 @@
               tabindex="0"
             >
               <div class="flex items-start justify-between gap-2">
-                <h4 class={getTitleClass(status)}>{task.title}</h4>
+                <h4 class={getTitleClass(status)}>
+                  {#if task.task_number}
+                    <span
+                      class="inline-flex items-center mr-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary align-middle"
+                    >
+                      #{task.task_number}
+                    </span>
+                  {/if}
+                  {task.title}
+                </h4>
                 <button
                   on:click|stopPropagation={() =>
                     (openMenuId = openMenuId === task.id ? null : task.id)}

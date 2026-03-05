@@ -1794,6 +1794,8 @@
   <BranchDialog
     bind:show={showBranchDialog}
     {title}
+    workspaceShortName={workspaceBadgePrefix}
+    taskNumber={displayTaskNumber ?? null}
     on:close={closeBranchDialog}
   />
 

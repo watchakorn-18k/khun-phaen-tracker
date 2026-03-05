@@ -527,6 +527,13 @@
                   class="font-medium text-gray-900 dark:text-white text-sm truncate max-w-30 lg:max-w-50 xl:max-w-xs"
                   title={task.title}
                 >
+                  {#if task.task_number}
+                    <span
+                      class="inline-flex items-center mr-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary align-middle"
+                    >
+                      #{task.task_number}
+                    </span>
+                  {/if}
                   {task.title}
                 </span>
 
@@ -799,6 +806,13 @@
                     class="font-medium text-gray-900 dark:text-white text-sm line-clamp-2 flex-1"
                     title={task.title}
                   >
+                    {#if task.task_number}
+                      <span
+                        class="inline-flex items-center mr-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary align-middle"
+                      >
+                        #{task.task_number}
+                      </span>
+                    {/if}
                     {task.title}
                   </h3>
                   <div class="flex items-center gap-1 shrink-0">
