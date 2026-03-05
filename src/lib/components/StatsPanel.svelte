@@ -29,7 +29,17 @@
 		return ICON_MAP[key || 'LayoutTemplate'] || LayoutTemplate;
 	}
 
-	const dispatch = createEventDispatcher();
+	const dispatch = createEventDispatcher<{
+		filterStatus: { status: 'all' | 'pending' | 'todo' | 'in-progress' | 'in-test' | 'done' };
+		exportCSV: void;
+		exportPDF: void;
+		exportPNG: void;
+		exportMarkdown: any;
+		exportVideo: any;
+		exportSlide: any;
+		exportDatabase: any;
+		importCSV: any;
+	}>();
 
 	export let isOwner: boolean = false;
 	export let videoExportState: any = null;
@@ -89,7 +99,11 @@
 
 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
 	<!-- Total Tasks -->
-	<div class="bg-gray-50 dark:bg-gray-800/40 p-5 rounded-2xl border border-gray-200 dark:border-gray-700/30 backdrop-blur-md transition-all group shadow-sm">
+	<button
+		type="button"
+		class="bg-gray-50 dark:bg-gray-800/40 p-5 rounded-2xl border border-gray-200 dark:border-gray-700/30 backdrop-blur-md transition-all group shadow-sm text-left hover:scale-[1.01] hover:shadow-md"
+		on:click={() => dispatch('filterStatus', { status: 'all' })}
+	>
 		<div class="flex items-start justify-between">
 			<div>
 				<p class="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1 opacity-70">{$_('statsPanel__total_tasks')}</p>
@@ -99,10 +113,14 @@
 				<Calendar class="text-blue-500" size={24} />
 			</div>
 		</div>
-	</div>
+	</button>
 
 	<!-- Pending -->
-	<div class="bg-gray-50 dark:bg-gray-800/40 p-5 rounded-2xl border border-gray-200 dark:border-gray-700/30 backdrop-blur-md transition-all group shadow-sm">
+	<button
+		type="button"
+		class="bg-gray-50 dark:bg-gray-800/40 p-5 rounded-2xl border border-gray-200 dark:border-gray-700/30 backdrop-blur-md transition-all group shadow-sm text-left hover:scale-[1.01] hover:shadow-md"
+		on:click={() => dispatch('filterStatus', { status: 'pending' })}
+	>
 		<div class="flex items-start justify-between">
 			<div>
 				<p class="text-[10px] font-black text-slate-600/80 dark:text-slate-400/80 uppercase tracking-widest mb-1 opacity-70">{$_('statsPanel__pending')}</p>
@@ -112,10 +130,14 @@
 				<PauseCircle class="text-slate-500" size={24} />
 			</div>
 		</div>
-	</div>
+	</button>
 
 	<!-- Todo -->
-	<div class="bg-gray-50 dark:bg-gray-800/40 p-5 rounded-2xl border border-gray-200 dark:border-gray-700/30 backdrop-blur-md transition-all group shadow-sm">
+	<button
+		type="button"
+		class="bg-gray-50 dark:bg-gray-800/40 p-5 rounded-2xl border border-gray-200 dark:border-gray-700/30 backdrop-blur-md transition-all group shadow-sm text-left hover:scale-[1.01] hover:shadow-md"
+		on:click={() => dispatch('filterStatus', { status: 'todo' })}
+	>
 		<div class="flex items-start justify-between">
 			<div>
 				<p class="text-[10px] font-black text-amber-600/80 dark:text-amber-500/80 uppercase tracking-widest mb-1 opacity-70">{$_('statsPanel__todo')}</p>
@@ -125,10 +147,14 @@
 				<Circle class="text-amber-500" size={24} />
 			</div>
 		</div>
-	</div>
+	</button>
 
 	<!-- In Progress -->
-	<div class="bg-gray-50 dark:bg-gray-800/40 p-5 rounded-2xl border border-gray-200 dark:border-gray-700/30 backdrop-blur-md transition-all group shadow-sm">
+	<button
+		type="button"
+		class="bg-gray-50 dark:bg-gray-800/40 p-5 rounded-2xl border border-gray-200 dark:border-gray-700/30 backdrop-blur-md transition-all group shadow-sm text-left hover:scale-[1.01] hover:shadow-md"
+		on:click={() => dispatch('filterStatus', { status: 'in-progress' })}
+	>
 		<div class="flex items-start justify-between">
 			<div>
 				<p class="text-[10px] font-black text-blue-600/80 dark:text-blue-500/80 uppercase tracking-widest mb-1 opacity-70">{$_('statsPanel__in_progress')}</p>
@@ -138,10 +164,14 @@
 				<Loader2 class="text-blue-500" size={24} />
 			</div>
 		</div>
-	</div>
+	</button>
 
 	<!-- In Test -->
-	<div class="bg-gray-50 dark:bg-gray-800/40 p-5 rounded-2xl border border-gray-200 dark:border-gray-700/30 backdrop-blur-md transition-all group shadow-sm">
+	<button
+		type="button"
+		class="bg-gray-50 dark:bg-gray-800/40 p-5 rounded-2xl border border-gray-200 dark:border-gray-700/30 backdrop-blur-md transition-all group shadow-sm text-left hover:scale-[1.01] hover:shadow-md"
+		on:click={() => dispatch('filterStatus', { status: 'in-test' })}
+	>
 		<div class="flex items-start justify-between">
 			<div>
 				<p class="text-[10px] font-black text-purple-600/80 dark:text-purple-500/80 uppercase tracking-widest mb-1 opacity-70">{$_('statsPanel__in_test')}</p>
@@ -151,10 +181,14 @@
 				<FlaskConical class="text-purple-500" size={24} />
 			</div>
 		</div>
-	</div>
+	</button>
 
 	<!-- Done -->
-	<div class="bg-gray-50 dark:bg-gray-800/40 p-5 rounded-2xl border border-gray-200 dark:border-gray-700/30 backdrop-blur-md transition-all group shadow-sm">
+	<button
+		type="button"
+		class="bg-gray-50 dark:bg-gray-800/40 p-5 rounded-2xl border border-gray-200 dark:border-gray-700/30 backdrop-blur-md transition-all group shadow-sm text-left hover:scale-[1.01] hover:shadow-md"
+		on:click={() => dispatch('filterStatus', { status: 'done' })}
+	>
 		<div class="flex items-start justify-between">
 			<div>
 				<p class="text-[10px] font-black text-emerald-600/80 dark:text-emerald-500/80 uppercase tracking-widest mb-1 opacity-70">{$_('statsPanel__done')}</p>
@@ -164,6 +198,6 @@
 				<CheckCircle2 class="text-emerald-500" size={24} />
 			</div>
 		</div>
-	</div>
+	</button>
 
 </div>

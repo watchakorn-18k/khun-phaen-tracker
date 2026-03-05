@@ -311,6 +311,9 @@
       stats={$stats}
       {isOwner}
       {videoExportState}
+      on:filterStatus={(e) => {
+        filters.update((f) => ({ ...f, status: e.detail.status }));
+      }}
       on:exportCSV={() => exportActions.handleExportCSV()}
       on:exportPDF={() => exportActions.handleExportPDF()}
       on:exportMarkdown={(e) => exportActions.handleExportMarkdown(e)}

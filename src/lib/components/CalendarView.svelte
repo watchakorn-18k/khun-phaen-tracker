@@ -340,7 +340,7 @@
 							{#each dayTasks.slice(0, 3) as task}
 								<div
 									class="h-1.5 rounded-full flex-1 min-w-0 {task.status === 'done' ? 'bg-success' : task.status === 'in-progress' ? 'bg-primary' : task.status === 'in-test' ? 'bg-purple-500' : 'bg-warning'}"
-									title={task.title}
+									title={task.task_number ? `#${task.task_number} ${task.title}` : task.title}
 								></div>
 							{/each}
 							{#if dayTasks.length > 3}
@@ -383,7 +383,16 @@
 								class="w-full text-left rounded-xl border border-gray-200 dark:border-white/10 bg-white/90 dark:bg-white/5 px-3 py-2 hover:bg-primary/5 dark:hover:bg-white/10 transition-colors"
 							>
 								<div class="flex items-center justify-between gap-2">
-									<p class="font-semibold text-sm leading-tight text-gray-900 dark:text-gray-100">{task.title}</p>
+									<p class="font-semibold text-sm leading-tight text-gray-900 dark:text-gray-100">
+										{#if task.task_number}
+											<span
+												class="inline-flex items-center mr-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary align-middle"
+											>
+												#{task.task_number}
+											</span>
+										{/if}
+										{task.title}
+									</p>
 									<span class="text-[11px] text-gray-500 dark:text-gray-300 flex items-center gap-1 whitespace-nowrap">
 										<Clock size={12} />
 										{Math.floor(task.duration_minutes / 60)}:{String(task.duration_minutes % 60).padStart(2, '0')}

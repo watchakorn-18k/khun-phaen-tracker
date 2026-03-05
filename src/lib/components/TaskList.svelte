@@ -111,6 +111,13 @@
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
                 <h3 class="font-medium text-gray-900 dark:text-white truncate">
+                  {#if task.task_number}
+                    <span
+                      class="inline-flex items-center mr-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary align-middle"
+                    >
+                      #{task.task_number}
+                    </span>
+                  {/if}
                   {task.title}
                 </h3>
                 <span
