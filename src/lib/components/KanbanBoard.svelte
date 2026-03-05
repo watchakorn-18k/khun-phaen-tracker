@@ -18,9 +18,9 @@
   import { _ } from "$lib/i18n";
 
   const dispatch = createEventDispatcher<{
-    move: { id: number; newStatus: Task["status"] };
+    move: { id: string | number; newStatus: Task["status"] };
     edit: Task;
-    delete: number;
+    delete: string | number;
     dragState: { dragging: boolean };
     pageChange: number;
     pageSizeSettings: void;
@@ -34,7 +34,7 @@
   export let pageSize: number = 20;
 
   interface TaskWithRequiredId extends Task {
-    id: number;
+    id: string | number;
   }
 
   // Local state สำหรับ drag and drop - เริ่มต้นจาก tasks
@@ -51,18 +51,22 @@
     if (isDragging) return; // ไม่ sync ระหว่าง drag
 
     todoItems = nextTasks.filter(
-      (t): t is TaskWithRequiredId => t.status === "todo" && t.id !== undefined,
+      (t): t is TaskWithRequiredId =>
+        (t.status === "todo" || t.status === "pending") &&
+        t.id !== undefined &&
+        t.id !== null,
     );
     inProgressItems = nextTasks.filter(
       (t): t is TaskWithRequiredId =>
-        t.status === "in-progress" && t.id !== undefined,
+        t.status === "in-progress" && t.id !== undefined && t.id !== null,
     );
     inTestItems = nextTasks.filter(
       (t): t is TaskWithRequiredId =>
-        t.status === "in-test" && t.id !== undefined,
+        t.status === "in-test" && t.id !== undefined && t.id !== null,
     );
     doneItems = nextTasks.filter(
-      (t): t is TaskWithRequiredId => t.status === "done" && t.id !== undefined,
+      (t): t is TaskWithRequiredId =>
+        t.status === "done" && t.id !== undefined && t.id !== null,
     );
   }
 
@@ -164,11 +168,8 @@
     };
     const items = e.detail.items;
     const trigger = e.detail.info.trigger as any;
-    const tasksById = new Map(
-      tasks
-        .filter((t): t is TaskWithRequiredId => t.id !== undefined)
-        .map((t) => [t.id, t] as const),
-    );
+    const findTaskById = (id: string | number) =>
+      tasks.find((t) => t.id !== undefined && String(t.id) === String(id));
 
     // อัปเดท local state เพื่อแสดงผลลัพธ์ทันที
     switch (status) {
@@ -194,17 +195,29 @@
 
     // Commit move on destination finalize.
     if (trigger === (TRIGGERS.DROPPED_INTO_ZONE as any)) {
-      let droppedId = Number(e.detail.info.id);
-      if (!Number.isFinite(droppedId)) {
-        const movedCandidate = items.find((item) => {
-          const original = tasksById.get(item.id);
-          return original ? original.status !== status : false;
-        });
-        droppedId = movedCandidate?.id ?? NaN;
+      let droppedId: string | number | null = null;
+      const infoId = e.detail.info.id;
+
+      if (
+        typeof infoId === "string" ||
+        typeof infoId === "number"
+      ) {
+        const droppedItem = items.find(
+          (item) => String(item.id) === String(infoId),
+        );
+        droppedId = droppedItem?.id ?? infoId;
       }
 
-      if (Number.isFinite(droppedId)) {
-        const originalTask = tasksById.get(droppedId);
+      if (droppedId === null) {
+        const movedCandidate = items.find((item) => {
+          const original = findTaskById(item.id);
+          return original ? original.status !== status : false;
+        });
+        droppedId = movedCandidate?.id ?? null;
+      }
+
+      if (droppedId !== null) {
+        const originalTask = findTaskById(droppedId);
         if (originalTask && originalTask.status !== status) {
           dispatch("move", { id: droppedId, newStatus: status });
         }
@@ -218,6 +231,8 @@
 
   function getColumnBg(status: Task["status"]): string {
     switch (status) {
+      case "pending":
+        return "bg-gray-100 dark:bg-gray-800";
       case "todo":
         return "bg-gray-100 dark:bg-gray-800";
       case "in-progress":
@@ -244,6 +259,8 @@
 
   function getCountBadgeClass(status: Task["status"]): string {
     switch (status) {
+      case "pending":
+        return "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300";
       case "todo":
         return "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300";
       case "in-progress":
@@ -276,6 +293,8 @@
 
   function getIconByStatus(status: Task["status"]) {
     switch (status) {
+      case "pending":
+        return Clock3;
       case "todo":
         return Clock3;
       case "in-progress":
@@ -289,6 +308,8 @@
 
   function getIconColorClass(status: Task["status"]): string {
     switch (status) {
+      case "pending":
+        return "text-warning";
       case "todo":
         return "text-warning";
       case "in-progress":
@@ -302,6 +323,8 @@
 
   function getHeaderTextClass(status: Task["status"]): string {
     switch (status) {
+      case "pending":
+        return "font-semibold text-gray-700 dark:text-gray-200";
       case "todo":
         return "font-semibold text-gray-700 dark:text-gray-200";
       case "in-progress":
@@ -315,6 +338,8 @@
 
   function getColumnTitle(status: Task["status"]): string {
     switch (status) {
+      case "pending":
+        return $_("kanbanBoard__column_todo");
       case "todo":
         return $_("kanbanBoard__column_todo");
       case "in-progress":
@@ -333,7 +358,7 @@
     return sprints.find((s) => String(s.id) === String(sprintId))?.name || null;
   }
 
-  let openMenuId: number | null = null;
+  let openMenuId: string | number | null = null;
 </script>
 
 <div
