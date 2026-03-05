@@ -23,10 +23,11 @@
 
   const dispatch = createEventDispatcher<{
     close: void;
-    complete: string | number; // sprint id
+    complete: { sprintId: string | number; notifyWebhook: boolean };
     completeAndExport: {
       sprintId: string | number;
       format: "markdown" | "video";
+      notifyWebhook: boolean;
     };
     deleteSprint: string | number; // sprint id
     createSprint: { name: string; start_date: string; end_date: string };
@@ -247,7 +248,15 @@
         });
       }
 
-      dispatch("complete", completeConfirmId);
+      const notifyWebhook = await requestConfirm({
+        title: $_("sprintManager__notify_webhook_title"),
+        message: $_("sprintManager__notify_webhook_message"),
+        confirmText: $_("sprintManager__notify_webhook_yes"),
+        cancelText: $_("sprintManager__notify_webhook_no"),
+        type: "info",
+      });
+
+      dispatch("complete", { sprintId: completeConfirmId, notifyWebhook });
       completeConfirmId = null;
     }
   }
@@ -273,8 +282,16 @@
           .map((t) => t.id!),
       });
     }
+    const notifyWebhook = await requestConfirm({
+      title: $_("sprintManager__notify_webhook_title"),
+      message: $_("sprintManager__notify_webhook_message"),
+      confirmText: $_("sprintManager__notify_webhook_yes"),
+      cancelText: $_("sprintManager__notify_webhook_no"),
+      type: "info",
+    });
+
     completeConfirmId = null;
-    dispatch("completeAndExport", { sprintId, format });
+    dispatch("completeAndExport", { sprintId, format, notifyWebhook });
   }
 
   async function handleDelete(id: string | number) {

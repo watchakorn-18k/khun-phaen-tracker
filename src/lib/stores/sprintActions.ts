@@ -2,6 +2,9 @@ import type { Task, FilterOptions } from "$lib/types";
 import { updateTask, getTasksBySprint, archiveTasksBySprint } from "$lib/db";
 import { sprints } from "$lib/stores/sprintStore";
 import { persistFilters } from "$lib/stores/filterActions";
+import { api } from "$lib/apis";
+import { get } from "svelte/store";
+import { page } from "$app/stores";
 
 type NotifyType = "success" | "error";
 
@@ -39,17 +42,104 @@ function applySprintUpdateToLocalState(
 }
 
 export function createSprintActions(deps: SprintActionDeps) {
+  function extractDiscordMentionId(value?: string): string | null {
+    if (!value) return null;
+    const clean = value.trim();
+    if (!clean) return null;
+    return /^\d{8,}$/.test(clean) ? clean : null;
+  }
+
+  function getTaskMentions(task: Task): string[] {
+    const ids = new Set<string>();
+    const assignees = task.assignees || [];
+    for (const assignee of assignees) {
+      const discordId = extractDiscordMentionId(assignee.discord_id);
+      if (discordId) ids.add(discordId);
+      else {
+        const fromUserId = extractDiscordMentionId(
+          assignee.user_id ? String(assignee.user_id) : "",
+        );
+        if (fromUserId) ids.add(fromUserId);
+      }
+    }
+    return [...ids];
+  }
+
+  async function sendSprintCompletionWebhook(
+    sprintName: string,
+    doneTasks: Task[],
+  ): Promise<"sent" | "missing_config" | "skipped"> {
+    const workspaceId = get(page).params.workspace_id;
+    if (!workspaceId || workspaceId === "offline") return "skipped";
+
+    const configRes = await api.workspaces.getNotificationConfig(workspaceId);
+    if (!configRes.ok) return "missing_config";
+    const configData = await configRes.json();
+    const webhookUrl = configData?.config?.discord_webhook_url?.trim?.() || "";
+    if (!webhookUrl) return "missing_config";
+
+    const doneTaskLines =
+      doneTasks.length > 0
+        ? doneTasks.map((task) => {
+            const mentions = getTaskMentions(task);
+            const mentionText =
+              mentions.length > 0
+                ? ` ${mentions.map((id) => `<@${id}>`).join(" ")}`
+                : "";
+            return `- [x] ${task.title || deps.t("sprintManager__unknown_task_title")}${mentionText}`;
+          })
+        : [`- ${deps.t("sprintManager__markdown_no_tasks")}`];
+
+    const body = {
+      embeds: [
+        {
+          title: deps.t("sprintManager__webhook_embed_title"),
+          description: [
+            `${deps.t("sprintManager__webhook_sprint_label")}: **${sprintName}**`,
+            `${deps.t("sprintManager__webhook_done_total", {
+              values: { count: doneTasks.length },
+            })}`,
+            "",
+            ...doneTaskLines,
+          ].join("\n"),
+          color: parseInt("22C55E", 16),
+          timestamp: new Date().toISOString(),
+          footer: { text: "Khun Phaen Task Tracker" },
+        },
+      ],
+    };
+
+    await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return "sent";
+  }
+
   async function handleCompleteSprint(
-    event: CustomEvent<number>,
+    event: CustomEvent<
+      number | { sprintId: string | number; notifyWebhook?: boolean }
+    >,
   ): Promise<boolean> {
-    const sprintId = event.detail;
+    const payload = event.detail;
+    const sprintId: string | number =
+      typeof payload === "object" && payload !== null
+        ? payload.sprintId
+        : payload;
+    const notifyWebhook =
+      typeof payload === "object" && payload !== null
+        ? Boolean(payload.notifyWebhook)
+        : false;
     try {
+      const sprintTasks = await getTasksBySprint(sprintId);
+      const doneTasks = sprintTasks.filter((t) => t.status === "done");
+      const incompleteTasks = sprintTasks.filter((t) => t.status !== "done");
+
       // Archive completed tasks
       const archivedCount = await archiveTasksBySprint(sprintId);
 
       // Move incomplete tasks out of sprint (set sprint_id to null)
-      const sprintTasks = await getTasksBySprint(sprintId);
-      const incompleteTasks = sprintTasks.filter((t) => t.status !== "done");
       for (const task of incompleteTasks) {
         await updateTask(task.id!, { sprint_id: null });
       }
@@ -69,6 +159,27 @@ export function createSprintActions(deps: SprintActionDeps) {
       }
 
       await deps.loadData();
+
+      if (notifyWebhook) {
+        try {
+          const sprintName =
+            get(sprints).find((s) => String(s.id) === String(sprintId))?.name ||
+            String(sprintId);
+          const webhookState = await sendSprintCompletionWebhook(
+            sprintName,
+            doneTasks,
+          );
+          if (webhookState === "sent") {
+            deps.notify(deps.t("sprintManager__webhook_send_success"));
+          } else if (webhookState === "missing_config") {
+            deps.notify(deps.t("sprintManager__webhook_missing_config"), "error");
+          }
+        } catch (error) {
+          console.error("Failed to send sprint completion webhook:", error);
+          deps.notify(deps.t("sprintManager__webhook_send_error"), "error");
+        }
+      }
+
       deps.notify(
         deps.t("page__complete_sprint_success", {
           values: {

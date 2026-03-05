@@ -71,7 +71,11 @@ export type ExportActionDeps = {
   setFilters: (filters: FilterOptions) => void;
   setSearchInput: (input: string) => void;
   // For handleCompleteSprint delegation
-  handleCompleteSprint: (event: CustomEvent<number>) => Promise<boolean>;
+  handleCompleteSprint: (
+    event: CustomEvent<
+      number | { sprintId: string | number; notifyWebhook?: boolean }
+    >,
+  ) => Promise<boolean>;
 };
 
 export function createExportActions(deps: ExportActionDeps) {
@@ -1156,11 +1160,14 @@ export function createExportActions(deps: ExportActionDeps) {
     event: CustomEvent<{
       sprintId: string | number;
       format: "markdown" | "video";
+      notifyWebhook?: boolean;
     }>,
   ) {
-    const { sprintId, format } = event.detail;
+    const { sprintId, format, notifyWebhook } = event.detail;
     const completed = await deps.handleCompleteSprint(
-      new CustomEvent("complete", { detail: sprintId as number }),
+      new CustomEvent("complete", {
+        detail: { sprintId, notifyWebhook: Boolean(notifyWebhook) },
+      }),
     );
     if (!completed) return;
     if (format === "markdown") {
