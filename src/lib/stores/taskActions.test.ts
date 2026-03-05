@@ -61,4 +61,58 @@ describe("taskActions", () => {
     expect(deps.notify).toHaveBeenCalledWith("page__update_task_success");
     expect(deps.setEditingTask).toHaveBeenCalledWith(null);
   });
+
+  it("should update checklist without reloading all data", async () => {
+    const editingTask = {
+      id: 123,
+      title: "Task",
+      checklist: [{ id: "a", text: "A", completed: false }],
+    };
+    const tasks = [editingTask];
+    deps.getEditingTask.mockReturnValue(editingTask);
+    deps.getTasks.mockReturnValue(tasks);
+    deps.getFilteredTasks.mockReturnValue(tasks);
+
+    const event = {
+      detail: {
+        checklist: [{ id: "a", text: "A", completed: true }],
+      },
+    } as any;
+
+    await actions.handleChecklistUpdate(event);
+
+    expect(db.updateTask).toHaveBeenCalledWith(123, {
+      checklist: event.detail.checklist,
+    });
+    expect(deps.loadData).not.toHaveBeenCalled();
+    expect(deps.setTasks).toHaveBeenCalled();
+    expect(deps.setFilteredTasks).toHaveBeenCalled();
+    expect(deps.trackRealtime).toHaveBeenCalledWith("update-checklist");
+  });
+
+  it("should toggle checklist item without reloading all data", async () => {
+    const tasks = [
+      {
+        id: 123,
+        title: "Task",
+        checklist: [{ id: "a", text: "A", completed: false }],
+      },
+    ];
+    deps.getTasks.mockReturnValue(tasks);
+    deps.getFilteredTasks.mockReturnValue(tasks);
+
+    const event = {
+      detail: { taskId: 123, checklistItemId: "a" },
+    } as any;
+
+    await actions.handleChecklistToggle(event);
+
+    expect(db.updateTask).toHaveBeenCalledWith(123, {
+      checklist: [{ id: "a", text: "A", completed: true }],
+    });
+    expect(deps.loadData).not.toHaveBeenCalled();
+    expect(deps.setTasks).toHaveBeenCalled();
+    expect(deps.setFilteredTasks).toHaveBeenCalled();
+    expect(deps.trackRealtime).toHaveBeenCalledWith("toggle-checklist");
+  });
 });

@@ -27,6 +27,15 @@ export type TaskActionDeps = {
 import { requestConfirm } from "./confirmStore";
 
 export function createTaskActions(deps: TaskActionDeps) {
+  const patchTaskChecklist = (
+    list: Task[],
+    taskId: string | number,
+    checklist: ChecklistItem[],
+  ): Task[] =>
+    list.map((task) =>
+      String(task.id) === String(taskId) ? { ...task, checklist } : task,
+    );
+
   async function handleAddTask(
     event: CustomEvent<Omit<Task, "id" | "created_at">>,
   ) {
@@ -82,6 +91,22 @@ export function createTaskActions(deps: TaskActionDeps) {
   ) {
     const editingTask = deps.getEditingTask();
     if (!editingTask) return;
+    const previousTasks = deps.getTasks();
+    const previousFilteredTasks = deps.getFilteredTasks();
+    const nextTasks = patchTaskChecklist(
+      previousTasks,
+      editingTask.id!,
+      event.detail.checklist,
+    );
+    const nextFilteredTasks = patchTaskChecklist(
+      previousFilteredTasks,
+      editingTask.id!,
+      event.detail.checklist,
+    );
+
+    deps.setTasks(nextTasks);
+    deps.setFilteredTasks(nextFilteredTasks);
+
     try {
       await updateTask(editingTask.id!, {
         checklist: event.detail.checklist,
@@ -91,9 +116,10 @@ export function createTaskActions(deps: TaskActionDeps) {
         ...editingTask,
         checklist: event.detail.checklist,
       });
-      await deps.loadData();
       deps.trackRealtime("update-checklist");
     } catch (e) {
+      deps.setTasks(previousTasks);
+      deps.setFilteredTasks(previousFilteredTasks);
       console.error("❌ handleChecklistUpdate failed:", e);
     }
   }
@@ -102,8 +128,10 @@ export function createTaskActions(deps: TaskActionDeps) {
     event: CustomEvent<{ taskId: number; checklistItemId: string }>,
   ) {
     const { taskId, checklistItemId } = event.detail;
+    const previousTasks = deps.getTasks();
+    const previousFilteredTasks = deps.getFilteredTasks();
     try {
-      const task = deps.getTasks().find((t) => t.id === taskId);
+      const task = previousTasks.find((t) => String(t.id) === String(taskId));
       if (!task || !task.checklist) return;
 
       const updatedChecklist = task.checklist.map((item) =>
@@ -112,10 +140,16 @@ export function createTaskActions(deps: TaskActionDeps) {
           : item,
       );
 
+      deps.setTasks(patchTaskChecklist(previousTasks, taskId, updatedChecklist));
+      deps.setFilteredTasks(
+        patchTaskChecklist(previousFilteredTasks, taskId, updatedChecklist),
+      );
+
       await updateTask(taskId, { checklist: updatedChecklist });
-      await deps.loadData();
       deps.trackRealtime("toggle-checklist");
     } catch (e) {
+      deps.setTasks(previousTasks);
+      deps.setFilteredTasks(previousFilteredTasks);
       console.error("❌ handleChecklistToggle failed:", e);
     }
   }
