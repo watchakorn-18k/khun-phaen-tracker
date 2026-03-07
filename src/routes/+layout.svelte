@@ -225,6 +225,7 @@
     $page.url.pathname.includes("/setup-password");
   $: isDashboard = $page.url.pathname.includes("/dashboard");
   $: isWorkspacePage = $page.url.pathname.includes("/workspace/");
+  $: isSettingsPage = $page.url.pathname.includes("/settings");
   $: isUsersPage = $page.url.pathname.includes("/settings/users");
   $: isErrorPage = $page.status >= 400;
   $: containerWidth =
@@ -465,7 +466,7 @@
             <!-- Admin User Management Link -->
             {#if $user?.role === "admin"}
               <a
-                href="{base}/settings/users"
+                href="{base}/settings"
                 class="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 title="User Management"
               >
@@ -643,7 +644,7 @@
     {/if}
 
     <!-- Dev Timer - Fixed Bottom Right -->
-    {#if !isDashboard && !isUsersPage && !isErrorPage}
+    {#if !isDashboard && !isSettingsPage && !isUsersPage && !isErrorPage}
       <DevTimer
         on:showBookmarks={() => (showBookmarkManager = true)}
         on:showWhiteboard={() => (showWhiteboard = true)}
