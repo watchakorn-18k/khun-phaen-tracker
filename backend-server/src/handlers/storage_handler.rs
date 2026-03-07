@@ -1,4 +1,10 @@
 use crate::handlers::auth_handler::extract_claims;
+use crate::models::storage::{StorageConfigDocument, StorageProvider, UpdateStorageConfigRequest};
+use crate::repositories::storage_repo::StorageRepository;
+use crate::services::storage_service::{
+    build_active_storage, decrypt_storage_config, default_storage_config_doc,
+    encrypt_value_if_present,
+};
 use crate::state::SharedState;
 use axum::{
     extract::{Path, Query, State},
@@ -14,13 +20,19 @@ struct StorageObjectSummary {
     size_bytes: u64,
     last_modified: Option<String>,
     etag: Option<String>,
-    mime_type: Option<String>,
 }
 
 #[derive(Deserialize)]
 pub struct StorageObjectsQuery {
     pub page: Option<usize>,
     pub limit: Option<usize>,
+}
+
+fn normalize_optional(value: Option<String>) -> Option<String> {
+    value.and_then(|v| {
+        let trimmed = v.trim().to_string();
+        if trimmed.is_empty() { None } else { Some(trimmed) }
+    })
 }
 
 fn ensure_admin(
@@ -50,6 +62,171 @@ fn ensure_admin(
     Ok(())
 }
 
+pub async fn get_storage_config_handler(
+    State(state): State<SharedState>,
+    jar: CookieJar,
+    headers: axum::http::HeaderMap,
+) -> axum::response::Response {
+    if let Err(response) = ensure_admin(&headers, &jar, &state) {
+        return response;
+    }
+
+    let repo = StorageRepository::new(&state.db);
+    let stored = match repo.get_storage_config().await {
+        Ok(config) => config
+            .map(|cfg| decrypt_storage_config(&cfg))
+            .unwrap_or_else(default_storage_config_doc),
+        Err(error) => {
+            tracing::error!("Failed to load storage config: {:?}", error);
+            return (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": "Failed to load storage config" })),
+            )
+                .into_response();
+        }
+    };
+
+    let active = state.storage_snapshot().await;
+
+    Json(serde_json::json!({
+        "success": true,
+        "config": {
+            "provider": stored.provider,
+            "bucket": stored.bucket.or(Some(active.bucket)),
+            "region": stored.region.or(Some(active.region)),
+            "endpoint": match stored.provider {
+                StorageProvider::Env => active.endpoint.clone(),
+                StorageProvider::S3 => stored.endpoint.or(active.endpoint.clone()),
+            },
+            "access_key": stored.access_key.or(active.access_key),
+            "secret_key": stored.secret_key.or(active.secret_key),
+            "updated_at": stored.updated_at
+        }
+    }))
+    .into_response()
+}
+
+pub async fn update_storage_config_handler(
+    State(state): State<SharedState>,
+    jar: CookieJar,
+    headers: axum::http::HeaderMap,
+    Json(payload): Json<UpdateStorageConfigRequest>,
+) -> axum::response::Response {
+    if let Err(response) = ensure_admin(&headers, &jar, &state) {
+        return response;
+    }
+
+    let bucket = normalize_optional(payload.bucket);
+    let region = normalize_optional(payload.region);
+    let endpoint = normalize_optional(payload.endpoint);
+    let access_key = normalize_optional(payload.access_key);
+    let secret_key = normalize_optional(payload.secret_key);
+
+    if bucket.is_none() {
+        return (
+            axum::http::StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": "Bucket name is required" })),
+        )
+            .into_response();
+    }
+
+    if region.is_none() {
+        return (
+            axum::http::StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": "Region is required" })),
+        )
+            .into_response();
+    }
+
+    if payload.provider == StorageProvider::Env && endpoint.is_none() {
+        return (
+            axum::http::StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": "Storage endpoint is required" })),
+        )
+            .into_response();
+    }
+
+    if (payload.provider == StorageProvider::S3 || payload.provider == StorageProvider::Env)
+        && (access_key.is_none() || secret_key.is_none())
+    {
+        return (
+            axum::http::StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": "Access key and secret key are required" })),
+        )
+            .into_response();
+    }
+
+    let config = StorageConfigDocument {
+        key: "storage_config".to_string(),
+        provider: payload.provider,
+        bucket,
+        region,
+        endpoint,
+        access_key: encrypt_value_if_present(access_key),
+        secret_key: encrypt_value_if_present(secret_key),
+        updated_at: Some(chrono::Utc::now().to_rfc3339()),
+    };
+
+    let next_storage = build_active_storage(Some(&config)).await;
+    let repo = StorageRepository::new(&state.db);
+    if let Err(error) = repo.save_storage_config(&config).await {
+        tracing::error!("Failed to save storage config: {:?}", error);
+        return (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": "Failed to save storage config" })),
+        )
+            .into_response();
+    }
+
+    state.replace_storage(next_storage.clone()).await;
+
+    Json(serde_json::json!({
+        "success": true,
+        "config": {
+            "provider": next_storage.provider,
+            "bucket": next_storage.bucket,
+            "region": next_storage.region,
+            "endpoint": next_storage.endpoint,
+            "updated_at": config.updated_at
+        }
+    }))
+    .into_response()
+}
+
+pub async fn reset_storage_config_handler(
+    State(state): State<SharedState>,
+    jar: CookieJar,
+    headers: axum::http::HeaderMap,
+) -> axum::response::Response {
+    if let Err(response) = ensure_admin(&headers, &jar, &state) {
+        return response;
+    }
+
+    let repo = StorageRepository::new(&state.db);
+    if let Err(error) = repo.delete_storage_config().await {
+        tracing::error!("Failed to reset storage config: {:?}", error);
+        return (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": "Failed to reset storage config" })),
+        )
+            .into_response();
+    }
+
+    let next_storage = build_active_storage(None).await;
+    state.replace_storage(next_storage.clone()).await;
+
+    Json(serde_json::json!({
+        "success": true,
+        "config": {
+            "provider": next_storage.provider,
+            "bucket": next_storage.bucket,
+            "region": next_storage.region,
+            "endpoint": next_storage.endpoint
+        }
+    }))
+    .into_response()
+}
+
 pub async fn get_storage_stats_handler(
     State(state): State<SharedState>,
     jar: CookieJar,
@@ -59,7 +236,8 @@ pub async fn get_storage_stats_handler(
         return response;
     }
 
-    let client = match &state.storage_client {
+    let storage = state.storage_snapshot().await;
+    let client = match &storage.client {
         Some(client) => client,
         None => {
             return (
@@ -75,7 +253,7 @@ pub async fn get_storage_stats_handler(
     let mut object_count: u64 = 0;
 
     loop {
-        let mut request = client.list_objects_v2().bucket(&state.storage_bucket);
+        let mut request = client.list_objects_v2().bucket(&storage.bucket);
         if let Some(token) = continuation_token.as_deref() {
             request = request.continuation_token(token);
         }
@@ -110,7 +288,7 @@ pub async fn get_storage_stats_handler(
         }
     }
 
-    let quota_bytes = state.storage_quota_bytes;
+    let quota_bytes = storage.quota_bytes;
     let remaining_bytes = quota_bytes.map(|quota| quota.saturating_sub(used_bytes));
     let usage_percent = quota_bytes.map(|quota| {
         if quota == 0 {
@@ -122,8 +300,10 @@ pub async fn get_storage_stats_handler(
 
     Json(serde_json::json!({
         "success": true,
-        "bucket": state.storage_bucket,
-        "endpoint": state.storage_endpoint,
+        "provider": storage.provider,
+        "bucket": storage.bucket,
+        "region": storage.region,
+        "endpoint": storage.endpoint,
         "used_bytes": used_bytes,
         "quota_bytes": quota_bytes,
         "remaining_bytes": remaining_bytes,
@@ -143,7 +323,8 @@ pub async fn list_storage_objects_handler(
         return response;
     }
 
-    let client = match &state.storage_client {
+    let storage = state.storage_snapshot().await;
+    let client = match &storage.client {
         Some(client) => client,
         None => {
             return (
@@ -158,7 +339,7 @@ pub async fn list_storage_objects_handler(
     let mut objects: Vec<StorageObjectSummary> = Vec::new();
 
     loop {
-        let mut request = client.list_objects_v2().bucket(&state.storage_bucket);
+        let mut request = client.list_objects_v2().bucket(&storage.bucket);
         if let Some(token) = continuation_token.as_deref() {
             request = request.continuation_token(token);
         }
@@ -186,10 +367,6 @@ pub async fn list_storage_objects_handler(
                 size_bytes: object.size().unwrap_or(0).max(0) as u64,
                 last_modified: object.last_modified().map(|value| value.to_string()),
                 etag: object.e_tag().map(|value| value.to_string()),
-                mime_type: object
-                    .key()
-                    .and_then(|key| mime_guess::from_path(key).first_raw())
-                    .map(|value| value.to_string()),
             });
         }
 
@@ -218,7 +395,7 @@ pub async fn list_storage_objects_handler(
 
     Json(serde_json::json!({
         "success": true,
-        "bucket": state.storage_bucket,
+        "bucket": storage.bucket,
         "objects": paged_objects,
         "total": total,
         "page": page,
@@ -238,7 +415,8 @@ pub async fn delete_storage_object_handler(
         return response;
     }
 
-    let client = match &state.storage_client {
+    let storage = state.storage_snapshot().await;
+    let client = match &storage.client {
         Some(client) => client,
         None => {
             return (
@@ -251,7 +429,7 @@ pub async fn delete_storage_object_handler(
 
     match client
         .delete_object()
-        .bucket(&state.storage_bucket)
+        .bucket(&storage.bucket)
         .key(&key)
         .send()
         .await

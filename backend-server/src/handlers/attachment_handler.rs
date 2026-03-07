@@ -38,7 +38,8 @@ pub async fn upload_attachment(
         }
     };
 
-    let client = match &state.storage_client {
+    let storage = state.storage_snapshot().await;
+    let client = match &storage.client {
         Some(c) => c,
         None => {
             return (
@@ -95,7 +96,7 @@ pub async fn upload_attachment(
 
         let upload_res = client
             .put_object()
-            .bucket(&state.storage_bucket)
+            .bucket(&storage.bucket)
             .key(&file_key)
             .content_type(&mime_type)
             .body(ByteStream::from(file_bytes.clone()))
@@ -156,14 +157,15 @@ pub async fn download_attachment(
     State(state): State<Arc<AppState>>,
     Path(file_key): Path<String>, // format: {ws_id}/{task_id}/{file_uuid}
 ) -> impl IntoResponse {
-    let client = match &state.storage_client {
+    let storage = state.storage_snapshot().await;
+    let client = match &storage.client {
         Some(c) => c,
         None => return (StatusCode::SERVICE_UNAVAILABLE, "Storage disabled").into_response(),
     };
 
     let resp = match client
         .get_object()
-        .bucket(&state.storage_bucket)
+        .bucket(&storage.bucket)
         .key(&file_key)
         .send()
         .await
@@ -250,10 +252,11 @@ pub async fn delete_attachment(
     });
 
     if let Some(file_key) = file_key_to_delete {
-        if let Some(client) = &state.storage_client {
+        let storage = state.storage_snapshot().await;
+        if let Some(client) = &storage.client {
             let _ = client
                 .delete_object()
-                .bucket(&state.storage_bucket)
+                .bucket(&storage.bucket)
                 .key(&file_key)
                 .send()
                 .await;

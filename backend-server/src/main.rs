@@ -8,6 +8,7 @@ use crate::models::message::SystemEvent;
 use crate::models::profile::UserProfile;
 use crate::models::user::User;
 use crate::repositories::profile_repo::ProfileRepository;
+use crate::repositories::storage_repo::StorageRepository;
 use crate::repositories::user_repo::UserRepository;
 use crate::services::room_service::spawn_room_cleanup_task;
 use crate::state::AppState;
@@ -84,26 +85,13 @@ async fn main() {
     info!("✅ Connected to database: {}", db_name);
 
     let (system_tx, _) = broadcast::channel(100);
-    let storage_bucket =
-        std::env::var("STORAGE_BUCKET").unwrap_or_else(|_| "khunphaen-assets".to_string());
-    let storage_endpoint =
-        std::env::var("STORAGE_URL").unwrap_or_else(|_| "http://localhost:9000".to_string());
-    let storage_quota_bytes = std::env::var("STORAGE_QUOTA_GB")
-        .ok()
-        .and_then(|value| value.parse::<u64>().ok())
-        .map(|gb| gb.saturating_mul(1024 * 1024 * 1024));
-    let storage_client = if std::env::var("STORAGE_URL").is_ok() {
-        let client = crate::services::storage_service::create_s3_client().await;
-        if let Err(e) =
-            crate::services::storage_service::ensure_bucket_exists(&client, &storage_bucket).await
-        {
-            tracing::warn!("Failed to verify storage bucket: {}", e);
-        }
-        Some(client)
-    } else {
-        tracing::warn!("⚠️ STORAGE_URL not found. Attachment capabilities will be disabled.");
-        None
-    };
+    let storage_repo = StorageRepository::new(&db);
+    if let Err(error) = storage_repo.ensure_indexes().await {
+        tracing::warn!("Failed to ensure storage config indexes: {}", error);
+    }
+    let stored_storage_config = storage_repo.get_storage_config().await.ok().flatten();
+    let active_storage =
+        crate::services::storage_service::build_active_storage(stored_storage_config.as_ref()).await;
 
     let state = Arc::new(AppState {
         db,
@@ -111,10 +99,7 @@ async fn main() {
         room_idle_timeout_seconds,
         system_tx: system_tx.clone(),
         jwt_secret,
-        storage_client,
-        storage_bucket,
-        storage_endpoint,
-        storage_quota_bytes,
+        storage: tokio::sync::RwLock::new(active_storage),
     });
 
     if room_idle_timeout_seconds > 0 {
@@ -175,6 +160,18 @@ async fn main() {
         .route(
             "/api/auth/users/:id",
             delete(handlers::auth_handler::delete_user_handler),
+        )
+        .route(
+            "/api/admin/storage/config",
+            get(handlers::storage_handler::get_storage_config_handler),
+        )
+        .route(
+            "/api/admin/storage/config",
+            put(handlers::storage_handler::update_storage_config_handler),
+        )
+        .route(
+            "/api/admin/storage/config/reset",
+            post(handlers::storage_handler::reset_storage_config_handler),
         )
         .route(
             "/api/admin/storage/stats",

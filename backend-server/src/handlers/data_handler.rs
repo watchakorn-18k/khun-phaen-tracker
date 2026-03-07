@@ -123,12 +123,13 @@ async fn purge_task_comment_assets(
         .await
         .map_err(|e| e.to_string())?;
 
-    if let Some(client) = &state.storage_client {
+    let storage = state.storage_snapshot().await;
+    if let Some(client) = &storage.client {
         for comment in &comments {
             for image in &comment.images {
                 if let Err(e) = client
                     .delete_object()
-                    .bucket(&state.storage_bucket)
+                    .bucket(&storage.bucket)
                     .key(&image.file_key)
                     .send()
                     .await
@@ -153,12 +154,13 @@ async fn purge_task_attachments(
     state: &SharedState,
     task: &TaskDocument,
 ) -> Result<(), String> {
-    if let Some(client) = &state.storage_client {
+    let storage = state.storage_snapshot().await;
+    if let Some(client) = &storage.client {
         if let Some(attachments) = &task.attachments {
             for attachment in attachments {
                 if let Err(e) = client
                     .delete_object()
-                    .bucket(&state.storage_bucket)
+                    .bucket(&storage.bucket)
                     .key(&attachment.file_key)
                     .send()
                     .await
@@ -733,7 +735,8 @@ pub async fn create_task_comment(
             )
                 .into_response();
         }
-        let client = match &state.storage_client {
+        let storage = state.storage_snapshot().await;
+        let client = match &storage.client {
             Some(c) => c,
             None => {
                 return (
@@ -747,7 +750,7 @@ pub async fn create_task_comment(
         let file_key = format!("{}/{}/comments/{}", ws_id, task_id, image_id);
         if let Err(e) = client
             .put_object()
-            .bucket(&state.storage_bucket)
+            .bucket(&storage.bucket)
             .key(&file_key)
             .content_type(&mime_type)
             .body(aws_sdk_s3::primitives::ByteStream::from(file_bytes.clone()))
@@ -927,11 +930,12 @@ pub async fn delete_task_comment(
         }
     };
 
-    if let Some(client) = &state.storage_client {
+    let storage = state.storage_snapshot().await;
+    if let Some(client) = &storage.client {
         for image in &comment.images {
             if let Err(e) = client
                 .delete_object()
-                .bucket(&state.storage_bucket)
+                .bucket(&storage.bucket)
                 .key(&image.file_key)
                 .send()
                 .await

@@ -195,5 +195,16 @@ export interface StorageObjectItem {
   size_bytes: number;
   last_modified?: string | null;
   etag?: string | null;
-  mime_type?: string | null;
+}
+
+export type StorageProvider = "env" | "s3";
+
+export interface StorageConfig {
+  provider: StorageProvider;
+  bucket?: string;
+  region?: string;
+  endpoint?: string;
+  access_key?: string;
+  secret_key?: string;
+  updated_at?: string;
 }
