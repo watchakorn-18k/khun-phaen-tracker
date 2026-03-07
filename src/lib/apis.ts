@@ -164,6 +164,68 @@ export const api = {
       });
     },
   },
+  admin: {
+    storageStats: async (): Promise<Response> => {
+      let token = "";
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(
+          new RegExp("(^| )_khun_ph_token=([^;]+)"),
+        );
+        if (match) token = match[2];
+      }
+
+      const headers: Record<string, string> = { Accept: "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      return fetch(`${API_BASE_URL}/admin/storage/stats`, {
+        headers,
+        credentials: "include",
+      });
+    },
+    listStorageObjects: async (
+      page: number = 1,
+      limit: number = 10,
+    ): Promise<Response> => {
+      let token = "";
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(
+          new RegExp("(^| )_khun_ph_token=([^;]+)"),
+        );
+        if (match) token = match[2];
+      }
+
+      const headers: Record<string, string> = { Accept: "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const query = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+      });
+
+      return fetch(`${API_BASE_URL}/admin/storage/objects?${query.toString()}`, {
+        headers,
+        credentials: "include",
+      });
+    },
+    deleteStorageObject: async (key: string): Promise<Response> => {
+      let token = "";
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(
+          new RegExp("(^| )_khun_ph_token=([^;]+)"),
+        );
+        if (match) token = match[2];
+      }
+
+      const headers: Record<string, string> = { Accept: "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      return fetch(`${API_BASE_URL}/admin/storage/objects/${key}`, {
+        method: "DELETE",
+        headers,
+        credentials: "include",
+      });
+    },
+  },
   workspaces: {
     getList: async (): Promise<Response> => {
       let token = "";

@@ -15,4 +15,6 @@ pub struct AppState {
     pub jwt_secret: String,
     pub storage_client: Option<aws_sdk_s3::Client>,
     pub storage_bucket: String,
+    pub storage_endpoint: String,
+    pub storage_quota_bytes: Option<u64>,
 }

@@ -189,3 +189,11 @@ export interface ChecklistTemplateResponse {
   success: boolean;
   templates: ChecklistTemplate[];
 }
+
+export interface StorageObjectItem {
+  key: string;
+  size_bytes: number;
+  last_modified?: string | null;
+  etag?: string | null;
+  mime_type?: string | null;
+}

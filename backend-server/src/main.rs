@@ -86,6 +86,12 @@ async fn main() {
     let (system_tx, _) = broadcast::channel(100);
     let storage_bucket =
         std::env::var("STORAGE_BUCKET").unwrap_or_else(|_| "khunphaen-assets".to_string());
+    let storage_endpoint =
+        std::env::var("STORAGE_URL").unwrap_or_else(|_| "http://localhost:9000".to_string());
+    let storage_quota_bytes = std::env::var("STORAGE_QUOTA_GB")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .map(|gb| gb.saturating_mul(1024 * 1024 * 1024));
     let storage_client = if std::env::var("STORAGE_URL").is_ok() {
         let client = crate::services::storage_service::create_s3_client().await;
         if let Err(e) =
@@ -107,6 +113,8 @@ async fn main() {
         jwt_secret,
         storage_client,
         storage_bucket,
+        storage_endpoint,
+        storage_quota_bytes,
     });
 
     if room_idle_timeout_seconds > 0 {
@@ -167,6 +175,18 @@ async fn main() {
         .route(
             "/api/auth/users/:id",
             delete(handlers::auth_handler::delete_user_handler),
+        )
+        .route(
+            "/api/admin/storage/stats",
+            get(handlers::storage_handler::get_storage_stats_handler),
+        )
+        .route(
+            "/api/admin/storage/objects",
+            get(handlers::storage_handler::list_storage_objects_handler),
+        )
+        .route(
+            "/api/admin/storage/objects/*key",
+            delete(handlers::storage_handler::delete_storage_object_handler),
         )
         .route(
             "/api/rooms",

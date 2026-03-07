@@ -1947,6 +1947,7 @@ dependencies = [
  "dotenv",
  "futures",
  "jsonwebtoken",
+ "mime_guess",
  "mongodb",
  "rand 0.8.5",
  "reqwest",

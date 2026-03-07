@@ -5,7 +5,13 @@
   import { browser } from "$app/environment";
   import { authLoading, user } from "$lib/stores/auth";
   import { _ } from "svelte-i18n";
-  import { Settings, Shield, Users, ChevronRight } from "lucide-svelte";
+  import {
+    Settings,
+    Shield,
+    Users,
+    ChevronRight,
+    HardDrive,
+  } from "lucide-svelte";
 
   function normalizePath(pathname: string) {
     if (pathname.length > 1 && pathname.endsWith("/")) {
@@ -31,6 +37,16 @@
       match: (pathname: string) =>
         normalizePath(pathname).startsWith(
           normalizePath(`${base}/settings/users`),
+        ),
+    },
+    {
+      href: `${base}/settings/storage`,
+      label: "settings__tab_storage",
+      description: "settings__tab_storage_desc",
+      icon: HardDrive,
+      match: (pathname: string) =>
+        normalizePath(pathname).startsWith(
+          normalizePath(`${base}/settings/storage`),
         ),
     },
   ];
