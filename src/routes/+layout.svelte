@@ -11,7 +11,6 @@
     Calendar,
     Clock,
     Globe,
-    Users,
     Star,
   } from "lucide-svelte";
   import { theme } from "$lib/stores/theme";
@@ -468,9 +467,9 @@
               <a
                 href="{base}/settings"
                 class="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                title="User Management"
+                title={$_("settings__title")}
               >
-                <Users size={20} />
+                <Settings size={20} />
               </a>
             {/if}
 

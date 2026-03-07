@@ -182,6 +182,10 @@ async fn main() {
             get(handlers::storage_handler::list_storage_objects_handler),
         )
         .route(
+            "/api/admin/storage/objects/bulk-delete",
+            post(handlers::storage_handler::bulk_delete_storage_objects_handler),
+        )
+        .route(
             "/api/admin/storage/objects/*key",
             delete(handlers::storage_handler::delete_storage_object_handler),
         )

@@ -28,6 +28,11 @@ pub struct StorageObjectsQuery {
     pub limit: Option<usize>,
 }
 
+#[derive(Deserialize)]
+pub struct BulkDeleteStorageObjectsRequest {
+    pub keys: Vec<String>,
+}
+
 fn normalize_optional(value: Option<String>) -> Option<String> {
     value.and_then(|v| {
         let trimmed = v.trim().to_string();
@@ -444,4 +449,79 @@ pub async fn delete_storage_object_handler(
                 .into_response()
         }
     }
+}
+
+pub async fn bulk_delete_storage_objects_handler(
+    State(state): State<SharedState>,
+    jar: CookieJar,
+    headers: axum::http::HeaderMap,
+    Json(payload): Json<BulkDeleteStorageObjectsRequest>,
+) -> axum::response::Response {
+    if let Err(response) = ensure_admin(&headers, &jar, &state) {
+        return response;
+    }
+
+    let storage = state.storage_snapshot().await;
+    let client = match &storage.client {
+        Some(client) => client,
+        None => {
+            return (
+                axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                Json(serde_json::json!({ "error": "Storage is disabled" })),
+            )
+                .into_response()
+        }
+    };
+
+    let keys: Vec<String> = payload
+        .keys
+        .into_iter()
+        .map(|key| key.trim().to_string())
+        .filter(|key| !key.is_empty())
+        .collect();
+
+    if keys.is_empty() {
+        return (
+            axum::http::StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": "No storage objects selected" })),
+        )
+            .into_response();
+    }
+
+    let mut deleted = 0usize;
+    let mut failed: Vec<String> = Vec::new();
+
+    for key in &keys {
+        match client
+            .delete_object()
+            .bucket(&storage.bucket)
+            .key(key)
+            .send()
+            .await
+        {
+            Ok(_) => deleted += 1,
+            Err(error) => {
+                tracing::error!("Failed to delete storage object {}: {:?}", key, error);
+                failed.push(key.clone());
+            }
+        }
+    }
+
+    if !failed.is_empty() {
+        return (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({
+                "error": "Failed to delete one or more storage objects",
+                "deleted": deleted,
+                "failed": failed
+            })),
+        )
+            .into_response();
+    }
+
+    Json(serde_json::json!({
+        "success": true,
+        "deleted": deleted
+    }))
+    .into_response()
 }

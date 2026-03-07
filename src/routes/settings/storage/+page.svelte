@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { browser } from "$app/environment";
   import { _ } from "svelte-i18n";
+  import { locale } from "$lib/i18n";
   import { API_BASE_URL, api } from "$lib/apis";
   import { requestConfirm } from "$lib/stores/confirmStore";
   import type { StorageConfig, StorageObjectItem, StorageProvider } from "$lib/types";
@@ -12,6 +13,7 @@
     LoaderCircle,
     Eye,
     EyeOff,
+    ExternalLink,
     Settings2,
     Trash2,
     X,
@@ -30,6 +32,8 @@
   let savingConfig = false;
   let resettingConfig = false;
   let deletingKey = "";
+  let deletingSelected = false;
+  let selectedObjectKeys = new Set<string>();
   let currentPage = 1;
   let pageSize = 10;
   let totalObjects = 0;
@@ -88,11 +92,70 @@
     if (!value) return "-";
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
-    return date.toLocaleString();
+    return new Intl.DateTimeFormat($locale || undefined, {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(date);
   }
 
   function buildFileUrl(key: string) {
     return `${API_BASE_URL}/files/${encodeURIComponent(key)}`;
+  }
+
+  function isImageFile(key: string) {
+    return /\.(avif|gif|jpe?g|png|svg|webp)$/i.test(key);
+  }
+
+  function isVideoFile(key: string) {
+    return /\.(m3u8|mp4|m4v|mov|webm|ogv|ogg|ts|m2ts|mts|avi|mkv)$/i.test(key);
+  }
+
+  function getVideoMimeType(key: string) {
+    const normalizedKey = key.toLowerCase();
+    if (normalizedKey.endsWith(".mp4") || normalizedKey.endsWith(".m4v")) {
+      return "video/mp4";
+    }
+    if (normalizedKey.endsWith(".webm")) {
+      return "video/webm";
+    }
+    if (normalizedKey.endsWith(".mov")) {
+      return "video/quicktime";
+    }
+    if (normalizedKey.endsWith(".ogv") || normalizedKey.endsWith(".ogg")) {
+      return "video/ogg";
+    }
+    if (
+      normalizedKey.endsWith(".ts") ||
+      normalizedKey.endsWith(".m2ts") ||
+      normalizedKey.endsWith(".mts")
+    ) {
+      return "video/mp2t";
+    }
+    if (normalizedKey.endsWith(".m3u8")) {
+      return "application/vnd.apple.mpegurl";
+    }
+    return "video/mp4";
+  }
+
+  function formatStorageKeyLabel(key: string, maxLength = 48) {
+    if (!key || key.length <= maxLength) return key;
+
+    const lastSlashIndex = key.lastIndexOf("/");
+    const filename =
+      lastSlashIndex >= 0 ? key.slice(lastSlashIndex + 1) : key;
+    const extensionIndex = filename.lastIndexOf(".");
+    const extension =
+      extensionIndex > 0 ? filename.slice(extensionIndex) : "";
+
+    const reservedLength = extension.length + 1;
+    const safeMax = Math.max(12, maxLength);
+    const headLength = Math.max(8, safeMax - reservedLength - 3);
+    const prefix = key.slice(0, headLength).replace(/\/+$/, "");
+
+    return `${prefix}...${extension}`;
   }
 
   function mapStorageErrorMessage(message?: string) {
@@ -329,6 +392,7 @@
         return;
       }
 
+      selectedObjectKeys.delete(item.key);
       await Promise.all([loadStorageStats(), loadStorageObjects()]);
     } catch (error) {
       console.error("Failed to delete storage object:", error);
@@ -336,6 +400,61 @@
     } finally {
       deletingKey = "";
     }
+  }
+
+  async function handleDeleteSelectedObjects() {
+    const keys = Array.from(selectedObjectKeys);
+    if (keys.length === 0) return;
+
+    const confirmed = await requestConfirm({
+      title: $_("settings__storage_bulk_delete_title"),
+      message: $_("settings__storage_bulk_delete_message", {
+        values: { count: keys.length },
+      }),
+      confirmText: $_("settings__storage_bulk_delete_confirm"),
+      cancelText: $_("common.cancel"),
+      type: "danger",
+    });
+
+    if (!confirmed) return;
+
+    deletingSelected = true;
+    pageError = "";
+
+    try {
+      const response = await api.admin.bulkDeleteStorageObjects(keys);
+      await response.json();
+
+      if (!response.ok) {
+        pageError = $_("settings__storage_modal_error_bulk_delete_object");
+        return;
+      }
+
+      selectedObjectKeys = new Set();
+      await Promise.all([loadStorageStats(), loadStorageObjects()]);
+    } catch (error) {
+      console.error("Failed to delete selected storage objects:", error);
+      pageError = $_("settings__storage_modal_error_bulk_delete_object");
+    } finally {
+      deletingSelected = false;
+    }
+  }
+
+  function toggleObjectSelection(key: string) {
+    const next = new Set(selectedObjectKeys);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    selectedObjectKeys = next;
+  }
+
+  function toggleSelectAllVisibleObjects() {
+    const next = new Set(selectedObjectKeys);
+    if (allVisibleSelected) {
+      for (const key of visibleKeys) next.delete(key);
+    } else {
+      for (const key of visibleKeys) next.add(key);
+    }
+    selectedObjectKeys = next;
   }
 
   async function handlePageSizeChange(event: Event) {
@@ -363,6 +482,10 @@
   $: if (currentPage > totalPages) currentPage = totalPages;
   $: pageStart = totalObjects === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   $: pageEnd = Math.min(currentPage * pageSize, totalObjects);
+  $: visibleKeys = objects.map((item) => item.key);
+  $: allVisibleSelected =
+    visibleKeys.length > 0 && visibleKeys.every((key) => selectedObjectKeys.has(key));
+  $: selectedCount = selectedObjectKeys.size;
 
   async function goToPage(page: number) {
     if (page < 1 || page > totalPages) return;
@@ -372,45 +495,45 @@
 </script>
 
 <div class="space-y-6 animate-fade-in">
-  <section class="overflow-hidden rounded-[30px] border border-slate-800/80 bg-slate-950 text-white shadow-[0_30px_80px_rgba(15,23,42,0.45)]">
-    <div class="bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.24),_transparent_35%),linear-gradient(135deg,_#020617_0%,_#0f172a_48%,_#172554_100%)] px-6 py-7 sm:px-8">
+  <section class="overflow-hidden rounded-[30px] border border-slate-200/80 bg-white text-slate-950 shadow-[0_20px_60px_rgba(15,23,42,0.08)] dark:border-slate-800/80 dark:bg-slate-950 dark:text-white dark:shadow-[0_30px_80px_rgba(15,23,42,0.45)]">
+    <div class="bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.14),_transparent_35%),linear-gradient(135deg,_#f8fbff_0%,_#eef4ff_48%,_#e6edff_100%)] px-6 py-7 dark:bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.24),_transparent_35%),linear-gradient(135deg,_#020617_0%,_#0f172a_48%,_#172554_100%)] sm:px-8">
       <div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div class="min-w-0">
-          <div class="mb-4 inline-flex rounded-2xl bg-white/10 p-3 ring-1 ring-white/15 backdrop-blur">
+          <div class="mb-4 inline-flex rounded-2xl bg-sky-500/10 p-3 text-sky-700 ring-1 ring-sky-500/15 backdrop-blur dark:bg-white/10 dark:text-white dark:ring-white/15">
             <HardDrive size={22} />
           </div>
           <div class="flex flex-wrap items-center gap-3">
             <h2 class="text-2xl font-bold tracking-tight sm:text-3xl">
               {$_("settings__storage_title")}
             </h2>
-            <span class="rounded-full border border-sky-400/20 bg-sky-400/10 px-3 py-1 text-xs font-semibold text-sky-100">
+            <span class="rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1 text-xs font-semibold text-sky-700 dark:border-sky-400/20 dark:bg-sky-400/10 dark:text-sky-100">
               {$_("settings__storage_badge")}
             </span>
           </div>
-          <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-300/85">
+          <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300/85">
             {$_("settings__storage_subtitle")}
           </p>
         </div>
 
-        <div class="w-full max-w-sm rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur">
+        <div class="w-full max-w-sm rounded-[28px] border border-slate-200/80 bg-white/75 p-5 backdrop-blur dark:border-white/10 dark:bg-white/5">
           <div class="flex items-start justify-between gap-4">
             <div>
-              <p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+              <p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
                 {$_("settings__storage_capacity_used")}
               </p>
-              <p class="mt-2 text-3xl font-black tracking-tight text-white">
+              <p class="mt-2 text-3xl font-black tracking-tight text-slate-950 dark:text-white">
                 {formatStorageSize(normalizedUsedGb)}
               </p>
-              <p class="mt-1 text-sm text-slate-300">
+              <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">
                 {objectCount.toLocaleString()} {$_("settings__storage_objects_suffix")}
               </p>
             </div>
-            <div class="rounded-2xl bg-sky-500/10 p-3 text-sky-300">
+            <div class="rounded-2xl bg-sky-500/10 p-3 text-sky-600 dark:text-sky-300">
               <DatabaseBackup size={18} />
             </div>
           </div>
 
-          <div class="mt-4 flex items-center justify-between text-xs text-slate-400">
+          <div class="mt-4 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
             <span>{$_("settings__storage_capacity_live")}</span>
             <span>{bucketName}</span>
           </div>
@@ -527,6 +650,21 @@
         </p>
       </div>
       <div class="flex items-center gap-3">
+        {#if selectedCount > 0}
+          <button
+            type="button"
+            class="inline-flex items-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:text-red-400 dark:hover:bg-red-500/10"
+            on:click={handleDeleteSelectedObjects}
+            disabled={deletingSelected}
+          >
+            {#if deletingSelected}
+              <LoaderCircle size={15} class="animate-spin" />
+            {:else}
+              <Trash2 size={15} />
+            {/if}
+            {$_("settings__storage_bulk_delete_action")} ({selectedCount})
+          </button>
+        {/if}
         <label class="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
           <span>{$_("settings__storage_pagination_limit")}</span>
           <select
@@ -551,6 +689,15 @@
         <table class="w-full text-left">
           <thead class="bg-gray-50 dark:bg-gray-900/60">
             <tr>
+              <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
+                <input
+                  type="checkbox"
+                  class="h-4 w-4 rounded border-gray-300 text-sky-500 focus:ring-sky-500"
+                  checked={allVisibleSelected}
+                  on:change={toggleSelectAllVisibleObjects}
+                  aria-label={$_("settings__storage_table_select")}
+                />
+              </th>
               <th class="px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
                 {$_("settings__storage_table_key")}
               </th>
@@ -568,23 +715,38 @@
           <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
             {#if loadingObjects}
               <tr>
-                <td colspan="4" class="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                <td colspan="5" class="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
                   {$_("settings__storage_loading")}
                 </td>
               </tr>
             {:else if objects.length === 0}
               <tr>
-                <td colspan="4" class="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                <td colspan="5" class="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
                   {$_("settings__storage_empty")}
                 </td>
               </tr>
             {:else}
               {#each objects as item}
                 <tr class="bg-white dark:bg-gray-800">
+                  <td class="px-4 py-3 align-top text-center">
+                    <input
+                      type="checkbox"
+                      class="mt-1 h-4 w-4 rounded border-gray-300 text-sky-500 focus:ring-sky-500"
+                      checked={selectedObjectKeys.has(item.key)}
+                      on:change={() => toggleObjectSelection(item.key)}
+                      aria-label={$_("settings__storage_table_select")}
+                    />
+                  </td>
                   <td class="px-4 py-3 align-top">
-                    <div class="max-w-[520px] break-all text-sm text-gray-900 dark:text-white">
-                      {item.key}
-                    </div>
+                    <a
+                      href={buildFileUrl(item.key)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="block max-w-[520px] truncate text-sm text-gray-900 underline decoration-transparent underline-offset-4 transition hover:text-sky-600 hover:decoration-current dark:text-white dark:hover:text-sky-300"
+                      title={item.key}
+                    >
+                      {formatStorageKeyLabel(item.key)}
+                    </a>
                   </td>
                   <td class="px-4 py-3 align-top text-sm text-gray-600 dark:text-gray-300">
                     {formatBytes(item.size_bytes)}
@@ -604,16 +766,17 @@
                       </button>
                       <button
                         type="button"
-                        class="inline-flex items-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 dark:border-red-500/20 dark:text-red-400 dark:hover:bg-red-500/10"
+                        class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-red-200 text-red-600 transition-colors hover:bg-red-50 dark:border-red-500/20 dark:text-red-400 dark:hover:bg-red-500/10"
                         disabled={deletingKey === item.key}
                         on:click={() => handleDeleteObject(item)}
+                        title={$_("settings__storage_delete_action")}
+                        aria-label={$_("settings__storage_delete_action")}
                       >
                         {#if deletingKey === item.key}
                           <LoaderCircle size={15} class="animate-spin" />
                         {:else}
                           <Trash2 size={15} />
                         {/if}
-                        {$_("settings__storage_delete_action")}
                       </button>
                     </div>
                   </td>
@@ -690,9 +853,11 @@
             href={buildFileUrl(previewKey)}
             target="_blank"
             rel="noopener noreferrer"
-            class="rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+            class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+            title={$_("settings__storage_preview_open_new")}
+            aria-label={$_("settings__storage_preview_open_new")}
           >
-            {$_("settings__storage_preview_open_new")}
+            <ExternalLink size={18} />
           </a>
           <button
             type="button"
@@ -706,11 +871,35 @@
       </div>
 
       <div class="min-h-0 flex-1 bg-gray-100 dark:bg-gray-950">
-        <iframe
-          src={buildFileUrl(previewKey)}
-          title={previewKey}
-          class="h-full w-full border-0 bg-white dark:bg-gray-950"
-        ></iframe>
+        {#if isImageFile(previewKey)}
+          <div class="flex h-full w-full items-center justify-center overflow-auto bg-gray-100 p-4 dark:bg-gray-950">
+            <img
+              src={buildFileUrl(previewKey)}
+              alt={previewKey}
+              class="block h-full max-h-full w-auto max-w-full rounded-xl object-contain shadow-sm"
+            />
+          </div>
+        {:else if isVideoFile(previewKey)}
+          <div class="flex h-full w-full items-center justify-center bg-black p-4">
+            <video
+              class="h-full max-h-full w-full max-w-full rounded-xl bg-black object-contain"
+              controls
+              playsinline
+              preload="metadata"
+            >
+              <source
+                src={buildFileUrl(previewKey)}
+                type={getVideoMimeType(previewKey)}
+              />
+            </video>
+          </div>
+        {:else}
+          <iframe
+            src={buildFileUrl(previewKey)}
+            title={previewKey}
+            class="h-full w-full border-0 bg-white dark:bg-gray-950"
+          ></iframe>
+        {/if}
       </div>
     </div>
   </div>
@@ -720,21 +909,21 @@
   <div class="fixed inset-0 z-[1150] flex items-center justify-center p-4">
     <button
       type="button"
-      class="absolute inset-0 bg-slate-950/75 backdrop-blur-sm"
+      class="absolute inset-0 bg-slate-950/55 backdrop-blur-sm dark:bg-slate-950/75"
       on:click={closeProviderModal}
       aria-label={$_("settings__storage_settings_close")}
     ></button>
 
-    <div class="relative z-[1] w-full max-w-3xl overflow-hidden rounded-[28px] border border-slate-700/80 bg-slate-900 text-white shadow-[0_30px_100px_rgba(15,23,42,0.6)]">
-      <div class="bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.18),_transparent_35%),linear-gradient(135deg,_#0f172a_0%,_#111827_55%,_#172554_100%)] px-6 py-5 sm:px-7">
+    <div class="relative z-[1] w-full max-w-3xl overflow-hidden rounded-[28px] border border-slate-200/80 bg-white text-slate-900 shadow-[0_24px_80px_rgba(15,23,42,0.14)] dark:border-slate-700/80 dark:bg-slate-900 dark:text-white dark:shadow-[0_30px_100px_rgba(15,23,42,0.6)]">
+      <div class="bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.12),_transparent_35%),linear-gradient(135deg,_#f8fbff_0%,_#eef4ff_55%,_#e8edff_100%)] px-6 py-5 dark:bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.18),_transparent_35%),linear-gradient(135deg,_#0f172a_0%,_#111827_55%,_#172554_100%)] sm:px-7">
         <div class="flex items-start justify-between gap-4">
           <div class="flex items-center gap-3">
-            <div class="rounded-2xl bg-sky-500/10 p-3 text-sky-300 ring-1 ring-sky-400/20">
+            <div class="rounded-2xl bg-sky-500/10 p-3 text-sky-600 ring-1 ring-sky-500/20 dark:text-sky-300 dark:ring-sky-400/20">
               <Settings2 size={18} />
             </div>
             <div>
               <h3 class="text-lg font-bold">{$_("settings__storage_modal_title")}</h3>
-              <div class="text-sm text-slate-300">
+              <div class="text-sm text-slate-600 dark:text-slate-300">
                 {#if draftStorageProvider === "env"}
                   <p>
                     {$_("settings__storage_modal_rustfs_help_before")}
@@ -742,7 +931,7 @@
                       href={rustfsDocsUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      class="font-medium text-sky-300 underline decoration-sky-400/50 underline-offset-4 transition hover:text-sky-200"
+                      class="font-medium text-sky-700 underline decoration-sky-500/40 underline-offset-4 transition hover:text-sky-600 dark:text-sky-300 dark:decoration-sky-400/50 dark:hover:text-sky-200"
                     >
                       {$_("settings__storage_modal_rustfs_docs")}
                     </a>
@@ -751,7 +940,7 @@
                       href={rustfsSdkUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      class="font-medium text-sky-300 underline decoration-sky-400/50 underline-offset-4 transition hover:text-sky-200"
+                      class="font-medium text-sky-700 underline decoration-sky-500/40 underline-offset-4 transition hover:text-sky-600 dark:text-sky-300 dark:decoration-sky-400/50 dark:hover:text-sky-200"
                     >
                       {$_("settings__storage_modal_rustfs_sdk")}
                     </a>
@@ -763,7 +952,7 @@
                       href={awsS3DocsUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      class="font-medium text-sky-300 underline decoration-sky-400/50 underline-offset-4 transition hover:text-sky-200"
+                      class="font-medium text-sky-700 underline decoration-sky-500/40 underline-offset-4 transition hover:text-sky-600 dark:text-sky-300 dark:decoration-sky-400/50 dark:hover:text-sky-200"
                     >
                       {$_("settings__storage_modal_s3_docs")}
                     </a>
@@ -772,7 +961,7 @@
                       href={awsS3PolicyDocsUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      class="font-medium text-sky-300 underline decoration-sky-400/50 underline-offset-4 transition hover:text-sky-200"
+                      class="font-medium text-sky-700 underline decoration-sky-500/40 underline-offset-4 transition hover:text-sky-600 dark:text-sky-300 dark:decoration-sky-400/50 dark:hover:text-sky-200"
                     >
                       {$_("settings__storage_modal_s3_policy")}
                     </a>
@@ -783,7 +972,7 @@
           </div>
           <button
             type="button"
-            class="inline-flex h-10 w-10 min-h-10 min-w-10 shrink-0 items-center justify-center rounded-full border border-slate-600/70 bg-slate-950/55 text-slate-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:border-slate-500 hover:bg-slate-900 hover:text-white"
+            class="inline-flex h-10 w-10 min-h-10 min-w-10 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white/70 text-slate-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] transition hover:border-slate-400 hover:bg-white hover:text-slate-900 dark:border-slate-600/70 dark:bg-slate-950/55 dark:text-slate-300 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] dark:hover:border-slate-500 dark:hover:bg-slate-900 dark:hover:text-white"
             on:click={closeProviderModal}
             aria-label={$_("settings__storage_settings_close")}
           >
@@ -794,54 +983,54 @@
 
       <div class="px-6 py-6 sm:px-7">
         {#if modalError}
-          <div class="mb-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+          <div class="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-100">
             {modalError}
           </div>
         {/if}
 
         {#if modalSuccess}
-          <div class="mb-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+          <div class="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-100">
             {modalSuccess}
           </div>
         {/if}
 
         <div class="grid gap-4 md:grid-cols-2">
-          <label class="flex flex-col gap-2 text-sm font-medium text-slate-200">
+          <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
             <span>{$_("settings__storage_provider_label")}</span>
-            <select bind:value={draftStorageProvider} class="rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-white outline-none transition focus:border-sky-400">
+            <select bind:value={draftStorageProvider} class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-sky-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white">
               <option value="env">{$_("settings__storage_provider_rustfs")}</option>
               <option value="s3">{$_("settings__storage_provider_s3")}</option>
             </select>
           </label>
 
-          <label class="flex flex-col gap-2 text-sm font-medium text-slate-200">
+          <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
             <span>{$_("settings__storage_field_bucket")}</span>
-            <input bind:value={draftBucketName} class="rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-white outline-none transition focus:border-sky-400" />
+            <input bind:value={draftBucketName} class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-sky-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white" />
           </label>
 
           {#if draftStorageProvider === "s3"}
-            <label class="flex flex-col gap-2 text-sm font-medium text-slate-200 md:col-span-2">
+            <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200 md:col-span-2">
               <span>{$_("settings__storage_region_label")}</span>
-              <input bind:value={draftStorageRegion} class="rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-white outline-none transition focus:border-sky-400" />
+              <input bind:value={draftStorageRegion} class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-sky-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white" />
             </label>
           {:else}
-            <label class="flex flex-col gap-2 text-sm font-medium text-slate-200 md:col-span-2">
+            <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200 md:col-span-2">
               <span>{$_("settings__storage_rustfs_url_label")}</span>
-              <input bind:value={draftStorageEndpoint} class="rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-white outline-none transition focus:border-sky-400" />
+              <input bind:value={draftStorageEndpoint} class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-sky-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white" />
             </label>
           {/if}
 
-          <label class="flex flex-col gap-2 text-sm font-medium text-slate-200">
+          <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
             <span>{$_("settings__storage_access_key_label")}</span>
             <div class="relative">
               <input
                 bind:value={draftStorageAccessKey}
                 type={showAccessKey ? "text" : "password"}
-                class="w-full rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-3 pr-12 text-white outline-none transition focus:border-sky-400"
+                class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-12 text-slate-900 outline-none transition focus:border-sky-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white"
               />
               <button
                 type="button"
-                class="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-800 hover:text-white"
+                class="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
                 aria-label={showAccessKey
                   ? $_("settings__storage_modal_hide_access_key")
                   : $_("settings__storage_modal_show_access_key")}
@@ -856,17 +1045,17 @@
             </div>
           </label>
 
-          <label class="flex flex-col gap-2 text-sm font-medium text-slate-200">
+          <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
             <span>{$_("settings__storage_secret_key_label")}</span>
             <div class="relative">
               <input
                 bind:value={draftStorageSecretKey}
                 type={showSecretKey ? "text" : "password"}
-                class="w-full rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-3 pr-12 text-white outline-none transition focus:border-sky-400"
+                class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-12 text-slate-900 outline-none transition focus:border-sky-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white"
               />
               <button
                 type="button"
-                class="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-800 hover:text-white"
+                class="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
                 aria-label={showSecretKey
                   ? $_("settings__storage_modal_hide_secret_key")
                   : $_("settings__storage_modal_show_secret_key")}
@@ -886,7 +1075,7 @@
           <div class="mr-auto">
             <button
               type="button"
-              class="rounded-2xl border border-slate-600/70 bg-slate-900/70 px-5 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              class="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-semibold text-amber-700 transition hover:border-amber-300 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600/70 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:bg-slate-800"
               on:click={resetStorageConfig}
               disabled={savingConfig || resettingConfig}
             >
@@ -899,7 +1088,7 @@
           </div>
           <button
             type="button"
-            class="rounded-2xl border border-slate-700 bg-slate-900/70 px-5 py-3 text-sm font-semibold text-slate-200 transition hover:bg-slate-800"
+            class="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:bg-slate-800"
             on:click={closeProviderModal}
             disabled={savingConfig || resettingConfig}
           >
@@ -907,7 +1096,7 @@
           </button>
           <button
             type="button"
-            class="inline-flex items-center gap-2 rounded-2xl border border-sky-400/30 bg-[linear-gradient(135deg,_rgba(59,130,246,0.95),_rgba(14,165,233,0.9))] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_34px_rgba(37,99,235,0.28)] transition hover:border-sky-300/40 hover:bg-[linear-gradient(135deg,_rgba(96,165,250,0.98),_rgba(56,189,248,0.95))] disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-700 disabled:text-slate-400 disabled:shadow-none"
+            class="inline-flex items-center gap-2 rounded-2xl border border-sky-500/30 bg-[linear-gradient(135deg,_rgba(59,130,246,0.92),_rgba(14,165,233,0.88))] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_34px_rgba(37,99,235,0.2)] transition hover:border-sky-400/40 hover:bg-[linear-gradient(135deg,_rgba(96,165,250,0.96),_rgba(56,189,248,0.92))] disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none dark:disabled:border-slate-700 dark:disabled:bg-slate-700 dark:disabled:text-slate-400"
             disabled={savingConfig || resettingConfig}
             on:click={saveStorageConfig}
           >

@@ -464,32 +464,97 @@
 <div class="min-h-screen bg-slate-50 dark:bg-slate-950 px-4 py-8 rounded-2xl">
   <div class="w-full mx-auto space-y-6">
     <!-- Header Section -->
-    <header class="pb-2 space-y-4">
-      <div
-        class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4"
-      >
-        <div>
-          <h1
-            class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mb-1 tracking-tight"
+    <header class="overflow-hidden rounded-[30px] border border-slate-200 bg-white text-slate-900 shadow-[0_30px_80px_rgba(15,23,42,0.12)] dark:border-slate-800/80 dark:bg-slate-950 dark:text-white dark:shadow-[0_30px_80px_rgba(15,23,42,0.45)]">
+      <div class="bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.20),_transparent_35%),linear-gradient(135deg,_#f8fafc_0%,_#e2e8f0_48%,_#c7d2fe_100%)] px-6 py-7 dark:bg-[radial-gradient(circle_at_top_left,_rgba(99,102,241,0.28),_transparent_35%),linear-gradient(135deg,_#020617_0%,_#0f172a_48%,_#1e1b4b_100%)] sm:px-8">
+        <div
+          class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between"
+        >
+          <div class="min-w-0">
+            <div class="mb-4 inline-flex rounded-2xl bg-white/70 p-3 text-slate-700 ring-1 ring-slate-200/80 backdrop-blur dark:bg-white/10 dark:text-white dark:ring-white/15">
+              <Layers size={22} />
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <h1
+                class="text-2xl md:text-3xl font-bold tracking-tight"
+              >
+                {$_("dashboard__title")}
+              </h1>
+              <span class="rounded-full border border-indigo-500/20 bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-700 dark:border-indigo-400/20 dark:bg-indigo-400/10 dark:text-indigo-200">
+                {workspaces.length} {$_("dashboard__stats_total_workspaces")}
+              </span>
+            </div>
+            <p class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300/85 md:text-base">
+              {#if $user}
+                {$_("dashboard__welcome").replace("{email}", $user.email)}
+              {:else}
+                {$_("dashboard__loading_user")}
+              {/if}
+            </p>
+          </div>
+
+          <button
+            on:click={() => (showCreateModal = true)}
+            class="inline-flex items-center justify-center gap-2 rounded-2xl border border-indigo-500/20 bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(79,70,229,0.28)] ring-1 ring-indigo-500/40 transition-all hover:bg-indigo-500 active:scale-95 dark:border-indigo-400/20 dark:bg-indigo-500 dark:ring-indigo-400/30 dark:hover:bg-indigo-400"
           >
-            {$_("dashboard__title")}
-          </h1>
-          <p class="text-slate-500 dark:text-slate-400 text-sm md:text-base">
-            {#if $user}
-              {$_("dashboard__welcome").replace("{email}", $user.email)}
-            {:else}
-              {$_("dashboard__loading_user")}
-            {/if}
-          </p>
+            <Plus size={18} />
+            {$_("dashboard__btn_create")}
+          </button>
         </div>
 
-        <button
-          on:click={() => (showCreateModal = true)}
-          class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm ring-1 ring-indigo-500/50 active:scale-95"
-        >
-          <Plus size={18} />
-          {$_("dashboard__btn_create")}
-        </button>
+        <div class="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div
+            class="flex items-center gap-3 rounded-2xl border border-white/70 bg-white/65 px-4 py-3 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5 dark:shadow-none"
+          >
+            <div
+              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400"
+            >
+              <Layers size={18} />
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 dark:text-slate-400">
+                {$_("dashboard__stats_total_workspaces")}
+              </p>
+              <p class="text-lg font-bold text-slate-900 dark:text-white">
+                {workspaces.length}
+              </p>
+            </div>
+          </div>
+          <div
+            class="flex items-center gap-3 rounded-2xl border border-white/70 bg-white/65 px-4 py-3 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5 dark:shadow-none"
+          >
+            <div
+              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400"
+            >
+              <Star size={18} />
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 dark:text-slate-400">
+                {$_("dashboard__stats_pinned")}
+              </p>
+              <p class="text-lg font-bold text-slate-900 dark:text-white">
+                {pinnedIds.filter((id) => workspaces.some((ws) => ws.id === id))
+                  .length}
+              </p>
+            </div>
+          </div>
+          <div
+            class="flex items-center gap-3 rounded-2xl border border-white/70 bg-white/65 px-4 py-3 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5 dark:shadow-none"
+          >
+            <div
+              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400"
+            >
+              <Clock size={18} />
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 dark:text-slate-400">
+                {$_("dashboard__stats_recent")}
+              </p>
+              <p class="text-lg font-bold text-slate-900 dark:text-white">
+                {recentWorkspaces.length}
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -528,62 +593,6 @@
         </button>
       </div>
     {:else}
-      <!-- Overview Stats -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div
-          class="flex items-center gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3"
-        >
-          <div
-            class="w-9 h-9 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0"
-          >
-            <Layers size={18} />
-          </div>
-          <div>
-            <p class="text-xs text-slate-500 dark:text-slate-400">
-              {$_("dashboard__stats_total_workspaces")}
-            </p>
-            <p class="text-lg font-bold text-slate-900 dark:text-white">
-              {workspaces.length}
-            </p>
-          </div>
-        </div>
-        <div
-          class="flex items-center gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3"
-        >
-          <div
-            class="w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0"
-          >
-            <Star size={18} />
-          </div>
-          <div>
-            <p class="text-xs text-slate-500 dark:text-slate-400">
-              {$_("dashboard__stats_pinned")}
-            </p>
-            <p class="text-lg font-bold text-slate-900 dark:text-white">
-              {pinnedIds.filter((id) => workspaces.some((ws) => ws.id === id))
-                .length}
-            </p>
-          </div>
-        </div>
-        <div
-          class="flex items-center gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3"
-        >
-          <div
-            class="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0"
-          >
-            <Clock size={18} />
-          </div>
-          <div>
-            <p class="text-xs text-slate-500 dark:text-slate-400">
-              {$_("dashboard__stats_recent")}
-            </p>
-            <p class="text-lg font-bold text-slate-900 dark:text-white">
-              {recentWorkspaces.length}
-            </p>
-          </div>
-        </div>
-      </div>
-
       <!-- Search / Sort / View Toggle Toolbar -->
       <div
         class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:justify-end"

@@ -59,13 +59,13 @@
 <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
   <div class="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
     <aside class="lg:sticky lg:top-24 lg:self-start">
-      <div class="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        <div class="border-b border-gray-200 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 p-5 text-white dark:border-gray-700">
-          <div class="mb-3 inline-flex rounded-2xl bg-white/10 p-3 ring-1 ring-white/15 backdrop-blur">
+      <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.08)] dark:border-gray-700 dark:bg-gray-800 dark:shadow-none">
+        <div class="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.22),_transparent_38%),linear-gradient(135deg,_#f8fafc_0%,_#e2e8f0_45%,_#c7d2fe_100%)] p-5 text-slate-900 dark:border-gray-700 dark:bg-gradient-to-br dark:from-slate-900 dark:via-slate-800 dark:to-indigo-950 dark:text-white">
+          <div class="mb-3 inline-flex rounded-2xl bg-white/70 p-3 text-slate-700 ring-1 ring-slate-200/80 backdrop-blur dark:bg-white/10 dark:text-white dark:ring-white/15">
             <Shield size={20} />
           </div>
           <h1 class="text-lg font-bold tracking-tight">{$_("settings__title")}</h1>
-          <p class="mt-1 text-sm text-slate-200/80">
+          <p class="mt-1 text-sm text-slate-600 dark:text-slate-200/80">
             {$_("settings__subtitle")}
           </p>
         </div>
