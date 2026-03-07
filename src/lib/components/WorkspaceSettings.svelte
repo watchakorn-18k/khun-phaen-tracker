@@ -176,70 +176,70 @@
 </script>
 
 <div
-  class="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+  class="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-md"
   transition:fade={{ duration: 200 }}
 >
   <div
-    class="relative w-full max-w-2xl bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 flex flex-col max-h-[90vh] overflow-hidden"
+    class="relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.32)] dark:border-gray-700 dark:bg-[#081224]"
     transition:scale={{ duration: 300, start: 0.95 }}
   >
     <!-- Header -->
     <div
-      class="px-8 py-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50/50 dark:bg-gray-900/50"
+      class="flex items-start justify-between gap-4 border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.22),_transparent_38%),linear-gradient(135deg,_#f8fafc_0%,_#e2e8f0_45%,_#c7d2fe_100%)] px-6 py-5 text-slate-900 dark:border-gray-700 dark:bg-gradient-to-br dark:from-slate-900 dark:via-slate-800 dark:to-indigo-950 dark:text-white sm:px-8 sm:py-6"
     >
       <div class="flex items-center gap-4">
-        <div class="p-3 bg-primary/10 text-primary rounded-2xl">
+        <div class="rounded-2xl bg-white/70 p-3 text-primary ring-1 ring-slate-200/80 backdrop-blur dark:bg-white/10 dark:text-white dark:ring-white/15">
           <Settings size={24} />
         </div>
         <div>
           <h2
-            class="text-2xl font-black text-gray-900 dark:text-white tracking-tight"
+            class="text-2xl font-black tracking-tight text-slate-900 dark:text-white"
           >
             {$_("workspaceSettings__title")}
           </h2>
-          <p class="text-sm text-gray-500 font-medium">
+          <p class="mt-1 text-sm font-medium text-slate-600 dark:text-slate-200/80">
             {$_("workspaceSettings__subtitle")}
           </p>
         </div>
       </div>
       <button
         on:click={() => dispatch("close")}
-        class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors text-gray-400"
+        class="rounded-2xl p-2 text-slate-500 transition-colors hover:bg-white/70 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
       >
         <X size={24} />
       </button>
     </div>
 
     {#if isLoading}
-      <div class="flex-1 flex flex-col items-center justify-center py-20 gap-4">
+      <div class="flex flex-1 flex-col items-center justify-center gap-4 py-20">
         <RefreshCcw size={40} class="animate-spin text-primary opacity-50" />
-        <p class="text-gray-500 font-medium animate-pulse">
+        <p class="animate-pulse font-medium text-slate-500 dark:text-slate-300">
           {$_("page__checking_access")}
         </p>
       </div>
     {:else}
-      <div class="flex-1 overflow-y-auto p-8 space-y-8">
+      <div class="flex-1 overflow-y-auto bg-slate-50/70 p-5 dark:bg-transparent sm:p-8">
         <!-- Appearance Section -->
-        <section class="space-y-6">
+        <section class="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_12px_36px_rgba(15,23,42,0.06)] dark:border-gray-700/80 dark:bg-slate-950/40 dark:shadow-none">
           <div
-            class="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-gray-400"
+            class="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500"
           >
-            <span class="w-8 h-px bg-gray-100 dark:bg-gray-800"></span>
+            <span class="h-px w-8 bg-slate-200 dark:bg-gray-700"></span>
             {$_("workspaceSettings__appearance_title")}
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div class="mt-6 grid grid-cols-1 gap-8 md:grid-cols-2">
             <div class="space-y-4">
               <label
                 for="ws-name"
-                class="block text-sm font-bold text-gray-700 dark:text-gray-300"
+                class="block text-sm font-bold text-slate-700 dark:text-gray-300"
                 >{$_("workspaceSettings__name_label")}</label
               >
               <input
                 id="ws-name"
                 type="text"
                 bind:value={name}
-                class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-primary/50 text-gray-900 dark:text-white font-bold transition-all"
+                class="w-full rounded-2xl border border-slate-200 bg-slate-100/80 px-4 py-3 font-bold text-slate-900 transition-all focus:border-primary/40 focus:bg-white focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800/90 dark:text-white dark:focus:bg-gray-800"
                 placeholder={$_("workspaceSettings__name_placeholder")}
               />
             </div>
@@ -247,7 +247,7 @@
             <div class="space-y-4">
               <label
                 for="ws-short-name"
-                class="block text-sm font-bold text-gray-700 dark:text-gray-300"
+                class="block text-sm font-bold text-slate-700 dark:text-gray-300"
                 >ชื่อย่อ (สูงสุด 4 ตัว)</label
               >
               <input
@@ -259,24 +259,24 @@
                   (shortName = normalizeShortName(
                     (e.currentTarget as HTMLInputElement).value,
                   ))}
-                class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-primary/50 text-gray-900 dark:text-white font-black uppercase tracking-widest transition-all"
+                class="w-full rounded-2xl border border-slate-200 bg-slate-100/80 px-4 py-3 font-black uppercase tracking-widest text-slate-900 transition-all focus:border-primary/40 focus:bg-white focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800/90 dark:text-white dark:focus:bg-gray-800"
                 placeholder={generateShortName(name) || "WORK"}
               />
             </div>
 
             <div class="space-y-4">
               <span
-                class="block text-sm font-bold text-gray-700 dark:text-gray-300"
+                class="block text-sm font-bold text-slate-700 dark:text-gray-300"
                 >{$_("workspaceSettings__color_label")}</span
               >
-              <div class="flex flex-wrap gap-2">
+              <div class="flex flex-wrap gap-2.5">
                 {#each COLORS as c}
                   <button
                     on:click={() => (color = c.value)}
-                    class="w-8 h-8 rounded-full border-2 transition-all hover:scale-110 {color ===
+                    class="h-9 w-9 rounded-full border-2 transition-all hover:scale-110 {color ===
                     c.value
-                      ? 'border-primary ring-2 ring-primary/20 scale-110'
-                      : 'border-transparent'}"
+                      ? 'border-primary ring-4 ring-primary/15 scale-110'
+                      : 'border-white shadow-sm dark:border-transparent'}"
                     style="background-color: {c.value}"
                     title={c.name}
                   ></button>
@@ -287,17 +287,17 @@
 
           <div class="space-y-4">
             <span
-              class="block text-sm font-bold text-gray-700 dark:text-gray-300"
+              class="block text-sm font-bold text-slate-700 dark:text-gray-300"
               >{$_("workspaceSettings__icon_label")}</span
             >
-            <div class="flex flex-wrap gap-3">
+            <div class="grid grid-cols-4 gap-3 sm:grid-cols-6 md:grid-cols-7">
               {#each ICONS as ico}
                 <button
                   on:click={() => (icon = ico.key)}
-                  class="p-3 rounded-2xl border-2 transition-all hover:bg-gray-50 dark:hover:bg-gray-800 {icon ===
+                  class="flex items-center justify-center rounded-2xl border p-3 transition-all hover:bg-slate-50 dark:hover:bg-gray-800 {icon ===
                   ico.key
-                    ? 'border-primary bg-primary/5 text-primary'
-                    : 'border-transparent text-gray-400'}"
+                    ? 'border-primary bg-primary/10 text-primary shadow-[0_10px_24px_rgba(79,70,229,0.15)] dark:border-primary dark:bg-primary/10'
+                    : 'border-slate-200 text-slate-400 dark:border-gray-700 dark:text-gray-400'}"
                 >
                   <svelte:component this={ico.component} size={24} />
                 </button>
@@ -307,19 +307,19 @@
         </section>
 
         <!-- Notification Section -->
-        <section class="space-y-6">
+        <section class="mt-8 rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_12px_36px_rgba(15,23,42,0.06)] dark:border-gray-700/80 dark:bg-slate-950/40 dark:shadow-none">
           <div
-            class="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-gray-400"
+            class="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500"
           >
-            <span class="w-8 h-px bg-gray-100 dark:bg-gray-800"></span>
+            <span class="h-px w-8 bg-slate-200 dark:bg-gray-700"></span>
             {$_("workspaceSettings__channels_title")}
           </div>
 
-          <div class="space-y-4">
+          <div class="mt-6 space-y-4">
             <div class="flex flex-col gap-2">
               <label
                 for="discord-url"
-                class="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2"
+                class="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-gray-300"
               >
                 <Globe size={16} class="text-[#5865F2]" />
                 {$_("workspaceSettings__discord_webhook_label")}
@@ -328,7 +328,7 @@
                 id="discord-url"
                 type="text"
                 bind:value={webhookUrl}
-                class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-[#5865F2]/50 text-gray-900 dark:text-white font-medium text-sm transition-all"
+                class="w-full rounded-2xl border border-slate-200 bg-slate-100/80 px-4 py-3 text-sm font-medium text-slate-900 transition-all focus:border-[#5865F2]/40 focus:bg-white focus:ring-2 focus:ring-[#5865F2]/20 dark:border-gray-700 dark:bg-gray-800/90 dark:text-white dark:focus:bg-gray-800"
                 placeholder={$_(
                   "workspaceSettings__discord_webhook_placeholder",
                 )}
@@ -338,7 +338,7 @@
             <div class="flex flex-col gap-2">
               <label
                 for="line-token"
-                class="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2"
+                class="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-gray-300"
               >
                 <Bell size={16} class="text-[#06C755]" />
                 {$_("workspaceSettings__line_notify_token_label")}
@@ -347,7 +347,7 @@
                 id="line-token"
                 type="password"
                 bind:value={lineNotifyToken}
-                class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-[#06C755]/50 text-gray-900 dark:text-white font-medium text-sm transition-all"
+                class="w-full rounded-2xl border border-slate-200 bg-slate-100/80 px-4 py-3 text-sm font-medium text-slate-900 transition-all focus:border-[#06C755]/40 focus:bg-white focus:ring-2 focus:ring-[#06C755]/20 dark:border-gray-700 dark:bg-gray-800/90 dark:text-white dark:focus:bg-gray-800"
                 placeholder={$_(
                   "workspaceSettings__line_notify_token_placeholder",
                 )}
@@ -355,17 +355,17 @@
             </div>
           </div>
 
-          <div class="p-6 bg-gray-50 dark:bg-gray-800/50 rounded-3xl space-y-6">
+          <div class="rounded-3xl border border-slate-200 bg-slate-50/80 p-6 dark:border-gray-700 dark:bg-gray-800/35">
             <div class="flex items-center justify-between">
               <div>
                 <h4
-                  class="text-sm font-black text-gray-900 dark:text-white flex items-center gap-2"
+                  class="flex items-center gap-2 text-sm font-black text-slate-900 dark:text-white"
                 >
                   <RefreshCcw size={16} class="text-amber-500" />
                   {$_("workspaceSettings__auto_title")}
                 </h4>
                 <p
-                  class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1"
+                  class="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400"
                 >
                   {$_("workspaceSettings__auto_subtitle")}
                 </p>
@@ -389,7 +389,7 @@
               >
                 <div class="space-y-3">
                   <span
-                    class="text-[10px] font-black uppercase tracking-widest text-gray-400"
+                    class="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500"
                     >{$_("workspaceSettings__auto_days_label")}</span
                   >
                   <div class="flex flex-wrap gap-1.5">
@@ -404,7 +404,7 @@
                           d,
                         )
                           ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
-                          : 'bg-white dark:bg-gray-800 text-gray-400 border border-gray-100 dark:border-gray-700'}"
+                          : 'border border-slate-200 bg-white text-slate-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400'}"
                       >
                         {$_(
                           `calendarView__day_${["sun", "mon", "tue", "wed", "thu", "fri", "sat"][d]}`,
@@ -421,24 +421,24 @@
                   <input
                     type="time"
                     bind:value={autoTime}
-                    class="w-full px-4 py-3 bg-white dark:bg-gray-800 border-none rounded-2xl text-xl font-black text-gray-800 dark:text-white"
+                    class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xl font-black text-slate-800 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                   />
                 </div>
               </div>
             {/if}
           </div>
 
-          <div class="p-6 bg-gray-50 dark:bg-gray-800/50 rounded-3xl space-y-6">
+          <div class="mt-6 rounded-3xl border border-slate-200 bg-slate-50/80 p-6 dark:border-gray-700 dark:bg-gray-800/35">
             <div class="flex items-center justify-between">
               <div>
                 <h4
-                  class="text-sm font-black text-gray-900 dark:text-white flex items-center gap-2"
+                  class="flex items-center gap-2 text-sm font-black text-slate-900 dark:text-white"
                 >
                   <CheckCircle2 size={16} class="text-primary" />
                   {$_("workspaceSettings__alerts_title")}
                 </h4>
                 <p
-                  class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1"
+                  class="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400"
                 >
                   {$_("workspaceSettings__alerts_subtitle")}
                 </p>
@@ -447,7 +447,7 @@
 
             <div class="space-y-4">
               <div
-                class="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm"
+                class="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
               >
                 <div class="flex items-center gap-3">
                   <div
@@ -456,7 +456,7 @@
                     <Rocket size={16} />
                   </div>
                   <span
-                    class="text-sm font-bold text-gray-700 dark:text-gray-200"
+                    class="text-sm font-bold text-slate-700 dark:text-gray-200"
                     >{$_("workspaceSettings__alerts_create_label")}</span
                   >
                 </div>
@@ -474,7 +474,7 @@
 
               <div class="space-y-3">
                 <span
-                  class="text-xs font-bold text-gray-500 dark:text-gray-400 ml-1"
+                  class="ml-1 text-xs font-bold text-slate-500 dark:text-gray-400"
                   >{$_("workspaceSettings__alerts_status_label")}</span
                 >
                 <div class="flex flex-wrap gap-2">
@@ -485,7 +485,7 @@
                         status,
                       )
                         ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20'
-                        : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 text-gray-400 hover:border-gray-200'}"
+                        : 'bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 text-slate-500 dark:text-gray-400 hover:border-slate-300 dark:hover:border-gray-600'}"
                     >
                       {#if status === "todo"}
                         <ClipboardList size={14} />
@@ -508,18 +508,18 @@
 
       <!-- Footer -->
       <div
-        class="px-8 py-6 border-t border-gray-100 dark:border-gray-800 flex items-center justify-end gap-3 bg-gray-50/50 dark:bg-gray-900/50"
+        class="flex items-center justify-end gap-3 border-t border-slate-200 bg-white/90 px-6 py-5 backdrop-blur dark:border-gray-700 dark:bg-slate-950/85 sm:px-8 sm:py-6"
       >
         <button
           on:click={() => dispatch("close")}
-          class="px-6 py-3 text-sm font-bold text-gray-500 hover:text-gray-800 dark:hover:text-white transition-colors"
+          class="px-6 py-3 text-sm font-bold text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
         >
           {$_("dashboard__modal_btn_cancel")}
         </button>
         <button
           on:click={handleSave}
           disabled={isSaving || !name.trim()}
-          class="px-8 py-3 bg-primary text-white text-sm font-bold rounded-2xl hover:bg-primary-dark shadow-xl shadow-primary/20 transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2"
+          class="flex items-center gap-2 rounded-2xl bg-primary px-8 py-3 text-sm font-bold text-white shadow-[0_16px_40px_rgba(79,70,229,0.28)] transition-all hover:bg-primary-dark active:scale-95 disabled:opacity-50"
         >
           {#if isSaving}
             <RefreshCcw size={18} class="animate-spin" />
