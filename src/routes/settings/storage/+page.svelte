@@ -39,6 +39,8 @@
   let totalObjects = 0;
   let totalPages = 1;
   let previewKey = "";
+  let previewVideoElement: HTMLVideoElement | null = null;
+  let previewVideoSource = "";
   let providerModalOpen = false;
   let storageProvider: StorageProvider = "env";
   let storageRegion = "us-east-1";
@@ -52,6 +54,8 @@
   let draftStorageSecretKey = "";
   let showAccessKey = false;
   let showSecretKey = false;
+  let previewPlayerToken = 0;
+  let hlsPlayer: { destroy: () => void } | null = null;
   const rustfsDocsUrl = "https://docs.rustfs.com/en/introduction.html";
   const rustfsSdkUrl = "https://docs.rustfs.com/developer/sdk/rust.html";
   const awsS3DocsUrl =
@@ -140,6 +144,104 @@
     return "video/mp4";
   }
 
+  function cleanupPreviewPlayer() {
+    previewPlayerToken += 1;
+    if (hlsPlayer) {
+      hlsPlayer.destroy();
+      hlsPlayer = null;
+    }
+    if (previewVideoElement) {
+      previewVideoElement.pause();
+      previewVideoElement.removeAttribute("src");
+      previewVideoElement.load();
+    }
+    previewVideoSource = "";
+  }
+
+  function findSiblingPlaylistKey(key: string) {
+    const lastSlashIndex = key.lastIndexOf("/");
+    const directory = lastSlashIndex >= 0 ? key.slice(0, lastSlashIndex + 1) : "";
+    const siblings = objects
+      .map((item) => item.key)
+      .filter(
+        (candidate) =>
+          candidate !== key &&
+          candidate.startsWith(directory) &&
+          candidate.toLowerCase().endsWith(".m3u8"),
+      );
+
+    const prioritized = siblings.find((candidate) =>
+      /(?:master|playlist|index|stream)\.m3u8$/i.test(candidate),
+    );
+
+    return prioritized || siblings[0] || "";
+  }
+
+  function resolveVideoSource(key: string) {
+    if (/\.m3u8$/i.test(key)) {
+      return { url: buildFileUrl(key), kind: "hls" as const };
+    }
+
+    if (/\.ts$/i.test(key)) {
+      const playlistKey = findSiblingPlaylistKey(key);
+      if (playlistKey) {
+        return { url: buildFileUrl(playlistKey), kind: "hls" as const };
+      }
+    }
+
+    return {
+      url: buildFileUrl(key),
+      kind: "native" as const,
+    };
+  }
+
+  async function setupPreviewPlayer() {
+    if (!browser || !previewKey || !isVideoFile(previewKey) || !previewVideoElement) {
+      cleanupPreviewPlayer();
+      return;
+    }
+
+    const playerToken = ++previewPlayerToken;
+    const videoElement = previewVideoElement;
+    const source = resolveVideoSource(previewKey);
+
+    if (hlsPlayer) {
+      hlsPlayer.destroy();
+      hlsPlayer = null;
+    }
+
+    videoElement.pause();
+    videoElement.removeAttribute("src");
+    videoElement.load();
+
+    if (source.kind === "hls") {
+      if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
+        previewVideoSource = source.url;
+        return;
+      }
+
+      const { default: Hls } = await import("hls.js");
+      if (
+        playerToken !== previewPlayerToken ||
+        previewVideoElement !== videoElement ||
+        previewKey === ""
+      ) {
+        return;
+      }
+
+      if (Hls.isSupported()) {
+        const nextPlayer = new Hls();
+        nextPlayer.loadSource(source.url);
+        nextPlayer.attachMedia(videoElement);
+        hlsPlayer = nextPlayer;
+        previewVideoSource = "";
+        return;
+      }
+    }
+
+    previewVideoSource = source.url;
+  }
+
   function formatStorageKeyLabel(key: string, maxLength = 48) {
     if (!key || key.length <= maxLength) return key;
 
@@ -178,6 +280,7 @@
   }
 
   function closePreview() {
+    cleanupPreviewPlayer();
     previewKey = "";
   }
 
@@ -486,6 +589,12 @@
   $: allVisibleSelected =
     visibleKeys.length > 0 && visibleKeys.every((key) => selectedObjectKeys.has(key));
   $: selectedCount = selectedObjectKeys.size;
+  $: if (browser && previewKey && isVideoFile(previewKey) && previewVideoElement) {
+    void setupPreviewPlayer();
+  }
+  $: if ((!previewKey || !isVideoFile(previewKey)) && (previewVideoElement || hlsPlayer)) {
+    cleanupPreviewPlayer();
+  }
 
   async function goToPage(page: number) {
     if (page < 1 || page > totalPages) return;
@@ -881,17 +990,15 @@
           </div>
         {:else if isVideoFile(previewKey)}
           <div class="flex h-full w-full items-center justify-center bg-black p-4">
+            <!-- svelte-ignore a11y_media_has_caption -->
             <video
+              bind:this={previewVideoElement}
+              src={previewVideoSource}
               class="h-full max-h-full w-full max-w-full rounded-xl bg-black object-contain"
               controls
               playsinline
               preload="metadata"
-            >
-              <source
-                src={buildFileUrl(previewKey)}
-                type={getVideoMimeType(previewKey)}
-              />
-            </video>
+            ></video>
           </div>
         {:else}
           <iframe
