@@ -33,7 +33,9 @@ impl StorageRepository {
         Ok(())
     }
 
-    pub async fn get_storage_config(&self) -> mongodb::error::Result<Option<StorageConfigDocument>> {
+    pub async fn get_storage_config(
+        &self,
+    ) -> mongodb::error::Result<Option<StorageConfigDocument>> {
         self.collection
             .find_one(doc! { "key": STORAGE_SETTINGS_KEY }, None)
             .await

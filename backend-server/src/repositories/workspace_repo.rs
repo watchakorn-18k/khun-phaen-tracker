@@ -155,10 +155,8 @@ impl WorkspaceRepository {
             .and_then(Self::parse_utc_datetime)
             .unwrap_or_else(chrono::Utc::now);
 
-        let notification_config = doc
-            .get_document("notification_config")
-            .ok()
-            .map(|cfg| crate::models::workspace::NotificationConfig {
+        let notification_config = doc.get_document("notification_config").ok().map(|cfg| {
+            crate::models::workspace::NotificationConfig {
                 discord_webhook_url: cfg
                     .get_str("discord_webhook_url")
                     .ok()
@@ -181,10 +179,17 @@ impl WorkspaceRepository {
                 last_sent_at: cfg.get("last_sent_at").and_then(Self::parse_utc_datetime),
                 line_notify_token: cfg.get_str("line_notify_token").ok().map(|s| s.to_string()),
                 notify_on_create: cfg.get_bool("notify_on_create").unwrap_or(false),
-                notify_on_status_change: cfg.get_array("notify_on_status_change").ok().map(|arr| {
-                    arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect()
-                }).unwrap_or_default(),
-            });
+                notify_on_status_change: cfg
+                    .get_array("notify_on_status_change")
+                    .ok()
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                            .collect()
+                    })
+                    .unwrap_or_default(),
+            }
+        });
 
         Some(Workspace {
             id,

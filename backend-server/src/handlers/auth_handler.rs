@@ -38,8 +38,8 @@ pub async fn invite_handler(
         if setup_token.is_none() || provided_token != setup_token.as_deref() {
             return (
                 axum::http::StatusCode::FORBIDDEN,
-                axum::Json(serde_json::json!({ 
-                    "error": "System initialization requires a valid setup token. Check INITIAL_SETUP_TOKEN in environment." 
+                axum::Json(serde_json::json!({
+                    "error": "System initialization requires a valid setup token. Check INITIAL_SETUP_TOKEN in environment."
                 })),
             ).into_response();
         }

@@ -6,8 +6,8 @@ use axum::{
 use axum_extra::extract::cookie::CookieJar;
 use chrono::Utc;
 use mongodb::bson::{doc, oid::ObjectId, Document};
-use uuid::Uuid;
 use std::collections::HashSet;
+use uuid::Uuid;
 
 use crate::handlers::auth_handler::extract_user_id;
 use crate::models::data::*;
@@ -21,6 +21,10 @@ const MAX_COMMENT_IMAGES: usize = 10;
 const MAX_COMMENT_IMAGE_SIZE_BYTES: usize = 10 * 1024 * 1024;
 const ALLOWED_COMMENT_REACTION_EMOJIS: [&str; 10] =
     ["👍", "❤️", "🔥", "🎉", "😂", "😮", "😢", "👀", "✅", "🚀"];
+
+fn is_duplicate_key_error(error: &mongodb::error::Error) -> bool {
+    error.to_string().contains("E11000")
+}
 
 /// Helper: verify user owns workspace and return workspace_id as ObjectId
 async fn verify_workspace_access(
@@ -150,10 +154,7 @@ async fn purge_task_comment_assets(
     Ok(())
 }
 
-async fn purge_task_attachments(
-    state: &SharedState,
-    task: &TaskDocument,
-) -> Result<(), String> {
+async fn purge_task_attachments(state: &SharedState, task: &TaskDocument) -> Result<(), String> {
     let storage = state.storage_snapshot().await;
     if let Some(client) = &storage.client {
         if let Some(attachments) = &task.attachments {
@@ -282,45 +283,76 @@ pub async fn create_task(
         }
     };
 
-    let task = TaskDocument {
-        id: None,
-        workspace_id: ws_oid,
-        title: payload.title,
-        task_number: Some(next_task_number),
-        project: payload.project,
-        duration_minutes: payload.duration_minutes,
-        start_date: Some(resolved_start_date.clone()),
-        date: Some(resolved_start_date),
-        end_date: resolved_due_date.clone(),
-        due_date: resolved_due_date,
-        status: payload.status,
-        category: payload.category,
-        notes: payload.notes,
-        assignee_ids: payload.assignee_ids,
-        sprint_id: payload.sprint_id,
-        attachments: None,
-        is_archived: payload.is_archived,
-        checklist: payload.checklist,
-        created_at: None,
-        updated_at: None,
-    };
-
-    match repo.create_task(task).await {
-        Ok(created) => {
-            // Trigger notification
-            let ws_repo = WorkspaceRepository::new(&state.db);
-            if let Ok(Some(ws)) = ws_repo.find_by_id(&ws_oid).await {
-                crate::services::notification_service::notify_task_created(&state, &ws, &created).await;
+    for attempt in 0..3 {
+        let task_number = if attempt == 0 {
+            next_task_number
+        } else {
+            match repo.get_next_task_number(&ws_oid).await {
+                Ok(v) => v,
+                Err(e) => {
+                    return (
+                        axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                        axum::Json(serde_json::json!({ "error": format!("{}", e) })),
+                    )
+                        .into_response()
+                }
             }
+        };
 
-            axum::Json(serde_json::json!({ "success": true, "task": created })).into_response()
+        let task = TaskDocument {
+            id: None,
+            workspace_id: ws_oid,
+            title: payload.title.clone(),
+            task_number: Some(task_number),
+            project: payload.project.clone(),
+            duration_minutes: payload.duration_minutes,
+            start_date: Some(resolved_start_date.clone()),
+            date: Some(resolved_start_date.clone()),
+            end_date: resolved_due_date.clone(),
+            due_date: resolved_due_date.clone(),
+            status: payload.status.clone(),
+            category: payload.category.clone(),
+            notes: payload.notes.clone(),
+            assignee_ids: payload.assignee_ids.clone(),
+            sprint_id: payload.sprint_id.clone(),
+            attachments: None,
+            is_archived: payload.is_archived,
+            checklist: payload.checklist.clone(),
+            created_at: None,
+            updated_at: None,
+        };
+
+        match repo.create_task(task).await {
+            Ok(created) => {
+                let ws_repo = WorkspaceRepository::new(&state.db);
+                if let Ok(Some(ws)) = ws_repo.find_by_id(&ws_oid).await {
+                    crate::services::notification_service::notify_task_created(
+                        &state, &ws, &created,
+                    )
+                    .await;
+                }
+
+                return axum::Json(serde_json::json!({ "success": true, "task": created }))
+                    .into_response();
+            }
+            Err(e) if attempt < 2 && is_duplicate_key_error(&e) => continue,
+            Err(e) => {
+                return (
+                    axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    axum::Json(serde_json::json!({ "error": format!("{}", e) })),
+                )
+                    .into_response()
+            }
         }
-        Err(e) => (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            axum::Json(serde_json::json!({ "error": format!("{}", e) })),
-        )
-            .into_response(),
     }
+
+    (
+        axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        axum::Json(serde_json::json!({
+            "error": "Failed to allocate a unique task number for this workspace"
+        })),
+    )
+        .into_response()
 }
 
 pub async fn update_task(
@@ -420,7 +452,7 @@ pub async fn update_task(
     }
 
     let repo = DataRepository::new(&state.db);
-    
+
     // Fetch old task before update to know what changed
     let old_task = match repo.find_task_by_id(&task_oid).await {
         Ok(Some(t)) if t.workspace_id == ws_oid => Some(t),
@@ -435,10 +467,7 @@ pub async fn update_task(
             .into_response();
     }
 
-    if old_task
-        .as_ref()
-        .and_then(|t| t.task_number)
-        .is_none()
+    if old_task.as_ref().and_then(|t| t.task_number).is_none()
         && !updates.contains_key("task_number")
     {
         match repo.get_next_task_number(&ws_oid).await {
@@ -459,7 +488,7 @@ pub async fn update_task(
         return axum::Json(serde_json::json!({ "success": true, "message": "No changes" }))
             .into_response();
     }
-    
+
     let should_purge_comments_after_archive = if archive_flag == Some(true) {
         old_task.as_ref().map(|t| !t.is_archived).unwrap_or(false)
     } else {
@@ -477,7 +506,7 @@ pub async fn update_task(
                     );
                 }
             }
-            
+
             // Check status change & trigger notification
             if let (Some(old_t), Some(new_status)) = (&old_task, &payload.status) {
                 if old_t.status != *new_status {
@@ -485,7 +514,10 @@ pub async fn update_task(
                     if let Ok(Some(ws)) = ws_repo.find_by_id(&ws_oid).await {
                         // Quick re-fetch to get complete updated task fields
                         if let Ok(Some(updated_t)) = repo.find_task_by_id(&task_oid).await {
-                            crate::services::notification_service::notify_task_status_changed(&state, &ws, &updated_t).await;
+                            crate::services::notification_service::notify_task_status_changed(
+                                &state, &ws, &updated_t,
+                            )
+                            .await;
                         }
                     }
                 }
@@ -535,7 +567,9 @@ pub async fn delete_task(
         Ok(Some(_)) => {
             return (
                 axum::http::StatusCode::FORBIDDEN,
-                axum::Json(serde_json::json!({ "error": "Task does not belong to this workspace" })),
+                axum::Json(
+                    serde_json::json!({ "error": "Task does not belong to this workspace" }),
+                ),
             )
                 .into_response()
         }
@@ -1274,7 +1308,10 @@ pub async fn get_project_stats(
 
     let project_names: Vec<String> = projects.iter().map(|p| p.name.clone()).collect();
 
-    match repo.count_tasks_by_project_names(&ws_oid, &project_names).await {
+    match repo
+        .count_tasks_by_project_names(&ws_oid, &project_names)
+        .await
+    {
         Ok(counts) => {
             let stats: Vec<serde_json::Value> = projects
                 .into_iter()
@@ -1311,10 +1348,8 @@ pub async fn list_assignees(
     let repo = DataRepository::new(&state.db);
     match repo.find_assignees(&ws_oid).await {
         Ok(assignees) => {
-            let linked_user_ids: Vec<String> = assignees
-                .iter()
-                .filter_map(|a| a.user_id.clone())
-                .collect();
+            let linked_user_ids: Vec<String> =
+                assignees.iter().filter_map(|a| a.user_id.clone()).collect();
 
             let mut email_by_user_id = std::collections::HashMap::new();
             if !linked_user_ids.is_empty() {
@@ -1352,7 +1387,8 @@ pub async fn list_assignees(
             let assignees_with_email: Vec<serde_json::Value> = assignees
                 .into_iter()
                 .map(|a| {
-                    let mut value = serde_json::to_value(&a).unwrap_or_else(|_| serde_json::json!({}));
+                    let mut value =
+                        serde_json::to_value(&a).unwrap_or_else(|_| serde_json::json!({}));
                     if let (Some(user_id), Some(email)) = (
                         a.user_id.as_ref(),
                         a.user_id
@@ -1368,10 +1404,8 @@ pub async fn list_assignees(
                 })
                 .collect();
 
-            axum::Json(
-                serde_json::json!({ "success": true, "assignees": assignees_with_email }),
-            )
-            .into_response()
+            axum::Json(serde_json::json!({ "success": true, "assignees": assignees_with_email }))
+                .into_response()
         }
         Err(e) => (
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
@@ -1409,7 +1443,10 @@ pub async fn get_assignee_stats(
         .filter_map(|a| a.id.map(|id| id.to_hex()))
         .collect();
 
-    match repo.count_tasks_by_assignee_ids(&ws_oid, &assignee_ids).await {
+    match repo
+        .count_tasks_by_assignee_ids(&ws_oid, &assignee_ids)
+        .await
+    {
         Ok(counts) => {
             let stats: Vec<serde_json::Value> = assignee_ids
                 .into_iter()
@@ -1741,7 +1778,11 @@ pub async fn update_assignee_group(
             .into_iter()
             .filter_map(|a| a.id.map(|id| id.to_hex()))
             .collect();
-        Some(ids.into_iter().filter(|id| valid_ids.contains(id)).collect())
+        Some(
+            ids.into_iter()
+                .filter(|id| valid_ids.contains(id))
+                .collect(),
+        )
     } else {
         None
     };

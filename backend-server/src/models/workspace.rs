@@ -77,7 +77,9 @@ mod optional_datetime_rfc3339_or_bson {
                         .map(|dt| Some(dt.with_timezone(&Utc)))
                         .map_err(serde::de::Error::custom)
                 } else {
-                    Err(serde::de::Error::custom("unsupported datetime document shape"))
+                    Err(serde::de::Error::custom(
+                        "unsupported datetime document shape",
+                    ))
                 }
             }
             Some(_) => Err(serde::de::Error::custom("unsupported datetime value type")),

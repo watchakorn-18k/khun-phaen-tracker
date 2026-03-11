@@ -29,7 +29,11 @@ pub struct ActiveStorage {
 fn clean_optional(value: Option<String>) -> Option<String> {
     value.and_then(|v| {
         let trimmed = v.trim().to_string();
-        if trimmed.is_empty() { None } else { Some(trimmed) }
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
     })
 }
 
@@ -141,8 +145,10 @@ pub fn resolve_active_storage(config: Option<&StorageConfigDocument>) -> ActiveS
         StorageProvider::Env => ActiveStorage {
             provider,
             client: None,
-            bucket: clean_optional(config.and_then(|cfg| cfg.bucket.clone())).unwrap_or_else(env_bucket),
-            region: clean_optional(config.and_then(|cfg| cfg.region.clone())).unwrap_or_else(env_region),
+            bucket: clean_optional(config.and_then(|cfg| cfg.bucket.clone()))
+                .unwrap_or_else(env_bucket),
+            region: clean_optional(config.and_then(|cfg| cfg.region.clone()))
+                .unwrap_or_else(env_region),
             endpoint: Some(
                 clean_optional(config.and_then(|cfg| cfg.endpoint.clone()))
                     .unwrap_or_else(env_endpoint),
@@ -156,8 +162,10 @@ pub fn resolve_active_storage(config: Option<&StorageConfigDocument>) -> ActiveS
         StorageProvider::S3 => ActiveStorage {
             provider,
             client: None,
-            bucket: clean_optional(config.and_then(|cfg| cfg.bucket.clone())).unwrap_or_else(env_bucket),
-            region: clean_optional(config.and_then(|cfg| cfg.region.clone())).unwrap_or_else(env_region),
+            bucket: clean_optional(config.and_then(|cfg| cfg.bucket.clone()))
+                .unwrap_or_else(env_bucket),
+            region: clean_optional(config.and_then(|cfg| cfg.region.clone()))
+                .unwrap_or_else(env_region),
             endpoint: clean_optional(config.and_then(|cfg| cfg.endpoint.clone())),
             quota_bytes: env_quota_bytes(),
             access_key: clean_optional(config.and_then(|cfg| cfg.access_key.clone())),
@@ -172,7 +180,6 @@ pub async fn create_s3_client(
     endpoint_url: Option<&str>,
     region_name: &str,
 ) -> Client {
-    
     let credentials = Credentials::new(access_key, secret_key, None, None, "static");
 
     let region_provider =
@@ -207,10 +214,7 @@ pub async fn create_s3_client(
 pub async fn build_active_storage(config: Option<&StorageConfigDocument>) -> ActiveStorage {
     let mut active = resolve_active_storage(config);
 
-    let credentials = active
-        .access_key
-        .clone()
-        .zip(active.secret_key.clone());
+    let credentials = active.access_key.clone().zip(active.secret_key.clone());
 
     if let Some((access_key, secret_key)) = credentials {
         let client = create_s3_client(
@@ -225,7 +229,9 @@ pub async fn build_active_storage(config: Option<&StorageConfigDocument>) -> Act
         }
         active.client = Some(client);
     } else {
-        tracing::warn!("⚠️ Storage credentials are missing. Attachment capabilities will be disabled.");
+        tracing::warn!(
+            "⚠️ Storage credentials are missing. Attachment capabilities will be disabled."
+        );
     }
 
     active

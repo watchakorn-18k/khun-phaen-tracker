@@ -159,7 +159,10 @@ pub async fn update_checklist_template(
     }
 
     let repo = DataRepository::new(&state.db);
-    match repo.update_checklist_template(&template_id, &ws_oid, updates).await {
+    match repo
+        .update_checklist_template(&template_id, &ws_oid, updates)
+        .await
+    {
         Ok(true) => axum::Json(serde_json::json!({ "success": true })).into_response(),
         Ok(false) => (
             axum::http::StatusCode::NOT_FOUND,

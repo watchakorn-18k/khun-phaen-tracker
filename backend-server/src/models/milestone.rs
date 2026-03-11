@@ -25,7 +25,10 @@ mod object_id_or_string {
                 arr.copy_from_slice(&b.bytes);
                 Ok(uuid::Uuid::from_bytes(arr).to_string())
             }
-            other => Err(serde::de::Error::custom(format!("expected string, ObjectId, or Binary UUID, got: {:?}", other))),
+            other => Err(serde::de::Error::custom(format!(
+                "expected string, ObjectId, or Binary UUID, got: {:?}",
+                other
+            ))),
         }
     }
 }

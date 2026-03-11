@@ -7,6 +7,7 @@ mod state;
 use crate::models::message::SystemEvent;
 use crate::models::profile::UserProfile;
 use crate::models::user::User;
+use crate::repositories::data_repo::DataRepository;
 use crate::repositories::profile_repo::ProfileRepository;
 use crate::repositories::storage_repo::StorageRepository;
 use crate::repositories::user_repo::UserRepository;
@@ -86,12 +87,17 @@ async fn main() {
 
     let (system_tx, _) = broadcast::channel(100);
     let storage_repo = StorageRepository::new(&db);
+    let data_repo = DataRepository::new(&db);
     if let Err(error) = storage_repo.ensure_indexes().await {
         tracing::warn!("Failed to ensure storage config indexes: {}", error);
     }
+    if let Err(error) = data_repo.ensure_task_indexes().await {
+        tracing::warn!("Failed to ensure task indexes: {}", error);
+    }
     let stored_storage_config = storage_repo.get_storage_config().await.ok().flatten();
     let active_storage =
-        crate::services::storage_service::build_active_storage(stored_storage_config.as_ref()).await;
+        crate::services::storage_service::build_active_storage(stored_storage_config.as_ref())
+            .await;
 
     let state = Arc::new(AppState {
         db,

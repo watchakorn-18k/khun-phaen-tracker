@@ -13,7 +13,10 @@ impl MilestoneService {
         Self { repo }
     }
 
-    pub async fn get_milestones(&self, workspace_id: &ObjectId) -> mongodb::error::Result<Vec<Milestone>> {
+    pub async fn get_milestones(
+        &self,
+        workspace_id: &ObjectId,
+    ) -> mongodb::error::Result<Vec<Milestone>> {
         self.repo.find_by_workspace(workspace_id).await
     }
 
@@ -67,7 +70,11 @@ impl MilestoneService {
         self.repo.update(&id, workspace_id, updates).await
     }
 
-    pub async fn delete_milestone(&self, id: String, workspace_id: &ObjectId) -> mongodb::error::Result<bool> {
+    pub async fn delete_milestone(
+        &self,
+        id: String,
+        workspace_id: &ObjectId,
+    ) -> mongodb::error::Result<bool> {
         self.repo.delete(&id, workspace_id).await
     }
 }

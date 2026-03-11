@@ -42,8 +42,14 @@ impl MilestoneRepository {
         }
     }
 
-    pub async fn find_by_workspace(&self, workspace_id: &ObjectId) -> mongodb::error::Result<Vec<Milestone>> {
-        let mut cursor = self.collection.find(doc! { "workspace_id": workspace_id }, None).await?;
+    pub async fn find_by_workspace(
+        &self,
+        workspace_id: &ObjectId,
+    ) -> mongodb::error::Result<Vec<Milestone>> {
+        let mut cursor = self
+            .collection
+            .find(doc! { "workspace_id": workspace_id }, None)
+            .await?;
         let mut milestones = Vec::new();
         while let Some(result) = cursor.next().await {
             match result {
@@ -56,7 +62,9 @@ impl MilestoneRepository {
 
     #[allow(dead_code)]
     pub async fn find_by_id(&self, id: &str) -> mongodb::error::Result<Option<Milestone>> {
-        self.collection.find_one(doc! { "_id": Self::build_id_filter(id) }, None).await
+        self.collection
+            .find_one(doc! { "_id": Self::build_id_filter(id) }, None)
+            .await
     }
 
     pub async fn create(&self, milestone: Milestone) -> mongodb::error::Result<Milestone> {
@@ -84,7 +92,10 @@ impl MilestoneRepository {
     pub async fn delete(&self, id: &str, workspace_id: &ObjectId) -> mongodb::error::Result<bool> {
         let res = self
             .collection
-            .delete_one(doc! { "_id": Self::build_id_filter(id), "workspace_id": workspace_id }, None)
+            .delete_one(
+                doc! { "_id": Self::build_id_filter(id), "workspace_id": workspace_id },
+                None,
+            )
             .await?;
         Ok(res.deleted_count > 0)
     }

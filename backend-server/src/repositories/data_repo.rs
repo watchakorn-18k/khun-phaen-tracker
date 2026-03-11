@@ -57,6 +57,37 @@ impl DataRepository {
         Ok(())
     }
 
+    pub async fn ensure_task_indexes(&self) -> mongodb::error::Result<()> {
+        let unique_task_number_per_workspace = IndexModel::builder()
+            .keys(doc! { "workspace_id": 1, "task_number": 1 })
+            .options(
+                IndexOptions::builder()
+                    .unique(true)
+                    .name(Some("idx_tasks_workspace_task_number_unique".to_string()))
+                    .partial_filter_expression(doc! {
+                        "task_number": { "$exists": true, "$ne": Bson::Null }
+                    })
+                    .build(),
+            )
+            .build();
+        let by_workspace_task_number = IndexModel::builder()
+            .keys(doc! { "workspace_id": 1, "task_number": -1 })
+            .options(
+                IndexOptions::builder()
+                    .name(Some("idx_tasks_workspace_task_number_desc".to_string()))
+                    .build(),
+            )
+            .build();
+
+        self.tasks
+            .create_indexes(
+                vec![unique_task_number_per_workspace, by_workspace_task_number],
+                None,
+            )
+            .await?;
+        Ok(())
+    }
+
     // ===== TASKS =====
 
     pub async fn find_tasks(
@@ -86,7 +117,7 @@ impl DataRepository {
                         Bson::Array(vec![
                             Bson::Document(doc! { "status": { "$ne": "done" } }),
                             Bson::Document(
-                                doc! { "status": "done", "updated_at": { "$gte": today_start } }
+                                doc! { "status": "done", "updated_at": { "$gte": today_start } },
                             ),
                         ]),
                     );
@@ -207,14 +238,10 @@ impl DataRepository {
         let skip = (page - 1) * limit;
 
         let sort_field = match filter.sort_by.as_deref() {
-            Some("date")
-            | Some("created_at")
-            | Some("updated_at")
-            | Some("task_number")
-            | Some("title")
-            | Some("status")
-            | Some("due_date")
-            | Some("start_date") => filter.sort_by.as_deref().unwrap_or("updated_at"),
+            Some("date") | Some("created_at") | Some("updated_at") | Some("task_number")
+            | Some("title") | Some("status") | Some("due_date") | Some("start_date") => {
+                filter.sort_by.as_deref().unwrap_or("updated_at")
+            }
             _ => "updated_at",
         };
 
