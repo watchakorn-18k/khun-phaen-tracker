@@ -27,6 +27,31 @@ export type TaskActionDeps = {
 import { requestConfirm } from "./confirmStore";
 
 export function createTaskActions(deps: TaskActionDeps) {
+  // Helper to enrich a single task with assignee objects
+  async function enrichTaskWithAssignees(task: Task): Promise<Task> {
+    if (!task.assignee_ids || task.assignee_ids.length === 0) {
+      return { ...task, assignees: [], assignee: null, assignee_id: null };
+    }
+
+    try {
+      const allAssignees = await getAssignees();
+      const assigneeMap = new Map(allAssignees.map((a) => [String(a.id), a]));
+      const assignees = task.assignee_ids
+        .map((id) => assigneeMap.get(String(id)))
+        .filter((a): a is Assignee => a !== undefined);
+
+      return {
+        ...task,
+        assignees,
+        assignee: assignees[0] ?? null,
+        assignee_id: assignees[0]?.id ?? null,
+      };
+    } catch (error) {
+      console.error("Failed to enrich task with assignees:", error);
+      return task;
+    }
+  }
+
   const patchTaskChecklist = (
     list: Task[],
     taskId: string | number,
@@ -74,14 +99,17 @@ export function createTaskActions(deps: TaskActionDeps) {
 
         // Replace optimistic update with server data
         if (serverTask) {
+          // Enrich task with assignee objects
+          const enrichedTask = await enrichTaskWithAssignees(serverTask);
+
           deps.setTasks(
             deps.getTasks().map((task) =>
-              String(task.id) === String(editingTask!.id) ? serverTask : task,
+              String(task.id) === String(editingTask!.id) ? enrichedTask : task,
             ),
           );
           deps.setFilteredTasks(
             deps.getFilteredTasks().map((task) =>
-              String(task.id) === String(editingTask!.id) ? serverTask : task,
+              String(task.id) === String(editingTask!.id) ? enrichedTask : task,
             ),
           );
         }
@@ -102,10 +130,13 @@ export function createTaskActions(deps: TaskActionDeps) {
         // Get the actual created task from server
         const serverTask = await addTask(event.detail);
 
+        // Enrich task with assignee objects
+        const enrichedTask = await enrichTaskWithAssignees(serverTask);
+
         // Replace temporary task with server data
         const replaceTemp = (list: Task[]) =>
           list.map((task) =>
-            String(task.id) === String(tempId) ? serverTask : task,
+            String(task.id) === String(tempId) ? enrichedTask : task,
           );
         deps.setTasks(replaceTemp(deps.getTasks()));
         deps.setFilteredTasks(replaceTemp(deps.getFilteredTasks()));
@@ -152,17 +183,19 @@ export function createTaskActions(deps: TaskActionDeps) {
 
       // Replace optimistic update with server data
       if (serverTask) {
+        const enrichedTask = await enrichTaskWithAssignees(serverTask);
+
         deps.setTasks(
           deps.getTasks().map((task) =>
-            String(task.id) === String(editingTask.id) ? serverTask : task,
+            String(task.id) === String(editingTask.id) ? enrichedTask : task,
           ),
         );
         deps.setFilteredTasks(
           deps.getFilteredTasks().map((task) =>
-            String(task.id) === String(editingTask.id) ? serverTask : task,
+            String(task.id) === String(editingTask.id) ? enrichedTask : task,
           ),
         );
-        deps.setEditingTask(serverTask);
+        deps.setEditingTask(enrichedTask);
       }
 
       deps.trackRealtime("update-checklist");
@@ -203,14 +236,16 @@ export function createTaskActions(deps: TaskActionDeps) {
 
       // Replace optimistic update with server data
       if (serverTask) {
+        const enrichedTask = await enrichTaskWithAssignees(serverTask);
+
         deps.setTasks(
           deps.getTasks().map((t) =>
-            String(t.id) === String(taskId) ? serverTask : t,
+            String(t.id) === String(taskId) ? enrichedTask : t,
           ),
         );
         deps.setFilteredTasks(
           deps.getFilteredTasks().map((t) =>
-            String(t.id) === String(taskId) ? serverTask : t,
+            String(t.id) === String(taskId) ? enrichedTask : t,
           ),
         );
       }
@@ -338,18 +373,20 @@ export function createTaskActions(deps: TaskActionDeps) {
 
       // Replace optimistic update with server data
       if (serverTask) {
+        const enrichedTask = await enrichTaskWithAssignees(serverTask);
+
         deps.setTasks(
           deps.getTasks().map((task) =>
-            String(task.id) === String(id) ? serverTask : task,
+            String(task.id) === String(id) ? enrichedTask : task,
           ),
         );
         deps.setFilteredTasks(
           deps.getFilteredTasks().map((task) =>
-            String(task.id) === String(id) ? serverTask : task,
+            String(task.id) === String(id) ? enrichedTask : task,
           ),
         );
         if (oldEditingTask && String(oldEditingTask.id) === String(id)) {
-          deps.setEditingTask(serverTask);
+          deps.setEditingTask(enrichedTask);
         }
       }
 
@@ -388,14 +425,16 @@ export function createTaskActions(deps: TaskActionDeps) {
 
       // Replace optimistic update with server data
       if (serverTask) {
+        const enrichedTask = await enrichTaskWithAssignees(serverTask);
+
         deps.setTasks(
           deps.getTasks().map((task) =>
-            task.id === id ? serverTask : task,
+            task.id === id ? enrichedTask : task,
           ),
         );
         deps.setFilteredTasks(
           deps.getFilteredTasks().map((task) =>
-            task.id === id ? serverTask : task,
+            task.id === id ? enrichedTask : task,
           ),
         );
       }
@@ -428,14 +467,16 @@ export function createTaskActions(deps: TaskActionDeps) {
 
       // Update with server data instead of reloading all
       if (serverTask) {
+        const enrichedTask = await enrichTaskWithAssignees(serverTask);
+
         deps.setTasks(
           previousTasks.map((task) =>
-            task.id === taskToStart.id ? serverTask : task,
+            task.id === taskToStart.id ? enrichedTask : task,
           ),
         );
         deps.setFilteredTasks(
           previousFilteredTasks.map((task) =>
-            task.id === taskToStart.id ? serverTask : task,
+            task.id === taskToStart.id ? enrichedTask : task,
           ),
         );
       }

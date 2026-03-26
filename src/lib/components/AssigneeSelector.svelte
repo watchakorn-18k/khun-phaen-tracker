@@ -70,21 +70,15 @@
 
 	// Build combined options: groups first, then individual assignees
 	$: combinedOptions = [
-		// Placeholder
-		{ value: null, label: $_('taskForm__assignee_placeholder'), disabled: true },
-		// Group separator
-		{ value: '__GROUPS__' as any, label: '─── ' + $_('workerManager__groups_title') + ' ───', disabled: true },
-		// Groups
+		// Groups (if any)
 		...assigneeGroups
 			.filter((g) => g.id !== undefined && g.assignee_ids.length > 0)
 			.map((group) => ({
 				value: 'group_' + String(group.id),
-				label: `${group.name} (${group.assignee_ids.length})`,
+				label: `👥 ${group.name} (${group.assignee_ids.length})`,
 				isGroup: true,
 				groupId: group.id
 			})),
-		// Individual separator
-		{ value: '__INDIVIDUALS__' as any, label: '─── ' + $_('workerManager__list_title') + ' ───', disabled: true },
 		// Individual assignees
 		...availableAssignees
 			.filter((assignee) => assignee.id !== undefined)
