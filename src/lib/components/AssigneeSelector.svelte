@@ -204,24 +204,11 @@
 		{/if}
 
 		{#if !readonly}
-			<div class="flex gap-2">
-				<div class="flex-1">
-					<SearchableSelect
-						bind:value={selectedValue}
-						options={combinedOptions}
-						placeholder={$_('taskForm__assignee_placeholder')}
-					/>
-				</div>
-				<button
-					type="button"
-					on:click={() => showAddAssigneeForm = true}
-					class="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-1"
-					title={$_('taskForm__add_assignee')}
-				>
-					<User size={16} />
-					<Plus size={12} />
-				</button>
-			</div>
+		<SearchableSelect
+			bind:value={selectedValue}
+			options={combinedOptions}
+			placeholder={$_('taskForm__assignee_placeholder')}
+		/>
 		{:else if selectedAssignees.length === 0}
 			<p class="text-sm text-gray-500 dark:text-gray-400 italic">{$_('taskForm__unassigned')}</p>
 		{/if}
