@@ -48,24 +48,44 @@ export function createTaskActions(deps: TaskActionDeps) {
 
     try {
       if (editingTask) {
-        const updatedTask = { ...editingTask, ...event.detail };
+        // Optimistic update with merged data
+        const optimisticTask = { ...editingTask, ...event.detail };
         deps.setTasks(
           oldTasks.map((task) =>
-            String(task.id) === String(editingTask!.id) ? updatedTask : task,
+            String(task.id) === String(editingTask!.id) ? optimisticTask : task,
           ),
         );
         deps.setFilteredTasks(
           oldFiltered.map((task) =>
-            String(task.id) === String(editingTask!.id) ? updatedTask : task,
+            String(task.id) === String(editingTask!.id) ? optimisticTask : task,
           ),
         );
 
         deps.setEditingTask(null); // Clear edit state
 
-        await updateTask(editingTask.id!, {
+        // Get the actual updated task from server
+        const serverTask = await updateTask(editingTask.id!, {
           ...event.detail,
           workspace_id: editingTask.workspace_id,
         });
+
+        console.log('🔍 Update payload:', event.detail);
+        console.log('🔍 Server response:', serverTask);
+
+        // Replace optimistic update with server data
+        if (serverTask) {
+          deps.setTasks(
+            deps.getTasks().map((task) =>
+              String(task.id) === String(editingTask!.id) ? serverTask : task,
+            ),
+          );
+          deps.setFilteredTasks(
+            deps.getFilteredTasks().map((task) =>
+              String(task.id) === String(editingTask!.id) ? serverTask : task,
+            ),
+          );
+        }
+
         deps.notify(deps.t("page__update_task_success"));
         deps.trackRealtime("update-task");
       } else {
@@ -79,13 +99,17 @@ export function createTaskActions(deps: TaskActionDeps) {
         deps.setTasks([...oldTasks, newTask]);
         deps.setFilteredTasks([...oldFiltered, newTask]);
 
-        const createdId = await addTask(event.detail);
-        const replaceTempTaskId = (list: Task[]) =>
+        // Get the actual created task from server
+        const serverTask = await addTask(event.detail);
+
+        // Replace temporary task with server data
+        const replaceTemp = (list: Task[]) =>
           list.map((task) =>
-            String(task.id) === String(tempId) ? { ...task, id: createdId } : task,
+            String(task.id) === String(tempId) ? serverTask : task,
           );
-        deps.setTasks(replaceTempTaskId(deps.getTasks()));
-        deps.setFilteredTasks(replaceTempTaskId(deps.getFilteredTasks()));
+        deps.setTasks(replaceTemp(deps.getTasks()));
+        deps.setFilteredTasks(replaceTemp(deps.getFilteredTasks()));
+
         deps.notify(deps.t("page__add_task_success"));
         deps.trackRealtime("add-task");
       }
@@ -104,6 +128,7 @@ export function createTaskActions(deps: TaskActionDeps) {
     if (!editingTask) return;
     const previousTasks = deps.getTasks();
     const previousFilteredTasks = deps.getFilteredTasks();
+    const previousEditingTask = editingTask;
     const nextTasks = patchTaskChecklist(
       previousTasks,
       editingTask.id!,
@@ -115,23 +140,36 @@ export function createTaskActions(deps: TaskActionDeps) {
       event.detail.checklist,
     );
 
+    // Optimistic update
     deps.setTasks(nextTasks);
     deps.setFilteredTasks(nextFilteredTasks);
 
     try {
-      await updateTask(editingTask.id!, {
+      const serverTask = await updateTask(editingTask.id!, {
         checklist: event.detail.checklist,
         workspace_id: editingTask.workspace_id,
       });
-      // Update editingTask reference so state stays in sync
-      deps.setEditingTask({
-        ...editingTask,
-        checklist: event.detail.checklist,
-      });
+
+      // Replace optimistic update with server data
+      if (serverTask) {
+        deps.setTasks(
+          deps.getTasks().map((task) =>
+            String(task.id) === String(editingTask.id) ? serverTask : task,
+          ),
+        );
+        deps.setFilteredTasks(
+          deps.getFilteredTasks().map((task) =>
+            String(task.id) === String(editingTask.id) ? serverTask : task,
+          ),
+        );
+        deps.setEditingTask(serverTask);
+      }
+
       deps.trackRealtime("update-checklist");
     } catch (e) {
       deps.setTasks(previousTasks);
       deps.setFilteredTasks(previousFilteredTasks);
+      deps.setEditingTask(previousEditingTask);
       console.error("❌ handleChecklistUpdate failed:", e);
     }
   }
@@ -152,15 +190,31 @@ export function createTaskActions(deps: TaskActionDeps) {
           : item,
       );
 
+      // Optimistic update
       deps.setTasks(patchTaskChecklist(previousTasks, taskId, updatedChecklist));
       deps.setFilteredTasks(
         patchTaskChecklist(previousFilteredTasks, taskId, updatedChecklist),
       );
 
-      await updateTask(taskId, {
+      const serverTask = await updateTask(taskId, {
         checklist: updatedChecklist,
         workspace_id: task.workspace_id,
       });
+
+      // Replace optimistic update with server data
+      if (serverTask) {
+        deps.setTasks(
+          deps.getTasks().map((t) =>
+            String(t.id) === String(taskId) ? serverTask : t,
+          ),
+        );
+        deps.setFilteredTasks(
+          deps.getFilteredTasks().map((t) =>
+            String(t.id) === String(taskId) ? serverTask : t,
+          ),
+        );
+      }
+
       deps.trackRealtime("toggle-checklist");
     } catch (e) {
       deps.setTasks(previousTasks);
@@ -261,6 +315,9 @@ export function createTaskActions(deps: TaskActionDeps) {
     const oldTasks = deps.getTasks();
     const oldFiltered = deps.getFilteredTasks();
     const editingTask = deps.getEditingTask();
+    const oldEditingTask = editingTask;
+
+    // Optimistic update
     deps.setTasks(
       oldTasks.map((task) =>
         String(task.id) === String(id) ? { ...task, status } : task,
@@ -277,11 +334,32 @@ export function createTaskActions(deps: TaskActionDeps) {
 
     try {
       const currentTask = oldTasks.find((task) => String(task.id) === String(id));
-      await updateTask(id, { status, workspace_id: currentTask?.workspace_id });
+      const serverTask = await updateTask(id, { status, workspace_id: currentTask?.workspace_id });
+
+      // Replace optimistic update with server data
+      if (serverTask) {
+        deps.setTasks(
+          deps.getTasks().map((task) =>
+            String(task.id) === String(id) ? serverTask : task,
+          ),
+        );
+        deps.setFilteredTasks(
+          deps.getFilteredTasks().map((task) =>
+            String(task.id) === String(id) ? serverTask : task,
+          ),
+        );
+        if (oldEditingTask && String(oldEditingTask.id) === String(id)) {
+          deps.setEditingTask(serverTask);
+        }
+      }
+
       deps.trackRealtime("update-task-status");
     } catch (e) {
       deps.setTasks(oldTasks);
       deps.setFilteredTasks(oldFiltered);
+      if (oldEditingTask) {
+        deps.setEditingTask(oldEditingTask);
+      }
       deps.notify("เกิดข้อผิดพลาด", "error");
     }
   }
@@ -297,15 +375,31 @@ export function createTaskActions(deps: TaskActionDeps) {
         task.id === id ? { ...task, status: newStatus } : task,
       );
 
+    // Optimistic update
     deps.setTasks(applyStatus(previousTasks));
     deps.setFilteredTasks(applyStatus(previousFilteredTasks));
 
     try {
       const currentTask = previousTasks.find((task) => task.id === id);
-      await updateTask(id, {
+      const serverTask = await updateTask(id, {
         status: newStatus,
         workspace_id: currentTask?.workspace_id,
       });
+
+      // Replace optimistic update with server data
+      if (serverTask) {
+        deps.setTasks(
+          deps.getTasks().map((task) =>
+            task.id === id ? serverTask : task,
+          ),
+        );
+        deps.setFilteredTasks(
+          deps.getFilteredTasks().map((task) =>
+            task.id === id ? serverTask : task,
+          ),
+        );
+      }
+
       deps.trackRealtime("update-task-status");
     } catch (e) {
       deps.setTasks(previousTasks);
@@ -315,23 +409,37 @@ export function createTaskActions(deps: TaskActionDeps) {
   }
 
   async function startTimerFromCommandPalette() {
-    const taskToStart = deps
-      .getTasks()
-      .find(
-        (task) =>
-          !task.is_archived && task.status === "todo" && task.id !== undefined,
-      );
+    const previousTasks = deps.getTasks();
+    const previousFilteredTasks = deps.getFilteredTasks();
+    const taskToStart = previousTasks.find(
+      (task) =>
+        !task.is_archived && task.status === "todo" && task.id !== undefined,
+    );
     if (!taskToStart?.id) {
       deps.notify(deps.t("commandPalette__no_todo_to_start"), "error");
       return;
     }
 
     try {
-      await updateTask(taskToStart.id, {
+      const serverTask = await updateTask(taskToStart.id, {
         status: "in-progress",
         workspace_id: taskToStart.workspace_id,
       });
-      await deps.loadData();
+
+      // Update with server data instead of reloading all
+      if (serverTask) {
+        deps.setTasks(
+          previousTasks.map((task) =>
+            task.id === taskToStart.id ? serverTask : task,
+          ),
+        );
+        deps.setFilteredTasks(
+          previousFilteredTasks.map((task) =>
+            task.id === taskToStart.id ? serverTask : task,
+          ),
+        );
+      }
+
       deps.trackRealtime("update-task-status");
       deps.notify(
         deps.t("commandPalette__timer_started", {

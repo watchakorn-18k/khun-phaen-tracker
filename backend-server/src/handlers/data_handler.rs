@@ -600,14 +600,19 @@ pub async fn update_task(
         updates.insert("notes", v);
     }
     if let Some(v) = payload.assignee_ids {
+        tracing::info!("🔍 assignee_ids received: {:?}", v);
         match v {
             Some(ids) => {
+                tracing::info!("✅ Setting assignee_ids to: {:?}", ids);
                 updates.insert("assignee_ids", ids);
             }
             None => {
+                tracing::info!("✅ Setting assignee_ids to NULL");
                 updates.insert("assignee_ids", mongodb::bson::Bson::Null);
             }
         }
+    } else {
+        tracing::info!("⚠️ assignee_ids field not present in payload");
     }
     if let Some(v) = payload.sprint_id {
         match v {

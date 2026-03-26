@@ -1,5 +1,15 @@
 use mongodb::bson::oid::ObjectId;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
+
+// Helper function to deserialize null as Some(None)
+fn deserialize_null_default<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    let opt = Option::deserialize(deserializer)?;
+    Ok(Some(opt))
+}
 
 // ===== Attachment Model =====
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -162,6 +172,7 @@ pub struct UpdateTaskRequest {
     pub status: Option<String>,
     pub category: Option<String>,
     pub notes: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub assignee_ids: Option<Option<Vec<String>>>,
     pub sprint_id: Option<Option<String>>,
     pub is_archived: Option<bool>,

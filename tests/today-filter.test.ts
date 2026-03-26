@@ -560,12 +560,12 @@ async function seedTodayFilterData() {
   // (addTask doesn't include updated_at in INSERT, DB defaults to created_at = now)
   const findTask = (id: number | string) =>
     state.tasks.find((t) => Number(t.id) === Number(id));
-  findTask(t1)!.updated_at = `${yesterday}T10:00:00.000Z`;
-  findTask(t2)!.updated_at = `${today}T08:00:00.000Z`;
-  findTask(t3)!.updated_at = `${today}T09:00:00.000Z`;
-  findTask(t4)!.updated_at = `${today}T14:00:00.000Z`;
-  findTask(t5)!.updated_at = `${yesterday}T16:00:00.000Z`;
-  findTask(t6)!.updated_at = `${today}T12:00:00.000Z`;
+  findTask(t1.id)!.updated_at = `${yesterday}T10:00:00.000Z`;
+  findTask(t2.id)!.updated_at = `${today}T08:00:00.000Z`;
+  findTask(t3.id)!.updated_at = `${today}T09:00:00.000Z`;
+  findTask(t4.id)!.updated_at = `${today}T14:00:00.000Z`;
+  findTask(t5.id)!.updated_at = `${yesterday}T16:00:00.000Z`;
+  findTask(t6.id)!.updated_at = `${today}T12:00:00.000Z`;
 
   return { t1, t2, t3, t4, t5, t6 };
 }
@@ -578,9 +578,9 @@ describe('today filter - getTasks({ status: "today" })', () => {
     const ids = result.map((t) => t.id);
 
     // All incomplete statuses should be included
-    expect(ids).toContain(t1); // todo
-    expect(ids).toContain(t2); // in-progress
-    expect(ids).toContain(t3); // in-test
+    expect(ids).toContain(t1.id); // todo
+    expect(ids).toContain(t2.id); // in-progress
+    expect(ids).toContain(t3.id); // in-test
   });
 
   it("returns done tasks only if updated_at is today", async () => {
@@ -589,8 +589,8 @@ describe('today filter - getTasks({ status: "today" })', () => {
     const result = await getTasks({ status: "today" });
     const ids = result.map((t) => t.id);
 
-    expect(ids).toContain(t4); // done, updated today -> included
-    expect(ids).not.toContain(t5); // done, updated yesterday -> excluded
+    expect(ids).toContain(t4.id); // done, updated today -> included
+    expect(ids).not.toContain(t5.id); // done, updated yesterday -> excluded
   });
 
   it("excludes archived tasks by default", async () => {
@@ -599,7 +599,7 @@ describe('today filter - getTasks({ status: "today" })', () => {
     const result = await getTasks({ status: "today" });
     const ids = result.map((t) => t.id);
 
-    expect(ids).not.toContain(t6); // done today but archived -> excluded
+    expect(ids).not.toContain(t6.id); // done today but archived -> excluded
   });
 
   it("returns correct total count", async () => {
@@ -619,7 +619,7 @@ describe('today filter - getTasks({ status: "today" })', () => {
 
   it("works with only done tasks updated today", async () => {
     const today = todayStr();
-    const id = await addTask({
+    const task = await addTask({
       title: "Only done task",
       project: "",
       duration_minutes: 0,
@@ -629,12 +629,12 @@ describe('today filter - getTasks({ status: "today" })', () => {
       notes: "",
     });
     // Ensure updated_at is set to today
-    state.tasks.find((t) => Number(t.id) === Number(id))!.updated_at =
+    state.tasks.find((t) => Number(t.id) === Number(task.id))!.updated_at =
       `${today}T10:00:00.000Z`;
 
     const result = await getTasks({ status: "today" });
     expect(result).toHaveLength(1);
-    expect(result[0].id).toBe(id);
+    expect(result[0].id).toBe(task.id);
     expect(result[0].status).toBe("done");
   });
 
@@ -733,7 +733,7 @@ describe("today filter - task properties", () => {
 
   it("returned tasks have updated_at field", async () => {
     const today = todayStr();
-    const id = await addTask({
+    const task = await addTask({
       title: "Has timestamp",
       project: "",
       duration_minutes: 0,
@@ -742,7 +742,7 @@ describe("today filter - task properties", () => {
       category: "อื่นๆ",
       notes: "",
     });
-    state.tasks.find((t) => Number(t.id) === Number(id))!.updated_at =
+    state.tasks.find((t) => Number(t.id) === Number(task.id))!.updated_at =
       `${today}T15:30:00.000Z`;
 
     const result = await getTasks({ status: "today" });

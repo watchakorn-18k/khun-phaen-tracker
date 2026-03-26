@@ -217,7 +217,7 @@ function docToSprint(doc: any): Sprint {
 
 export async function addTask(
   task: Omit<Task, "id" | "created_at">,
-): Promise<string> {
+): Promise<Task> {
   const res = await api.data.tasks.create(wsId(), {
     title: task.title,
     project: task.project || "",
@@ -229,7 +229,9 @@ export async function addTask(
     status: task.status,
     category: task.category || "อื่นๆ",
     notes: task.notes || "",
-    assignee_ids: task.assignee_ids?.map(String) || null,
+    assignee_ids: task.assignee_ids && task.assignee_ids.length > 0
+      ? task.assignee_ids.map(String)
+      : null,
     sprint_id: task.sprint_id ? String(task.sprint_id) : null,
     is_archived: task.is_archived || false,
     checklist: task.checklist || null,
@@ -239,13 +241,13 @@ export async function addTask(
   const newTask = docToTask(data.task);
   _assigneesCache = null; // Invalidate cache in case of new assignee IDs
   broadcastChange("task", "create", newTask.id as string, newTask);
-  return newTask.id as string;
+  return newTask;
 }
 
 export async function updateTask(
   id: string | number,
   updates: Partial<Task>,
-): Promise<void> {
+): Promise<Task | null> {
   const payload: Record<string, any> = {};
   if (updates.title !== undefined) payload.title = updates.title;
   if (updates.project !== undefined) payload.project = updates.project;
@@ -266,7 +268,9 @@ export async function updateTask(
   if (updates.category !== undefined) payload.category = updates.category;
   if (updates.notes !== undefined) payload.notes = updates.notes;
   if (updates.assignee_ids !== undefined)
-    payload.assignee_ids = updates.assignee_ids?.map(String) || null;
+    payload.assignee_ids = updates.assignee_ids && updates.assignee_ids.length > 0
+      ? updates.assignee_ids.map(String)
+      : null;
   if (updates.sprint_id !== undefined)
     payload.sprint_id = updates.sprint_id ? String(updates.sprint_id) : null;
   if (updates.is_archived !== undefined)
@@ -284,10 +288,10 @@ export async function updateTask(
     throw new Error(data.error || "Failed to update task");
   }
   const taskFromServer = data?.task ? docToTask(data.task) : null;
-  const updatePayload = taskFromServer
-    ? { ...payload, task_number: taskFromServer.task_number }
-    : payload;
-  broadcastChange("task", "update", String(id), updatePayload);
+  if (taskFromServer) {
+    broadcastChange("task", "update", String(id), taskFromServer);
+  }
+  return taskFromServer;
 }
 
 export async function deleteTask(

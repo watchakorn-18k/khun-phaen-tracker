@@ -1014,12 +1014,17 @@
   function handleSubmit() {
     if (!title.trim()) return;
     if (!date) return;
+
+    console.log('🔍 Before submit - assignee_ids:', assignee_ids);
+
     if (
       assignee_id_to_add !== null &&
       !assignee_ids.some((id) => isSameId(id, assignee_id_to_add))
     ) {
       assignee_ids = [...assignee_ids, assignee_id_to_add];
     }
+
+    console.log('🔍 After add check - assignee_ids:', assignee_ids);
     if (!editingTask) {
       const firstAssigneeAsNumber =
         assignee_ids.length > 0 ? Number(assignee_ids[0]) : null;
@@ -1044,7 +1049,7 @@
       status,
       category,
       notes: notes.trim(),
-      assignee_ids: assignee_ids.length > 0 ? assignee_ids : undefined,
+      assignee_ids: assignee_ids.length > 0 ? assignee_ids : null,
       assignee_id: assignee_ids.length > 0 ? assignee_ids[0] : null,
       sprint_id,
       checklist: checklist.length > 0 ? checklist : undefined,
