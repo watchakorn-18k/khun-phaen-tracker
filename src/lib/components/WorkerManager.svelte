@@ -195,7 +195,7 @@
         if (!editingWorker) {
           if (!newWorkerName) {
             newWorkerName =
-              user.nickname || user.first_name || user.email.split("@")[0];
+              user.profile?.nickname || user.profile?.first_name || user.email.split("@")[0];
           }
         }
       }
@@ -375,12 +375,31 @@
       .filter(Boolean) as Assignee[];
   }
 
+  // Shake animation when clicking backdrop
+  let isShaking = false;
+
   function handleBackdropClick(e: MouseEvent) {
     if (e.target === e.currentTarget) {
-      dispatch("close");
+      // Trigger shake animation
+      isShaking = true;
+      setTimeout(() => {
+        isShaking = false;
+      }, 500);
     }
   }
 </script>
+
+<style>
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-8px); }
+    20%, 40%, 60%, 80% { transform: translateX(8px); }
+  }
+
+  .shake {
+    animation: shake 0.1s ease-in-out;
+  }
+</style>
 
 <!-- Modal Backdrop -->
 <div
@@ -392,6 +411,7 @@
 >
   <!-- Modal Content -->
   <div
+    class:shake={isShaking}
     class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col transition-colors"
   >
     <!-- Header -->
@@ -452,7 +472,7 @@
                   },
                   ...availableSystemUsers.map((user) => ({
                     value: String(user.id || user.user_id || ""),
-                    label: `${user.nickname || user.first_name || user.email.split("@")[0]} (${user.email})`,
+                    label: `${user.profile?.nickname || user.profile?.first_name || user.email.split("@")[0]} (${user.email})`,
                     badge: user.is_active !== undefined,
                     badgeColor: user.is_active ? "#22C55E" : "#FBBF24",
                   })),
