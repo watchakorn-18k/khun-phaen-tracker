@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher } from "svelte";
+  import { createEventDispatcher, onDestroy } from "svelte";
   import { _ } from "$lib/i18n";
   import type { Task, Sprint } from "$lib/types";
   import {
@@ -75,6 +75,42 @@
   let selectedTasks: Set<string | number> = new Set();
   let expandedMobileCards: Set<string | number> = new Set();
   let expandedChecklists: Set<string | number> = new Set();
+
+  const COL_WIDTHS_KEY = "tableView_colWidths";
+  const defaultColWidths = { title: 280, project: 120, category: 100, assignee: 150, sprint: 110, status: 100, date: 100 };
+  function loadColWidths() {
+    try {
+      const s = typeof localStorage !== "undefined" ? localStorage.getItem(COL_WIDTHS_KEY) : null;
+      return s ? { ...defaultColWidths, ...JSON.parse(s) } : { ...defaultColWidths };
+    } catch { return { ...defaultColWidths }; }
+  }
+  let colWidths = loadColWidths();
+  let resizingCol: string | null = null;
+  let resizeStartX = 0;
+  let resizeStartWidth = 0;
+
+  function startColResize(col: string, e: MouseEvent) {
+    e.preventDefault();
+    resizingCol = col;
+    resizeStartX = e.clientX;
+    resizeStartWidth = colWidths[col as keyof typeof colWidths] ?? 120;
+    window.addEventListener("mousemove", onColResizeMove);
+    window.addEventListener("mouseup", stopColResize);
+  }
+  function onColResizeMove(e: MouseEvent) {
+    if (!resizingCol) return;
+    colWidths = { ...colWidths, [resizingCol]: Math.max(60, resizeStartWidth + (e.clientX - resizeStartX)) };
+  }
+  function stopColResize() {
+    resizingCol = null;
+    try { localStorage.setItem(COL_WIDTHS_KEY, JSON.stringify(colWidths)); } catch { /* noop */ }
+    window.removeEventListener("mousemove", onColResizeMove);
+    window.removeEventListener("mouseup", stopColResize);
+  }
+  onDestroy(() => {
+    window.removeEventListener("mousemove", onColResizeMove);
+    window.removeEventListener("mouseup", stopColResize);
+  });
 
   function toggleChecklistExpand(taskId: string | number) {
     if (expandedChecklists.has(taskId)) {
@@ -412,8 +448,8 @@
   {/if}
 
   <!-- Desktop Table View -->
-  <div class="hidden md:block overflow-x-auto">
-    <table class="w-full">
+  <div class="hidden md:block overflow-x-auto" class:select-none={!!resizingCol} class:cursor-col-resize={!!resizingCol}>
+    <table style="table-layout: fixed;">
       <thead class="bg-gray-50 dark:bg-gray-700/50">
         <tr>
           <th class="px-3 py-2 text-left w-10">
@@ -425,7 +461,7 @@
               class="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
             />
           </th>
-          <th class="px-3 py-2 text-left">
+          <th class="px-3 py-2 text-left relative" style="width: {colWidths.title}px;">
             <button
               on:click={() => toggleSort("title")}
               class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
@@ -433,8 +469,10 @@
               {$_("tableView__column_title")}
               <svelte:component this={getSortIcon("title")} size={12} />
             </button>
+            <!-- svelte-ignore a11y-no-static-element-interactions -->
+            <div class="col-resize-handle {resizingCol === 'title' ? 'active' : ''}" on:mousedown={(e) => startColResize('title', e)}></div>
           </th>
-          <th class="px-3 py-2 text-left hidden lg:table-cell">
+          <th class="px-3 py-2 text-left hidden lg:table-cell relative" style="width: {colWidths.project}px;">
             <button
               on:click={() => toggleSort("project")}
               class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
@@ -443,8 +481,10 @@
               {$_("tableView__column_project")}
               <svelte:component this={getSortIcon("project")} size={12} />
             </button>
+            <!-- svelte-ignore a11y-no-static-element-interactions -->
+            <div class="col-resize-handle {resizingCol === 'project' ? 'active' : ''}" on:mousedown={(e) => startColResize('project', e)}></div>
           </th>
-          <th class="px-3 py-2 text-left hidden xl:table-cell">
+          <th class="px-3 py-2 text-left hidden xl:table-cell relative" style="width: {colWidths.category}px;">
             <button
               on:click={() => toggleSort("category")}
               class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
@@ -452,8 +492,10 @@
               {$_("tableView__column_category")}
               <svelte:component this={getSortIcon("category")} size={12} />
             </button>
+            <!-- svelte-ignore a11y-no-static-element-interactions -->
+            <div class="col-resize-handle {resizingCol === 'category' ? 'active' : ''}" on:mousedown={(e) => startColResize('category', e)}></div>
           </th>
-          <th class="px-3 py-2 text-left">
+          <th class="px-3 py-2 text-left relative" style="width: {colWidths.assignee}px;">
             <button
               on:click={() => toggleSort("assignee")}
               class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
@@ -467,16 +509,20 @@
               >
               <svelte:component this={getSortIcon("assignee")} size={12} />
             </button>
+            <!-- svelte-ignore a11y-no-static-element-interactions -->
+            <div class="col-resize-handle {resizingCol === 'assignee' ? 'active' : ''}" on:mousedown={(e) => startColResize('assignee', e)}></div>
           </th>
-          <th class="px-3 py-2 text-left hidden xl:table-cell">
+          <th class="px-3 py-2 text-left hidden xl:table-cell relative" style="width: {colWidths.sprint}px;">
             <span
               class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider"
             >
               <Flag size={12} />
               {$_("tableView__column_sprint")}
             </span>
+            <!-- svelte-ignore a11y-no-static-element-interactions -->
+            <div class="col-resize-handle {resizingCol === 'sprint' ? 'active' : ''}" on:mousedown={(e) => startColResize('sprint', e)}></div>
           </th>
-          <th class="px-3 py-2 text-left">
+          <th class="px-3 py-2 text-left relative" style="width: {colWidths.status}px;">
             <button
               on:click={() => toggleSort("status")}
               class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
@@ -484,8 +530,10 @@
               {$_("tableView__column_status")}
               <svelte:component this={getSortIcon("status")} size={12} />
             </button>
+            <!-- svelte-ignore a11y-no-static-element-interactions -->
+            <div class="col-resize-handle {resizingCol === 'status' ? 'active' : ''}" on:mousedown={(e) => startColResize('status', e)}></div>
           </th>
-          <th class="px-3 py-2 text-left">
+          <th class="px-3 py-2 text-left relative" style="width: {colWidths.date}px;">
             <button
               on:click={() => toggleSort("date")}
               class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
@@ -498,6 +546,8 @@
               >
               <svelte:component this={getSortIcon("date")} size={12} />
             </button>
+            <!-- svelte-ignore a11y-no-static-element-interactions -->
+            <div class="col-resize-handle {resizingCol === 'date' ? 'active' : ''}" on:mousedown={(e) => startColResize('date', e)}></div>
           </th>
           <th
             class="px-3 py-2 text-center text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider w-20"
@@ -521,10 +571,10 @@
                 class="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
               />
             </td>
-            <td class="px-3 py-2">
-              <div class="flex flex-col min-w-0">
+            <td class="px-3 py-2 overflow-hidden" style="max-width: 0;">
+              <div class="flex flex-col min-w-0 w-full">
                 <span
-                  class="font-medium text-gray-900 dark:text-white text-sm truncate max-w-30 lg:max-w-50 xl:max-w-xs"
+                  class="font-medium text-gray-900 dark:text-white text-sm truncate"
                   title={task.title}
                 >
                   {#if task.task_number}
@@ -1011,6 +1061,28 @@
 </div>
 
 <style>
+  .col-resize-handle {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 5px;
+    cursor: col-resize;
+    user-select: none;
+    z-index: 1;
+    transition: background-color 0.15s;
+  }
+  .col-resize-handle:hover,
+  .col-resize-handle.active {
+    background-color: rgba(99, 102, 241, 0.45);
+    border-radius: 2px;
+  }
+
+  :global(table[style*="table-layout"] td) {
+    overflow: hidden;
+    max-width: 0;
+  }
+
   .line-clamp-1 {
     display: -webkit-box;
     line-clamp: 1;
