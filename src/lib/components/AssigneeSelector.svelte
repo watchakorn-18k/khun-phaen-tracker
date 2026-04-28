@@ -12,8 +12,8 @@
 	export let assignees: Assignee[] = [];
 	export let assigneeGroups: AssigneeGroup[] = [];
 	export let assignee_ids: (string | number)[] = [];
-	export let assignee_id_to_add: string | number | null = null;
 	export let readonly = false;
+	export let selfAssigneeId: string | number | null = null;
 	let showAddAssigneeForm = false;
 	let newAssigneeName = '';
 	let newAssigneeColor = '#6366F1';
@@ -114,6 +114,13 @@
 		newAssigneeColor = '#6366F1';
 		showAddAssigneeForm = false;
 	}
+
+	$: isSelfAssigned = selfAssigneeId != null && assignee_ids.some((id) => isSameId(id, selfAssigneeId));
+
+	function assignSelf() {
+		if (selfAssigneeId == null || isSelfAssigned) return;
+		assignee_ids = [...assignee_ids, selfAssigneeId];
+	}
 </script>
 
 <div>
@@ -211,6 +218,17 @@
 		/>
 		{:else if selectedAssignees.length === 0}
 			<p class="text-sm text-gray-500 dark:text-gray-400 italic">{$_('taskForm__unassigned')}</p>
+		{/if}
+
+		{#if selfAssigneeId != null && !isSelfAssigned}
+			<button
+				type="button"
+				on:click={assignSelf}
+				class="mt-1.5 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary border border-primary/30 rounded-lg hover:bg-primary/10 transition-colors"
+			>
+				<User size={14} />
+				{$_('taskForm__assign_to_me')}
+			</button>
 		{/if}
 	{/if}
 </div>

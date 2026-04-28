@@ -258,6 +258,7 @@
 	"taskForm__notes_placeholder": "Additional details...",
 	"taskForm__assignee_label": "Assignee",
 	"taskForm__assignee_placeholder": "Select assignee",
+	"taskForm__assign_to_me": "Assign to me",
 	"taskForm__add_assignee": "Add Assignee",
 	"taskForm__new_assignee_name": "Assignee Name",
 	"taskForm__new_assignee_placeholder": "e.g., John, Jane...",

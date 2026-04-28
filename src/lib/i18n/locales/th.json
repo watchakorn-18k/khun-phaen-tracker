@@ -257,6 +257,7 @@
 	"taskForm__notes_placeholder": "รายละเอียดเพิ่มเติม...",
 	"taskForm__assignee_label": "ผู้รับผิดชอบ",
 	"taskForm__assignee_placeholder": "เลือกผู้รับผิดชอบ",
+	"taskForm__assign_to_me": "Assign ให้ฉัน",
 	"taskForm__add_assignee": "เพิ่มผู้รับผิดชอบ",
 	"taskForm__new_assignee_name": "ชื่อผู้รับผิดชอบ",
 	"taskForm__new_assignee_placeholder": "เช่น สมชาย, สมหญิง...",

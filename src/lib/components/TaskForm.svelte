@@ -89,7 +89,6 @@
   let category = "งานหลัก";
   let notes = "";
   let assignee_ids: (string | number)[] = [];
-  let assignee_id_to_add: string | number | null = null;
   let assigneeGroups: AssigneeGroup[] = [];
   let sprint_id: string | number | null = null;
   let checklist: ChecklistItem[] = [];
@@ -177,15 +176,6 @@
     displayTaskNumber && workspaceBadgePrefix
       ? `${workspaceBadgePrefix}-${displayTaskNumber}`
       : "";
-  const isSameId = (
-    a: string | number | null | undefined,
-    b: string | number | null | undefined,
-  ) =>
-    a !== null &&
-    a !== undefined &&
-    b !== null &&
-    b !== undefined &&
-    String(a) === String(b);
   $: currentProjectRepoUrl = (() => {
     if (!project) return "";
     const matched = projects.find((p) => p.name === project);
@@ -244,7 +234,6 @@
 
     nextTaskNumber = null;
 
-    assignee_id_to_add = null;
     showBranchDialog = false;
     commentContent = "";
     setCommentFiles([]);
@@ -1015,16 +1004,6 @@
     if (!title.trim()) return;
     if (!date) return;
 
-    console.log('🔍 Before submit - assignee_ids:', assignee_ids);
-
-    if (
-      assignee_id_to_add !== null &&
-      !assignee_ids.some((id) => isSameId(id, assignee_id_to_add))
-    ) {
-      assignee_ids = [...assignee_ids, assignee_id_to_add];
-    }
-
-    console.log('🔍 After add check - assignee_ids:', assignee_ids);
     if (!editingTask) {
       const firstAssigneeAsNumber =
         assignee_ids.length > 0 ? Number(assignee_ids[0]) : null;
@@ -1049,7 +1028,7 @@
       status,
       category,
       notes: notes.trim(),
-      assignee_ids: assignee_ids.length > 0 ? assignee_ids : null,
+      assignee_ids: assignee_ids.length > 0 ? assignee_ids : undefined,
       assignee_id: assignee_ids.length > 0 ? assignee_ids[0] : null,
       sprint_id,
       checklist: checklist.length > 0 ? checklist : undefined,
@@ -1354,8 +1333,12 @@
                   {assignees}
                   {assigneeGroups}
                   bind:assignee_ids
-                  bind:assignee_id_to_add
                   readonly={!isOwner}
+                  selfAssigneeId={(() => {
+                    const uid = $user?.id || $user?.user_id;
+                    if (!uid) return null;
+                    return assignees.find((a) => a.user_id && String(a.user_id) === String(uid))?.id ?? null;
+                  })()}
                   on:addAssignee={handleAddAssignee}
                 />
 

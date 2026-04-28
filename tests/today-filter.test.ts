@@ -560,12 +560,12 @@ async function seedTodayFilterData() {
   // (addTask doesn't include updated_at in INSERT, DB defaults to created_at = now)
   const findTask = (id: number | string) =>
     state.tasks.find((t) => Number(t.id) === Number(id));
-  findTask(t1.id)!.updated_at = `${yesterday}T10:00:00.000Z`;
-  findTask(t2.id)!.updated_at = `${today}T08:00:00.000Z`;
-  findTask(t3.id)!.updated_at = `${today}T09:00:00.000Z`;
-  findTask(t4.id)!.updated_at = `${today}T14:00:00.000Z`;
-  findTask(t5.id)!.updated_at = `${yesterday}T16:00:00.000Z`;
-  findTask(t6.id)!.updated_at = `${today}T12:00:00.000Z`;
+  findTask(t1.id!)!.updated_at = `${yesterday}T10:00:00.000Z`;
+  findTask(t2.id!)!.updated_at = `${today}T08:00:00.000Z`;
+  findTask(t3.id!)!.updated_at = `${today}T09:00:00.000Z`;
+  findTask(t4.id!)!.updated_at = `${today}T14:00:00.000Z`;
+  findTask(t5.id!)!.updated_at = `${yesterday}T16:00:00.000Z`;
+  findTask(t6.id!)!.updated_at = `${today}T12:00:00.000Z`;
 
   return { t1, t2, t3, t4, t5, t6 };
 }

@@ -753,16 +753,16 @@ describe("task features", () => {
       ),
     ).toEqual([t3.id]);
 
-    const byId = await getTaskById(t1.id);
+    const byId = await getTaskById(t1.id!);
     expect(byId?.title).toBe("Task 1");
 
-    await updateTask(t1.id, {
+    await updateTask(t1.id!, {
       status: "done",
       notes: "edited",
       is_archived: true,
     });
-    expect((await getTaskById(t1.id))?.status).toBe("done");
-    expect((await getTaskById(t1.id))?.is_archived).toBe(true);
+    expect((await getTaskById(t1.id!))?.status).toBe("done");
+    expect((await getTaskById(t1.id!))?.is_archived).toBe(true);
 
     const sprintTasks = await getTasksBySprint(11);
     expect(sprintTasks).toHaveLength(2);
@@ -777,7 +777,7 @@ describe("task features", () => {
     expect(syncStats.total).toBe(3);
     expect(syncStats.byStatus.done).toBe(2);
 
-    await deleteTask(t2.id);
+    await deleteTask(t2.id!);
     expect(
       (await getTasks({ includeArchived: true })).map((t) => t.id),
     ).toEqual([t3.id, t1.id]);
@@ -807,10 +807,10 @@ describe("project and assignee features", () => {
     const core = (await getProjectsList()).find((p) => p.name === "Core");
     expect(core).toBeTruthy();
     await updateProject(core!.id!, { name: "CoreX" });
-    expect((await getTaskById(t1.id))?.project).toBe("CoreX");
+    expect((await getTaskById(t1.id!))?.project).toBe("CoreX");
 
     await deleteProject(core!.id!);
-    expect((await getTaskById(t1.id))?.project).toBe("");
+    expect((await getTaskById(t1.id!))?.project).toBe("");
   });
 
   it("covers assignee CRUD/stats and detach tasks on delete", async () => {
@@ -830,7 +830,7 @@ describe("project and assignee features", () => {
     );
 
     await deleteAssignee(aliceId!);
-    expect((await getTaskById(t1.id))?.assignee_id).toBeNull();
+    expect((await getTaskById(t1.id!))?.assignee_id).toBeNull();
   });
 });
 
