@@ -1163,4 +1163,34 @@ impl DataRepository {
             .find_one(doc! { "_id": id, "workspace_id": workspace_id }, None)
             .await
     }
+
+    pub async fn archive_completed_sprint_tasks(
+        &self,
+        workspace_id: &ObjectId,
+        sprint_id: &ObjectId,
+    ) -> mongodb::error::Result<u64> {
+        let filter = doc! {
+            "workspace_id": workspace_id,
+            "sprint_id": sprint_id.to_hex(),
+            "status": "done"
+        };
+        let update = doc! { "$set": { "is_archived": true, "updated_at": chrono::Utc::now().to_rfc3339() } };
+        let res = self.tasks.update_many(filter, update, None).await?;
+        Ok(res.modified_count)
+    }
+
+    pub async fn move_incomplete_sprint_tasks(
+        &self,
+        workspace_id: &ObjectId,
+        sprint_id: &ObjectId,
+    ) -> mongodb::error::Result<u64> {
+        let filter = doc! {
+            "workspace_id": workspace_id,
+            "sprint_id": sprint_id.to_hex(),
+            "status": { "$ne": "done" }
+        };
+        let update = doc! { "$set": { "sprint_id": Bson::Null, "updated_at": chrono::Utc::now().to_rfc3339() } };
+        let res = self.tasks.update_many(filter, update, None).await?;
+        Ok(res.modified_count)
+    }
 }

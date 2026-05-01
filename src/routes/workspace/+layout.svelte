@@ -243,15 +243,26 @@
           </div>
           <div class="mt-1 space-y-0.5">
             <a
-              href={workspaceHref}
+              href="{base}/workspace/{workspaceId}/overview{$page.url.search}"
               class="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm transition-colors {isActive(
-                `${base}/workspace/${workspaceId}`,
+                `${base}/workspace/${workspaceId}/overview`,
               )
                 ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-medium'
                 : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'}"
             >
+              <LayoutDashboard size={16} class="shrink-0" />
+              <span>{$_("sidebar__overview")}</span>
+            </a>
+            <a
+              href={workspaceHref}
+              class="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm transition-colors {isActive(
+                `${base}/workspace/${workspaceId}`,
+              ) && !currentPath.includes('/overview')
+                ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-medium'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'}"
+            >
               <ListTodo size={16} class="shrink-0" />
-              <span>Issues</span>
+              <span>{$_("sidebar__issues")}</span>
             </a>
           </div>
         </div>

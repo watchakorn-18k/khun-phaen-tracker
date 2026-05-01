@@ -237,51 +237,51 @@ async fn main() {
             "/api/workspaces/access/:room_code",
             get(handlers::workspace_handler::check_workspace_access_handler),
         )
-        .route("/api/my/tasks", get(handlers::data_handler::list_my_tasks))
+        .route("/api/my/tasks", get(handlers::task_handler::list_my_tasks))
         // Data routes (workspace-scoped)
         .route(
             "/api/workspaces/:ws_id/tasks",
-            get(handlers::data_handler::list_tasks),
+            get(handlers::task_handler::list_tasks),
         )
         .route(
             "/api/workspaces/:ws_id/tasks/next-number",
-            get(handlers::data_handler::get_next_task_number),
+            get(handlers::task_handler::get_next_task_number),
         )
         .route(
             "/api/workspaces/:ws_id/tasks",
-            post(handlers::data_handler::create_task),
+            post(handlers::task_handler::create_task),
         )
         .route(
             "/api/workspaces/:ws_id/tasks/:task_id",
-            put(handlers::data_handler::update_task),
+            put(handlers::task_handler::update_task),
         )
         .route(
             "/api/workspaces/:ws_id/tasks/:task_id",
-            delete(handlers::data_handler::delete_task),
+            delete(handlers::task_handler::delete_task),
         )
         .route(
             "/api/workspaces/:ws_id/tasks/:task_id/comments",
-            get(handlers::data_handler::list_task_comments),
+            get(handlers::comment_handler::list_task_comments),
         )
         .route(
             "/api/workspaces/:ws_id/tasks/:task_id/comments",
-            post(handlers::data_handler::create_task_comment),
+            post(handlers::comment_handler::create_task_comment),
         )
         .route(
             "/api/workspaces/:ws_id/tasks/:task_id/comments/:comment_id",
-            put(handlers::data_handler::update_task_comment),
+            put(handlers::comment_handler::update_task_comment),
         )
         .route(
             "/api/workspaces/:ws_id/tasks/:task_id/comments/:comment_id",
-            delete(handlers::data_handler::delete_task_comment),
+            delete(handlers::comment_handler::delete_task_comment),
         )
         .route(
             "/api/workspaces/:ws_id/tasks/:task_id/comments/:comment_id/reactions",
-            post(handlers::data_handler::toggle_task_comment_reaction),
+            post(handlers::comment_handler::toggle_task_comment_reaction),
         )
         .route(
             "/api/workspaces/:ws_id/tasks/:task_id/comments/:comment_id/images",
-            get(handlers::data_handler::list_comment_images),
+            get(handlers::comment_handler::list_comment_images),
         )
         .route(
             "/api/workspaces/:ws_id/tasks/:task_id/attachments",
@@ -297,76 +297,76 @@ async fn main() {
         )
         .route(
             "/api/workspaces/:ws_id/daily-report",
-            get(handlers::data_handler::daily_report),
+            get(handlers::workspace_handler::daily_report),
         )
         .route(
             "/api/workspaces/:ws_id/projects",
-            get(handlers::data_handler::list_projects),
+            get(handlers::project_handler::list_projects),
         )
         .route(
             "/api/workspaces/:ws_id/projects/stats",
-            get(handlers::data_handler::get_project_stats),
+            get(handlers::project_handler::get_project_stats),
         )
         .route(
             "/api/workspaces/:ws_id/projects",
-            post(handlers::data_handler::create_project),
+            post(handlers::project_handler::create_project),
         )
         .route(
             "/api/workspaces/:ws_id/projects/:project_id",
-            put(handlers::data_handler::update_project),
+            put(handlers::project_handler::update_project),
         )
         .route(
             "/api/workspaces/:ws_id/projects/:project_id",
-            delete(handlers::data_handler::delete_project),
+            delete(handlers::project_handler::delete_project),
         )
         .route(
             "/api/workspaces/:ws_id/assignees",
-            get(handlers::data_handler::list_assignees),
+            get(handlers::assignee_handler::list_assignees),
         )
         .route(
             "/api/workspaces/:ws_id/assignees/stats",
-            get(handlers::data_handler::get_assignee_stats),
+            get(handlers::assignee_handler::get_assignee_stats),
         )
         .route(
             "/api/workspaces/:ws_id/assignees",
-            post(handlers::data_handler::create_assignee),
+            post(handlers::assignee_handler::create_assignee),
         )
         .route(
             "/api/workspaces/:ws_id/assignees/:assignee_id",
-            put(handlers::data_handler::update_assignee),
+            put(handlers::assignee_handler::update_assignee),
         )
         .route(
             "/api/workspaces/:ws_id/assignees/:assignee_id",
-            delete(handlers::data_handler::delete_assignee),
+            delete(handlers::assignee_handler::delete_assignee),
         )
         .route(
             "/api/workspaces/:ws_id/assignee-groups",
-            get(handlers::data_handler::list_assignee_groups),
+            get(handlers::assignee_handler::list_assignee_groups),
         )
         .route(
             "/api/workspaces/:ws_id/assignee-groups",
-            post(handlers::data_handler::create_assignee_group),
+            post(handlers::assignee_handler::create_assignee_group),
         )
         .route(
             "/api/workspaces/:ws_id/assignee-groups/:group_id",
-            put(handlers::data_handler::update_assignee_group)
-                .delete(handlers::data_handler::delete_assignee_group),
+            put(handlers::assignee_handler::update_assignee_group)
+                .delete(handlers::assignee_handler::delete_assignee_group),
         )
         .route(
             "/api/workspaces/:ws_id/sprints",
-            get(handlers::data_handler::list_sprints),
+            get(handlers::sprint_handler::list_sprints),
         )
         .route(
             "/api/workspaces/:ws_id/sprints",
-            post(handlers::data_handler::create_sprint),
+            post(handlers::sprint_handler::create_sprint),
         )
         .route(
             "/api/workspaces/:ws_id/sprints/:sprint_id",
-            put(handlers::data_handler::update_sprint),
+            put(handlers::sprint_handler::update_sprint),
         )
         .route(
             "/api/workspaces/:ws_id/sprints/:sprint_id",
-            delete(handlers::data_handler::delete_sprint),
+            delete(handlers::sprint_handler::delete_sprint),
         )
         .route(
             "/api/workspaces/:ws_id/milestones",

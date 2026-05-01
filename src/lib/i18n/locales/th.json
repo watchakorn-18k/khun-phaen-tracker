@@ -46,6 +46,8 @@
 	"page__my_tasks": "งานของฉัน",
 	"page__sprint": "สปรินต์",
 	"page__summary_30_days": "สรุป 30 วัน",
+	"sidebar__overview": "ภาพรวม",
+	"sidebar__issues": "รายการงาน",
 	"page__add_task": "เพิ่มงาน",
 	"page__tab_settings": "ตั้งค่าแท็บ",
 	"page__filter_start_date": "Start Date ตั้งแต่",
@@ -230,6 +232,15 @@
 	"statsPanel__done": "เสร็จแล้ว",
 	"statsPanel__in_test": "กำลังทดสอบ",
 	"statsPanel__workspace": "เวิร์กสเปซ",
+	"overview__welcome_subtitle": "ข้อมูลวิเคราะห์โครงการและประสิทธิภาพทีมแบบเรียลไทม์",
+	"overview__project_status": "ความคืบหน้าโครงการ",
+	"overview__overall_completion": "ภาพรวมความสำเร็จ",
+	"overview__overdue": "เกินกำหนด",
+	"overview__team_activity": "กิจกรรมในทีม",
+	"overview__tasks": "งาน",
+	"overview__view_all_issues": "ดูรายการงานทั้งหมด",
+	"overview__active_projects": "โปรเจกต์ที่กำลังดำเนินการ",
+	"overview__project_health": "สุขภาพของโครงการ",
 	"statsPanel__switch_workspace": "สลับเวิร์กสเปซ",
 	"statsPanel__hours_short": "ชม",
 	"statsPanel__minutes_short": "นาที",
@@ -1258,5 +1269,7 @@
 	"page__view_calendar": "มุมมองปฏิทิน (Calendar)",
 	"page__view_table": "มุมมองตารางขั้นสูง (Table)",
 	"page__view_gantt": "มุมมองแผนงาน (Gantt)",
-	"page__btn_theme": "สลับธีม"
+	"page__btn_theme": "สลับธีม",
+	"sidebar__issues": "กระดานงานโครงการ",
+	"sidebar__overview": "ภาพรวมโครงการ"
 }

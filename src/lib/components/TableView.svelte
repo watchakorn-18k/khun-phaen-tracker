@@ -76,7 +76,7 @@
   let expandedMobileCards: Set<string | number> = new Set();
   let expandedChecklists: Set<string | number> = new Set();
 
-  const COL_WIDTHS_KEY = "tableView_colWidths";
+  const COL_WIDTHS_KEY = "tableView_colWidths_v2";
   type ColumnKey =
     | "title"
     | "project"
@@ -87,10 +87,10 @@
     | "date";
   type ColumnWidths = Record<ColumnKey, number>;
   const defaultColWidths: ColumnWidths = {
-    title: 280,
+    title: 200,
     project: 120,
     category: 100,
-    assignee: 150,
+    assignee: 130,
     sprint: 110,
     status: 100,
     date: 100,

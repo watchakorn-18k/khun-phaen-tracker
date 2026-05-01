@@ -176,11 +176,16 @@
     !isMyTasksWorkspace && $currentWorkspaceOwnerId && $user?.id
       ? $currentWorkspaceOwnerId === $user.id
       : false;
+  $: isAdminOrOwner = isOwner || $user?.role === "admin";
 
   import { tabSettings } from "$lib/stores/tabSettings";
+  $: restrictedTabIds = [
+    ...(isMyTasksWorkspace ? ["workload"] : []),
+    ...(!isAdminOrOwner && !isMyTasksWorkspace ? ["gantt", "workload"] : []),
+  ] as import("$lib/stores/tabSettings").TabId[];
   $: visibleTabs = $tabSettings
     .filter((t) => t.enabled !== false)
-    .filter((t) => !(isMyTasksWorkspace && t.id === "workload"))
+    .filter((t) => !restrictedTabIds.includes(t.id))
     .map((t) => ({ id: t.id, icon: t.icon }));
 
   $: if (browser && $hasAccess && !$checkingAccess && $filters) {
@@ -432,7 +437,7 @@
       {visibleTabs}
       isTabSettingsOpen={$modals.tabSettings}
       showAddTask={!isMyTasksWorkspace}
-      hiddenTabIds={isMyTasksWorkspace ? ["workload"] : []}
+      hiddenTabIds={restrictedTabIds}
       on:switchView={(e) => viewActions.switchView(e.detail)}
       on:toggleTabSettings={() => uiActions.toggleModal("tabSettings")}
       on:closeTabSettings={() => uiActions.closeModal("tabSettings")}

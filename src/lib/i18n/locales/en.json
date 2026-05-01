@@ -46,6 +46,8 @@
 	"page__my_tasks": "My Tasks",
 	"page__sprint": "Sprint",
 	"page__summary_30_days": "Report 1M",
+	"sidebar__overview": "Overview",
+	"sidebar__issues": "Issues",
 	"page__add_task": "Add Task",
 	"page__tab_settings": "Tab Settings",
 	"page__filter_start_date": "Start Date From",
@@ -231,6 +233,15 @@
 	"statsPanel__done": "Done",
 	"statsPanel__in_test": "In Test",
 	"statsPanel__workspace": "Workspace",
+	"overview__welcome_subtitle": "Real-time project insights and team performance",
+	"overview__project_status": "Project Progress",
+	"overview__overall_completion": "Overall Completion",
+	"overview__overdue": "Overdue",
+	"overview__team_activity": "Team Activity",
+	"overview__tasks": "tasks",
+	"overview__view_all_issues": "View All Issues",
+	"overview__active_projects": "Active Projects",
+	"overview__project_health": "Project Health",
 	"statsPanel__switch_workspace": "Switch Workspace",
 	"statsPanel__hours_short": "h",
 	"statsPanel__minutes_short": "m",
@@ -1245,5 +1256,7 @@
 	"page__view_calendar": "Calendar View",
 	"page__view_table": "Advanced Table",
 	"page__view_gantt": "Gantt Chart",
-	"page__btn_theme": "Toggle Theme"
+	"page__btn_theme": "Toggle Theme",
+	"sidebar__issues": "Workspace Board",
+	"sidebar__overview": "Overview"
 }

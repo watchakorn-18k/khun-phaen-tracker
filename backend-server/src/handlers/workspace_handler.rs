@@ -7,6 +7,7 @@ use axum_extra::extract::cookie::CookieJar;
 
 use crate::handlers::auth_handler::extract_user_id;
 use crate::models::workspace::{CreateWorkspaceRequest, UpdateWorkspaceRequest};
+use crate::handlers::common::verify_workspace_access;
 use crate::repositories::data_repo::DataRepository;
 use crate::repositories::room_repo::RoomRepository;
 use crate::repositories::workspace_repo::WorkspaceRepository;
@@ -545,6 +546,32 @@ pub async fn update_notification_config_handler(
         Err(e) => (
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
             axum::Json(serde_json::json!({ "error": e })),
+        )
+            .into_response(),
+    }
+}
+
+pub async fn daily_report(
+    State(state): State<SharedState>,
+    Path(ws_id): Path<String>,
+    headers: HeaderMap,
+    jar: CookieJar,
+) -> axum::response::Response {
+    let ws_oid = match verify_workspace_access(&state, &headers, &jar, &ws_id).await {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+
+    let repo = DataRepository::new(&state.db);
+    match repo.find_daily_report_tasks(&ws_oid).await {
+        Ok(tasks) => axum::Json(serde_json::json!({
+            "success": true,
+            "tasks": tasks
+        }))
+        .into_response(),
+        Err(e) => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            axum::Json(serde_json::json!({ "error": format!("{}", e) })),
         )
             .into_response(),
     }
