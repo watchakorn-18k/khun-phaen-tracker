@@ -13,6 +13,7 @@
 	export let assigneeGroups: AssigneeGroup[] = [];
 	export let assignee_ids: (string | number)[] = [];
 	export let readonly = false;
+	export let minimal = false;
 	export let selfAssigneeId: string | number | null = null;
 	let showAddAssigneeForm = false;
 	let newAssigneeName = '';
@@ -124,10 +125,12 @@
 </script>
 
 <div>
-	<label class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
-		<User size={14} />
-		{$_('taskForm__assignee_label')}
-	</label>
+	{#if !minimal}
+		<label class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
+			<User size={14} />
+			{$_('taskForm__assignee_label')}
+		</label>
+	{/if}
 
 	{#if showAddAssigneeForm}
 		<div class="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg space-y-3">

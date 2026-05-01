@@ -1,11 +1,14 @@
 <script lang="ts">
+	import { createEventDispatcher } from 'svelte';
+	const dispatch = createEventDispatcher();
 	export let id: string = 'select';
 	export let value: string | number | null = 'all';
-	export let options: Array<{ value: string | number | null; label: string; badge?: boolean; badgeColor?: string; disabled?: boolean }> = [];
+	export let options: Array<{ value: string | number | null; label: string; badge?: boolean; badgeColor?: string; disabled?: boolean; icon?: any }> = [];
 	export let placeholder: string = 'ค้นหา...';
 	export let emptyText: string = 'ไม่พบรายการ';
 	export let showSearch: boolean = true;
 	export let maxDisplay: number = 8;
+	export let minimal: boolean = false;
 
 	let isOpen = false;
 	let searchQuery = '';
@@ -32,11 +35,13 @@
 	$: selectedLabel = options.find(opt => isSameValue(opt.value, value))?.label || 'ทั้งหมด';
 	$: selectedBadge = options.find(opt => isSameValue(opt.value, value))?.badge;
 	$: selectedBadgeColor = options.find(opt => isSameValue(opt.value, value))?.badgeColor;
+	$: selectedIcon = options.find(opt => isSameValue(opt.value, value))?.icon;
 
 	function selectOption(optionValue: string | number | null) {
 		value = optionValue;
 		isOpen = false;
 		searchQuery = '';
+		dispatch('select', optionValue);
 	}
 
 	function toggleDropdown() {
@@ -70,16 +75,20 @@
 		on:click={toggleDropdown}
 	>
 		<span class="truncate flex items-center gap-2">
-			{#if selectedBadge}
-				<span class="shrink-0 w-2 h-2 rounded-full {selectedBadgeColor || 'bg-gray-400'}"></span>
+			{#if selectedIcon}
+				<span class="shrink-0 flex items-center justify-center">
+					<svelte:component this={selectedIcon} size={14} class="shrink-0" />
+				</span>
 			{/if}
-			<span class={String(value) === 'all' || value === null ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'}>
+			<span class={String(value) === 'all' || value === null || value === '' ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'}>
 				{selectedLabel}
 			</span>
 		</span>
-		<svg class="w-4 h-4 text-gray-400 shrink-0 ml-2 transition-transform duration-200 {isOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-		</svg>
+		{#if !minimal}
+			<svg class="w-4 h-4 text-gray-400 shrink-0 ml-2 transition-transform duration-200 {isOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+			</svg>
+		{/if}
 	</button>
 
 	<!-- Dropdown -->
@@ -121,11 +130,17 @@
 								class="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors {isSameValue(value, option.value) ? 'bg-primary/10 text-primary font-medium' : 'text-gray-900 dark:text-gray-100'}"
 								on:click={() => selectOption(option.value)}
 							>
-								{#if option.badge}
-									{#if option.badgeColor?.startsWith('#')}
-										<span class="shrink-0 w-2 h-2 rounded-full" style="background-color: {option.badgeColor}"></span>
-									{:else}
-										<span class="shrink-0 w-2 h-2 rounded-full {option.badgeColor || 'bg-gray-400'}"></span>
+								{#if option.icon}
+									<span class="shrink-0 flex items-center justify-center">
+										<svelte:component this={option.icon} size={14} class="shrink-0" />
+									</span>
+								{:else}
+									{#if option.badge}
+										{#if option.badgeColor?.startsWith('#')}
+											<span class="shrink-0 w-2 h-2 rounded-full" style="background-color: {option.badgeColor}"></span>
+										{:else}
+											<span class="shrink-0 w-2 h-2 rounded-full {option.badgeColor || 'bg-gray-400'}"></span>
+										{/if}
 									{/if}
 								{/if}
 								<span class="truncate flex-1">{option.label}</span>

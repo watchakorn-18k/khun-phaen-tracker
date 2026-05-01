@@ -128,39 +128,23 @@
     } catch (e) {}
   }
 
-  function openTaskModal(task: Task) {
-    const latestTask =
-      $tasks.find((t) => String(t.id) === String(task?.id)) ||
-      $allTasksIncludingArchived.find((t) => String(t.id) === String(task?.id)) ||
-      task;
-
-    suppressTaskAutoOpen = false;
-    $editingTask = latestTask;
-    uiActions.openModal("form");
-    updateUrlTask(latestTask?.id);
+  function openTaskPage(task: Task) {
+    const wsId = $page.params.workspace_id;
+    const urlRoom = $page.url.searchParams.get("room");
+    const roomParam = urlRoom ? `?room=${urlRoom}` : "";
+    goto(`${base}/workspace/${wsId}/task/${task.id}${roomParam}`);
   }
 
-  // Auto-open task from URL
+  // Auto-redirect task from old URL format to new page
   $: if (browser && !$loadingData && $allTasksIncludingArchived.length > 0) {
     const urlTaskId = $page.url.searchParams.get("task");
-    if (urlTaskId && !$editingTask && suppressTaskAutoOpen) {
-      // Skip re-open while closing modal and waiting for URL to clear.
-    } else if (
-      urlTaskId &&
-      (!$editingTask || String($editingTask.id) !== urlTaskId)
-    ) {
+    if (urlTaskId) {
       const task = $allTasksIncludingArchived.find(
         (t) => String(t.id) === urlTaskId,
       );
       if (task) {
-        openTaskModal(task);
+        openTaskPage(task);
       }
-    } else if (!urlTaskId && $modals.form && $editingTask) {
-      suppressTaskAutoOpen = false;
-      uiActions.closeModal("form");
-      $editingTask = null;
-    } else if (!urlTaskId) {
-      suppressTaskAutoOpen = false;
     }
   }
 
@@ -462,7 +446,7 @@
       assignees={$assignees}
       on:statusChange={(e) => taskActions.handleStatusChange(e)}
       on:edit={(e) => {
-        void openTaskModal(e.detail);
+        void openTaskPage(e.detail);
       }}
       on:delete={(e) => taskActions.handleDeleteTask(e)}
       on:dragState={(e) => (isKanbanDragging = e.detail)}
@@ -546,7 +530,7 @@
       toggleTheme={() => theme.toggle()}
       switchView={(v) => viewActions.switchView(v)}
       openTask={(t) => {
-        void openTaskModal(t);
+        void openTaskPage(t);
       }}
       createTask={() => {
         if (isMyTasksWorkspace) return;

@@ -42,3 +42,4 @@ src/stories/
 .claude/settings.local.json
 backend-server/.env
 .svelte-check.txt
+multica

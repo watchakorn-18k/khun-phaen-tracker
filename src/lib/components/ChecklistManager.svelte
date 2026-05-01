@@ -251,8 +251,8 @@
 <div class="space-y-4">
   <div class="flex items-center justify-between">
     <div class="flex items-center gap-2">
-      <ListTodo size={18} class="text-gray-700 dark:text-gray-300" />
-      <span class="text-sm font-bold text-gray-900 dark:text-white"
+      <ListTodo size={16} class="text-gray-500" />
+      <span class="text-xs font-bold text-gray-400 uppercase tracking-wider"
         >{$_("taskForm__checklist_label")}</span
       >
     </div>
@@ -260,7 +260,7 @@
       <button
         type="button"
         on:click={openTemplates}
-        class="flex items-center gap-2 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/10 rounded-xl border border-primary/30 transition-all active:scale-95 shadow-xs shadow-primary/10 hover:shadow-primary/20 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm"
+        class="flex items-center gap-2 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-white hover:bg-white/10 rounded-xl border border-white/10 transition-all active:scale-95 shadow-sm bg-white/5 backdrop-blur-sm"
       >
         <ClipboardList
           size={14}
@@ -274,8 +274,8 @@
           type="button"
           on:click={toggleSelectMode}
           class="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all active:scale-95 {checklistSelectMode
-            ? 'text-white bg-linear-to-r from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-500/20'
-            : 'text-gray-500 hover:text-gray-900 hover:bg-white dark:hover:text-gray-200 dark:hover:bg-gray-800 border-2 border-transparent hover:border-gray-100 dark:hover:border-gray-700'}"
+            ? 'text-white bg-white/20 ring-1 ring-white/30'
+            : 'text-gray-500 hover:text-white hover:bg-white/10'}"
         >
           {checklistSelectMode
             ? $_("checklistManager__select_mode_done")
@@ -330,20 +330,16 @@
   <div class="space-y-2">
     <div class="flex items-center gap-3">
       <span
-        class="text-[10px] font-black w-7 {progress === 100
-          ? 'text-green-500'
-          : 'text-primary'}">{progress}%</span
+        class="text-[10px] font-black w-7 text-gray-500">{progress}%</span
       >
       <div
         class="flex-1 h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden shadow-inner font-bold"
       >
         <div
-          class="h-full bg-linear-to-r from-primary to-indigo-500 rounded-full w-full opacity-50"
+          class="h-full bg-white/10 rounded-full w-full"
         ></div>
         <div
-          class="h-full transition-all duration-700 ease-out {progress === 100
-            ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.3)]'
-            : 'bg-primary shadow-[0_0_10px_rgba(var(--primary-rgb),0.3)]'}"
+          class="h-full transition-all duration-700 ease-out bg-white/40"
           style="width: {progress}%"
         ></div>
       </div>
@@ -376,7 +372,7 @@
           <button
             type="button"
             on:click={() => toggleChecklistItem(item.id)}
-            class="mt-0.5 w-5 h-5 flex items-center justify-center rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-primary transition-all shrink-0 bg-white dark:bg-gray-900"
+            class="mt-0.5 w-5 h-5 flex items-center justify-center rounded-lg border-2 border-white/10 hover:border-white/30 transition-all shrink-0 bg-white/5"
           >
             {#if item.completed}
               <Check size={12} strokeWidth={4} class="text-primary" />
@@ -460,7 +456,7 @@
       <button
         type="button"
         on:click={() => (isAddingChecklistItem = true)}
-        class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-xl transition-all shadow-sm active:scale-95 group"
+        class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-400 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all shadow-sm active:scale-95 group"
       >
         <div
           class="w-5 h-5 rounded-full bg-gray-100 dark:bg-gray-900 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors"
@@ -472,7 +468,7 @@
       <button
         type="button"
         on:click={openBulkAddModal}
-        class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20 rounded-xl transition-all active:scale-95"
+        class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-400 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all active:scale-95"
       >
         <ListTodo size={14} />
         {$_("checklistManager__add_multiple")}
@@ -506,7 +502,7 @@
             if (newChecklistItem.trim()) addChecklistItem();
             else isAddingChecklistItem = false;
           }}
-          class="px-5 py-2 bg-primary hover:bg-primary-dark text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-primary/20 active:scale-95"
+          class="px-5 py-2 bg-white/20 hover:bg-white/30 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-black/20 active:scale-95"
         >
           {$_("checklistManager__add_item")}
         </button>
@@ -584,7 +580,7 @@
         <button
           type="button"
           on:click={addChecklistItemsFromBulkText}
-          class="px-4 py-2 text-sm font-bold text-white bg-primary hover:bg-primary-dark rounded-xl transition-colors"
+          class="px-4 py-2 text-sm font-bold text-white bg-white/20 hover:bg-white/30 rounded-xl transition-colors"
         >
           {$_("checklistManager__bulk_modal_add")}
         </button>

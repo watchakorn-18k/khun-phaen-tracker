@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher, onDestroy, onMount } from "svelte";
+  import { createEventDispatcher, onDestroy, onMount, tick } from "svelte";
   import { browser } from "$app/environment";
   import { API_BASE_URL } from "$lib/apis";
   import {
@@ -46,12 +46,15 @@
     GitPullRequest,
     Image as ImageIcon,
     Link,
-    Maximize,
+    Maximize2,
+    Minimize2,
     MessageCircle,
+    Paperclip,
     RotateCcw,
     RotateCw,
     Send,
     Smile,
+    ArrowLeftRight,
     Tag,
     Trash2,
     X,
@@ -96,6 +99,8 @@
   let showBranchDialog = false;
   let formInitKey = "closed";
   let copySuccess = false;
+  let showTaskSuccessModal = false;
+  let isExpanded = false;
   let nextTaskNumber: number | null = null;
 
   let comments: TaskComment[] = [];
@@ -145,6 +150,7 @@
   let dragStartOffsetX = 0;
   let dragStartOffsetY = 0;
   let copyFeedback = "";
+  let createAnother = false;
   let reactionPickerForCommentId: string | null = null;
   let reactionUpdatingByComment: Record<string, boolean> = {};
   const commentReactionEmojis = [
@@ -1033,8 +1039,20 @@
       sprint_id,
       checklist: checklist.length > 0 ? checklist : undefined,
     });
-    // Close immediately for optimistic UX; parent continues async save.
-    dispatch("close");
+
+    if (createAnother && !editingTask) {
+      title = "";
+      notes = "";
+      checklist = [];
+      // Focus title input again
+      tick().then(() => {
+        const titleInput = document.getElementById("title");
+        titleInput?.focus();
+      });
+    } else {
+      // Close immediately for optimistic UX; parent continues async save.
+      dispatch("close");
+    }
   }
 
   function handleClose() {
@@ -1108,250 +1126,166 @@
 
 {#if show}
   <div
-    class="fixed inset-0 bg-black/35 backdrop-blur-sm z-20000 pointer-events-none m-0!"
+    class="fixed inset-0 bg-black/40 backdrop-blur-sm z-20000 pointer-events-none m-0!"
   ></div>
   <div
-    class="fixed inset-0 z-20000 overflow-y-auto m-0!"
+    class="fixed inset-0 z-20000 overflow-y-auto m-0! flex items-center justify-center p-4"
     on:click|self={handleClose}
     on:keydown|self={(e) => e.key === "Escape" && handleClose()}
     role="button"
     tabindex="-1"
   >
-    <div class="flex min-h-full items-center justify-center p-4">
-      <div
-        class="bg-white dark:bg-[#1a263b] border border-white/10 dark:border-white/10 rounded-xl shadow-2xl {editingTask?.id
-          ? 'max-w-6xl'
-          : 'max-w-2xl'} w-full animate-modal-in relative max-h-[90vh] flex flex-col"
-      >
-        <div
-          class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700"
-        >
-          <h2
-            class="text-lg font-semibold text-gray-800 dark:text-white flex items-center gap-2"
-          >
-            <CheckCircle size={20} class="text-primary" />
-            {editingTask
-              ? $_("taskForm__edit_task_title")
-              : $_("taskForm__add_task_title")}
-            {#if taskNumberBadge}
-              <span
-                class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold tracking-wide bg-primary/10 text-primary border border-primary/20 shrink-0"
-              >
-                {taskNumberBadge}
-              </span>
-            {/if}
-          </h2>
-          <div class="flex items-center gap-2">
-            {#if editingTask?.id}
-              <button
-                type="button"
-                on:click={copyShareLink}
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium {copySuccess
-                  ? 'text-green-600 dark:text-green-400 border-green-300 dark:border-green-600 bg-green-50 dark:bg-green-900/10'
-                  : 'text-blue-600 dark:text-blue-400 border-blue-300 dark:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/10'} border rounded-lg transition-all"
-                title={$_("taskForm__copy_share_link")}
-              >
-                {#if copySuccess}
-                  <Check size={14} />
-                  <span>{$_("taskForm__copied")}</span>
-                {:else}
-                  <Link size={14} />
-                  <span>{$_("taskForm__share")}</span>
-                {/if}
-              </button>
-            {/if}
-            {#if currentProjectRepoUrl}
-              <button
-                type="button"
-                on:click={openPullRequest}
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-600 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors"
-                title={$_("taskForm__open_pull_request")}
-              >
-                <GitPullRequest size={14} />
-                <span>{$_("taskForm__pull_request")}</span>
-                <ExternalLink size={12} class="opacity-60" />
-              </button>
-            {/if}
-            <button
-              type="button"
-              on:click={openBranchDialog}
-              class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              title={$_("taskForm__branch")}
-            >
-              <GitBranch size={14} />
-              <span>{$_("taskForm__branch")}</span>
-            </button>
-            <button
-              type="button"
-              on:click={handleClose}
-              class="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <X size={20} />
-            </button>
-          </div>
+    <div
+      class="bg-[#1c1c1c] dark:bg-[#1c1c1c] border border-white/10 rounded-2xl shadow-2xl {isExpanded ? 'max-w-[95vw] h-[90vh]' : (editingTask?.id
+        ? 'max-w-6xl'
+        : 'max-w-3xl')} w-full animate-modal-in relative max-h-[95vh] flex flex-col overflow-hidden text-[#f5f5f5] transition-all duration-300"
+    >
+      <!-- Header -->
+      <div class="flex items-center justify-between px-5 py-4 shrink-0">
+        <div class="flex items-center gap-2 text-[13px] text-gray-500 font-medium">
+          <span class="hover:text-gray-300 cursor-pointer transition-colors">{$currentWorkspaceName || 'Workspace'}</span>
+          <ChevronRight size={14} class="opacity-30" />
+          <span class="text-gray-400">
+            {editingTask ? $_("taskForm__edit_task_title") : $_("taskForm__breadcrumb_create_manually")}
+          </span>
         </div>
+        <div class="flex items-center gap-1">
+          <button
+            type="button"
+            on:click={() => isExpanded = !isExpanded}
+            class="p-1.5 text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-all"
+            title={isExpanded ? "Collapse" : "Expand"}
+          >
+            {#if isExpanded}
+              <Minimize2 size={16} />
+            {:else}
+              <Maximize2 size={16} />
+            {/if}
+          </button>
+          <button
+            type="button"
+            on:click={handleClose}
+            class="p-1.5 text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-all"
+          >
+            <X size={18} />
+          </button>
+        </div>
+      </div>
 
         <form
           on:submit|preventDefault={handleSubmit}
           class="flex flex-col flex-1 min-h-0"
         >
-          <div class="p-6 overflow-y-auto flex-1 min-h-0 custom-scrollbar">
+          <div class="flex-1 overflow-y-auto px-5 py-2 custom-scrollbar min-h-0">
             <div
               class={editingTask?.id
-                ? "grid grid-cols-1 xl:grid-cols-5 gap-4"
+                ? "grid grid-cols-1 xl:grid-cols-5 gap-4 h-full"
                 : "space-y-4"}
             >
               <div
-                class={editingTask?.id
-                  ? "xl:col-span-3 space-y-4"
-                  : "space-y-4"}
+                class={editingTask?.id ? "xl:col-span-3 space-y-6" : "space-y-6"}
               >
-                <div>
-                  <label
-                    for="title"
-                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                    >{$_("taskForm__task_title_label")}
-                    <span class="text-danger">*</span></label
-                  >
-                  <input
-                    id="title"
-                    type="text"
-                    bind:value={title}
-                    placeholder={$_("taskForm__task_title_placeholder")}
-                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-700 dark:text-white"
-                    required
-                  />
-                </div>
+                <!-- Title -->
+              <div>
+                <input
+                  id="title"
+                  type="text"
+                  bind:value={title}
+                  placeholder={$_("taskForm__task_title_placeholder")}
+                  class="w-full !bg-transparent text-xl font-bold outline-none placeholder:text-gray-600 border-none px-0 py-2 text-white"
+                  required
+                />
+              </div>
 
-                <div class="grid grid-cols-2 gap-4">
-                  <div>
-                    <label
-                      for="project"
-                      class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1"
-                      ><Folder size={14} />{$_(
-                        "taskForm__project_label",
-                      )}</label
-                    >
-                    <SearchableSelect
-                      id="project"
-                      bind:value={project}
-                      options={[
-                        {
-                          value: "",
-                          label: "-- " + $_("taskForm__unassigned") + " --",
-                        },
-                        ...projects.map((proj) => ({
-                          value: proj.name,
-                          label: proj.name,
-                        })),
-                      ]}
-                      placeholder={$_("taskForm__project_placeholder")}
-                    />
-                  </div>
-                  <div>
-                    <label
-                      class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1"
-                      ><Tag size={14} />{$_("taskForm__category_label")}</label
-                    >
-                    <SearchableSelect
-                      bind:value={category}
-                      options={CATEGORIES.map((cat) => ({
-                        value: cat,
-                        label: cat,
-                      }))}
-                      placeholder={$_("taskForm__category_placeholder")}
-                      showSearch={false}
-                    />
-                  </div>
-                </div>
+              <!-- Description -->
+              <div class="min-h-[100px]">
+                <textarea
+                  bind:value={notes}
+                  placeholder={$_("taskForm__notes_placeholder")}
+                  class="w-full !bg-transparent text-[15px] outline-none placeholder:text-gray-600 border-none px-0 resize-none min-h-[100px] text-gray-300 leading-relaxed"
+                ></textarea>
+              </div>
 
-                <div class="grid grid-cols-2 gap-4">
-                  <div>
-                    <label
-                      class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1"
-                      ><Calendar size={14} />{$_(
-                        "taskForm__start_date_label",
-                      )}</label
-                    >
-                    <CustomDatePicker
-                      bind:value={date}
-                      placeholder={$_("taskForm__start_date_placeholder")}
-                      on:select={(e) => (date = e.detail)}
-                    />
-                  </div>
-                  <div>
-                    <label
-                      class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1"
-                      ><Calendar size={14} />{$_(
-                        "taskForm__due_date_label",
-                      )}</label
-                    >
-                    <CustomDatePicker
-                      bind:value={end_date}
-                      placeholder={$_("taskForm__due_date_placeholder")}
-                      on:select={(e) => (end_date = e.detail)}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label
-                    for="status"
-                    class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1"
-                    ><CheckCircle size={14} />{$_("taskForm__status_label")}</label
-                  >
+              <!-- Properties Row -->
+              <div class="flex flex-wrap items-center gap-2 pt-4 pb-2">
+                <!-- Status -->
+                <div class="property-select min-w-[100px]">
                   <SearchableSelect
                     id="status"
                     bind:value={status}
                     options={[
-                      {
-                        value: "pending",
-                        label: $_("taskForm__status_pending"),
-                      },
-                      {
-                        value: "todo",
-                        label: $_("taskForm__status_todo"),
-                      },
-                      {
-                        value: "in-progress",
-                        label: $_("taskForm__status_in_progress"),
-                      },
-                      {
-                        value: "in-test",
-                        label: $_("taskForm__status_in_test"),
-                      },
-                      {
-                        value: "done",
-                        label: $_("taskForm__status_done"),
-                      },
+                      { value: "todo", label: $_("taskForm__status_todo"), badge: true, badgeColor: "bg-gray-500" },
+                      { value: "in-progress", label: $_("taskForm__status_in_progress"), badge: true, badgeColor: "bg-gray-400" },
+                      { value: "in-test", label: $_("taskForm__status_in_test"), badge: true, badgeColor: "bg-gray-400" },
+                      { value: "done", label: $_("taskForm__status_done"), badge: true, badgeColor: "bg-gray-300" },
+                      { value: "pending", label: $_("taskForm__status_pending"), badge: true, badgeColor: "bg-gray-500" },
                     ]}
                     showSearch={false}
+                    minimal={true}
                   />
                 </div>
 
-                <AssigneeSelector
-                  {assignees}
-                  {assigneeGroups}
-                  bind:assignee_ids
-                  readonly={!isOwner}
-                  selfAssigneeId={(() => {
-                    const uid = $user?.id || $user?.user_id;
-                    if (!uid) return null;
-                    return assignees.find((a) => a.user_id && String(a.user_id) === String(uid))?.id ?? null;
-                  })()}
-                  on:addAssignee={handleAddAssignee}
-                />
+                <!-- Priority (Mock for now as it's not in schema yet?) -->
+                <button type="button" class="property-btn">
+                  <div class="w-3 h-[2px] bg-gray-500 rounded-full"></div>
+                  <span>{$_("taskForm__no_priority")}</span>
+                </button>
 
+                <!-- Assignee -->
+                <div class="property-select">
+                  <AssigneeSelector
+                    {assignees}
+                    {assigneeGroups}
+                    bind:assignee_ids
+                    readonly={!isOwner}
+                    minimal={true}
+                    on:addAssignee={handleAddAssignee}
+                  />
+                </div>
+
+                <!-- Due Date -->
+                <div class="property-select min-w-[120px]">
+                  <CustomDatePicker
+                    bind:value={end_date}
+                    placeholder={$_("taskForm__due_date_placeholder")}
+                    on:select={(e) => (end_date = e.detail)}
+                    minimal={true}
+                  />
+                </div>
+
+                <!-- Project -->
+                <div class="property-select min-w-[120px]">
+                  <SearchableSelect
+                    id="project"
+                    bind:value={project}
+                    options={[
+                      { value: "", label: $_("taskForm__no_project") },
+                      ...projects.map((proj) => ({
+                        value: proj.name,
+                        label: proj.name,
+                      })),
+                    ]}
+                    placeholder={$_("taskForm__project_placeholder")}
+                    minimal={true}
+                  />
+                </div>
+                <!-- More Button -->
+                <button type="button" class="property-btn-icon">
+                  <span class="text-lg leading-none mt-[-4px]">...</span>
+                </button>
+              </div>
+              <!-- Checklist -->
+              <div class="pt-4 border-t border-white/5">
                 <ChecklistManager
                   bind:checklist
                   autoDispatch={!!editingTask}
                   on:update={handleChecklistUpdate}
                 />
               </div>
-
+            </div>
               {#if editingTask?.id}
                 <div
-                  class="xl:col-span-2 rounded-xl dark:bg-[#0f1b2d] p-4 space-y-3 h-full min-h-140 xl:max-h-[calc(90vh-11rem)] flex flex-col"
+                  class="xl:col-span-2 p-4 space-y-3 h-full min-h-[560px] xl:max-h-[calc(90vh-11rem)] flex flex-col border-l border-white/5"
                 >
                   <div
                     class="flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-gray-100"
@@ -1379,9 +1313,9 @@
                       on:dragover|preventDefault={handleCommentDragOver}
                       on:dragleave|preventDefault={handleCommentDragLeave}
                       on:drop|preventDefault={handleCommentDrop}
-                      class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-800 dark:text-white transition-colors {commentDropActive
-                        ? 'border-primary bg-primary/8 dark:bg-primary/14'
-                        : 'border-gray-300 dark:border-gray-600'}"
+                      class="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-white/20 outline-none bg-white/5 border-white/5 dark:text-white transition-colors {commentDropActive
+                        ? 'bg-white/10'
+                        : ''}"
                     ></textarea>
                     {#if commentComposerActive || commentContent.trim() || commentFiles.length > 0}
                       <div class="flex items-center gap-3">
@@ -1748,26 +1682,50 @@
           </div>
 
           <div
-            class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700 shrink-0"
+            class="flex items-center justify-between px-5 py-3 border-t border-white/5 shrink-0"
           >
-            <button
-              type="button"
-              on:click={handleClose}
-              class="min-w-24 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
-              >{$_("taskForm__btn_cancel")}</button
-            >
-            <button
-              type="submit"
-              class="min-w-24 bg-primary hover:bg-primary-dark text-white py-2 px-4 rounded-lg font-medium transition-colors"
-              >{editingTask
-                ? $_("taskForm__btn_save")
-                : $_("taskForm__btn_add")}</button
-            >
+            <!-- Left side: Attachments -->
+            <div class="flex items-center">
+              <button
+                type="button"
+                class="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-all"
+                title={$_("taskForm__comments_attach_images")}
+              >
+                <Paperclip size={18} />
+              </button>
+            </div>
+
+            <!-- Right side: Actions -->
+            <div class="flex items-center gap-4">
+              <button
+                type="button"
+                class="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors"
+              >
+                <ArrowLeftRight size={14} />
+                <span>{$_("taskForm__btn_switch_to_agent")}</span>
+              </button>
+
+              <div class="flex items-center gap-2">
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" bind:checked={createAnother} class="sr-only peer" />
+                  <div class="w-8 h-4 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white/20 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-500"></div>
+                  <span class="ml-2 text-[13px] text-gray-400">{$_("taskForm__create_another")}</span>
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                class="bg-indigo-600 hover:bg-indigo-500 text-white py-2 px-6 rounded-xl text-[13px] font-bold transition-all active:scale-95 shadow-lg shadow-indigo-500/25 border border-indigo-400/20"
+              >
+                {editingTask
+                  ? $_("taskForm__btn_save")
+                  : $_("taskForm__btn_create_issue")}
+              </button>
+            </div>
           </div>
         </form>
       </div>
     </div>
-  </div>
 
   <BranchDialog
     bind:show={showBranchDialog}
@@ -1827,7 +1785,7 @@
           class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors"
           title={$_("taskForm__comments_lightbox_fit")}
         >
-          <Maximize size={18} />
+          <Maximize2 size={18} />
         </button>
         <button
           type="button"
@@ -1980,6 +1938,8 @@
 {/if}
 
 <style>
+  @reference "../../app.css";
+
   @keyframes modal-in {
     from {
       opacity: 0;
@@ -2014,5 +1974,31 @@
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: #9ca3af;
+  }
+
+  .property-btn {
+    @apply flex items-center gap-2 px-2.5 py-1.5 rounded-full border border-white/5 bg-white/5 text-[13px] text-gray-300 hover:bg-white/10 hover:border-white/10 transition-all;
+  }
+
+  .property-btn-icon {
+    @apply flex items-center justify-center w-8 h-8 rounded-full border border-white/5 bg-white/5 text-gray-300 hover:bg-white/10 hover:border-white/10 transition-all;
+  }
+
+  /* Style overrides for SearchableSelect and CustomDatePicker when used in Property Row */
+  :global(.property-select button) {
+    @apply !bg-transparent !border-transparent !text-gray-400 !rounded-md !h-8 !px-2 !text-[13px] hover:!bg-white/5 !shadow-none !ring-0 !transition-all;
+  }
+
+  :global(.property-select button span) {
+    @apply !text-gray-300;
+  }
+
+  :global(.property-select button svg) {
+    @apply !text-gray-500;
+  }
+
+  /* Dark theme input and textarea focus */
+  input:focus, textarea:focus {
+    outline: none;
   }
 </style>

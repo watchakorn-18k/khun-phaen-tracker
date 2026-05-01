@@ -8,6 +8,7 @@
 	export let value = '';
 	export let placeholder = 'เลือกวันที่...';
 	export let id = 'date-picker';
+	export let minimal = false;
 
 	let isOpen = false;
 	let currentMonth = new Date().getMonth();
@@ -190,19 +191,23 @@
 		on:click={toggleDropdown}
 	>
 		<span class="truncate flex items-center gap-2">
-			<Calendar size={16} class="text-gray-400 group-hover:text-primary transition-colors" />
+			{#if !minimal}
+				<Calendar size={16} class="text-gray-400 group-hover:text-primary transition-colors" />
+			{/if}
 			<span class={value ? 'text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'}>
 				{displayValue}
 			</span>
 		</span>
-		<svg 
-			class="w-4 h-4 text-gray-400 flex-shrink-0 ml-2 transition-transform duration-300 {isOpen ? 'rotate-180' : ''}" 
-			fill="none" 
-			stroke="currentColor" 
-			viewBox="0 0 24 24"
-		>
-			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-		</svg>
+		{#if !minimal}
+			<svg 
+				class="w-4 h-4 text-gray-400 flex-shrink-0 ml-2 transition-transform duration-300 {isOpen ? 'rotate-180' : ''}" 
+				fill="none" 
+				stroke="currentColor" 
+				viewBox="0 0 24 24"
+			>
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+			</svg>
+		{/if}
 	</button>
 
 	<!-- Dropdown -->
