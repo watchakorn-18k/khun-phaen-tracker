@@ -15,10 +15,12 @@
     getSprints,
     deleteTask
   } from "$lib/db";
+  import { api } from "$lib/apis";
   import type { Task, TaskComment, Assignee, Project, Sprint, ChecklistItem } from "$lib/types";
   import { get } from "svelte/store";
   import { user } from "$lib/stores/auth";
-  import { currentWorkspaceName, setWorkspaceId, currentWorkspaceId } from "$lib/stores/workspace";
+  import { currentWorkspaceName, currentWorkspaceShortName, setWorkspaceId, currentWorkspaceId, MY_TASKS_WORKSPACE_ID } from "$lib/stores/workspace";
+  import { modals } from "$lib/stores/uiActions";
   import { 
     MoreHorizontal, 
     PanelRight, 
@@ -96,6 +98,7 @@
   let isDeleteConfirm = false;
   let mounted = false;
   let loadedTaskKey = "";
+  let workspaceShortNameFallback = "";
 
   $: taskId = $page.params.task_id || "";
   $: workspaceId = $page.params.workspace_id || "";
@@ -130,13 +133,42 @@
 
   afterNavigate(() => {
     if (workspaceId && get(currentWorkspaceId) !== workspaceId) {
-      setWorkspaceId(workspaceId);
+      currentWorkspaceId.set(workspaceId);
     }
     if (routeTaskKey && routeTaskKey !== loadedTaskKey) {
       loadedTaskKey = routeTaskKey;
       void loadRouteTask(routeTaskKey, taskId);
     }
   });
+
+  function syncWorkspaceFromTask(sourceTask: Task) {
+    if (!workspaceId || workspaceId === MY_TASKS_WORKSPACE_ID) return;
+
+    setWorkspaceId(
+      workspaceId,
+      sourceTask.workspace_name || undefined,
+      undefined,
+      sourceTask.workspace_color,
+      sourceTask.workspace_icon,
+      sourceTask.workspace_short_name,
+    );
+  }
+
+  async function handleKeydown(e: KeyboardEvent) {
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target as HTMLElement).isContentEditable) {
+      return;
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      await goto(`${base}/workspace/${workspaceId}`);
+      modals.update(m => ({...m, commandPalette: true}));
+    } else if (e.key.toLowerCase() === "c") {
+      if (workspaceId === MY_TASKS_WORKSPACE_ID) return;
+      e.preventDefault();
+      await goto(`${base}/workspace/${workspaceId}`);
+      modals.update(m => ({...m, form: true}));
+    }
+  }
 
   function updatePinnedState() {
     if (!browser) return;
@@ -156,27 +188,77 @@
     ]).catch(console.error);
   }
 
-  function togglePin() {
+  async function resolveWorkspaceShortName(sourceTask: Task) {
+    const existingShortName =
+      sourceTask.workspace_short_name ||
+      get(currentWorkspaceShortName) ||
+      workspaceShortNameFallback;
+    if (existingShortName) return existingShortName;
+    if (!workspaceId || workspaceId === MY_TASKS_WORKSPACE_ID) return "";
+
+    try {
+      const res = await api.workspaces.getList();
+      if (!res.ok) return "";
+      const data = await res.json();
+      const workspace = (data.workspaces || []).find((ws: any) => String(ws.id) === String(workspaceId));
+      workspaceShortNameFallback = workspace?.short_name || "";
+      return workspaceShortNameFallback;
+    } catch {
+      return "";
+    }
+  }
+
+  function buildPinnedTaskMeta(sourceTask: Task, workspaceShortName = "") {
+    return {
+      id: String(sourceTask.id || taskId),
+      title: sourceTask.title || "",
+      short_name: workspaceShortName || sourceTask.workspace_short_name || get(currentWorkspaceShortName) || workspaceShortNameFallback || "",
+      task_number: sourceTask.task_number || "",
+      workspace_id: workspaceId || sourceTask.workspace_id || ""
+    };
+  }
+
+  async function syncPinnedTaskMeta(sourceTask: Task) {
+    if (!browser || !sourceTask.id) return;
+    const sourceTaskId = String(sourceTask.id);
+    let pinnedTasks: any[] = JSON.parse(localStorage.getItem("pinned-tasks") || "[]");
+    const existingIndex = pinnedTasks.findIndex((t: any) => String(t?.id || t) === sourceTaskId);
+    if (existingIndex === -1) return;
+    const workspaceShortName = await resolveWorkspaceShortName(sourceTask);
+
+    pinnedTasks[existingIndex] = {
+      ...(typeof pinnedTasks[existingIndex] === "object" ? pinnedTasks[existingIndex] : {}),
+      ...buildPinnedTaskMeta(sourceTask, workspaceShortName),
+    };
+    localStorage.setItem("pinned-tasks", JSON.stringify(pinnedTasks));
+    window.dispatchEvent(new CustomEvent('pinnedTasksChanged'));
+  }
+
+  async function togglePin() {
+    if (!task || String(task.id || "") !== String(taskId)) return;
+
     isPinned = !isPinned;
     let pinnedTasks: any[] = JSON.parse(localStorage.getItem("pinned-tasks") || "[]");
+    const workspaceShortName = await resolveWorkspaceShortName(task);
+    const pinnedTaskMeta = buildPinnedTaskMeta(task, workspaceShortName);
     
     if (isPinned) {
-      if (!pinnedTasks.find((t: any) => t === taskId || t.id === taskId)) {
+      const existingIndex = pinnedTasks.findIndex((t: any) => String(t?.id || t) === String(pinnedTaskMeta.id));
+      if (existingIndex === -1) {
         // Add to the top
-        pinnedTasks.unshift({
-          id: taskId,
-          title: task?.title || "",
-          short_name: task?.workspace_short_name || "",
-          task_number: task?.task_number || "",
-          workspace_id: workspaceId || task?.workspace_id || ""
-        });
+        pinnedTasks.unshift(pinnedTaskMeta);
         // Limit to 5
         if (pinnedTasks.length > 5) {
           pinnedTasks = pinnedTasks.slice(0, 5);
         }
+      } else {
+        pinnedTasks[existingIndex] = {
+          ...(typeof pinnedTasks[existingIndex] === "object" ? pinnedTasks[existingIndex] : {}),
+          ...pinnedTaskMeta,
+        };
       }
     } else {
-      pinnedTasks = pinnedTasks.filter((t: any) => t !== taskId && t.id !== taskId);
+      pinnedTasks = pinnedTasks.filter((t: any) => String(t?.id || t) !== String(pinnedTaskMeta.id));
     }
     localStorage.setItem("pinned-tasks", JSON.stringify(pinnedTasks));
     window.dispatchEvent(new CustomEvent('pinnedTasksChanged'));
@@ -189,12 +271,14 @@
     comments = [];
     try {
       if (!id) return;
-      const result = await getTaskById(id);
+      const result = await getTaskById(id, workspaceId);
       if (routeKey !== routeTaskKey) return;
       if (result) {
         task = result;
+        syncWorkspaceFromTask(result);
         editedTitle = task.title;
         editedDescription = task.notes || "";
+        await syncPinnedTaskMeta(result);
         await loadComments(result.id, routeKey);
       } else {
         error = $_("taskList__no_tasks");
@@ -342,7 +426,7 @@
   }
 </script>
 
-<svelte:window on:click={handleMoreMenuClickOutside} />
+<svelte:window on:click={handleMoreMenuClickOutside} on:keydown={handleKeydown} />
 
 <div class="flex flex-col h-full bg-white dark:bg-[#0b1120] text-slate-900 dark:text-slate-100">
   <!-- Header -->
@@ -486,9 +570,10 @@
               />
             {:else}
               <div class="flex items-center gap-2 mb-1">
-                {#if task.workspace_short_name && task.task_number}
-                  <span class="text-sm font-medium text-slate-500 dark:text-slate-400">
-                    {task.workspace_short_name}-{task.task_number}
+                {#if task.task_number}
+                  {@const displayShortName = $currentWorkspaceShortName || task.workspace_short_name || workspaceShortNameFallback}
+                  <span class="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 tracking-wide">
+                    {displayShortName ? `${displayShortName}-${task.task_number}` : `#${task.task_number}`}
                   </span>
                 {/if}
               </div>

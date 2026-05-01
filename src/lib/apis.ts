@@ -610,6 +610,12 @@ export const api = {
           body: JSON.stringify(task),
         });
       },
+      get: (wsId: string, taskId: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/tasks/${taskId}`, {
+          headers: api.data._headers(),
+          credentials: "include",
+        });
+      },
       update: (
         wsId: string,
         taskId: string,

@@ -567,12 +567,25 @@ async function enrichTasksWithAssignees(tasks: Task[]): Promise<Task[]> {
   return tasks;
 }
 
-export async function getTaskById(id: string | number): Promise<Task | null> {
-  // Fetch tasks with a high limit for search
-  const result = await getTasks({
-    includeArchived: true,
-    limit: 1000,
-  });
+export async function getTaskById(id: string | number, workspaceIdOverride?: string): Promise<Task | null> {
+  const targetWsId = workspaceIdOverride || wsId();
+
+  // Use direct GET endpoint when we have a real workspace id
+  if (targetWsId && !isMyTasksScope(targetWsId)) {
+    const res = await api.data.tasks.get(targetWsId, String(id));
+    if (res.ok) {
+      const data = await res.json();
+      const raw = data.task || data;
+      const task = docToTask(raw);
+      const enriched = await enrichTasksWithAssignees([task]);
+      return enriched[0] ?? null;
+    }
+    // If not found (404) return null; for other errors fall through to list search
+    if (res.status === 404) return null;
+  }
+
+  // Fallback: search through task list (my-tasks scope or unknown workspace)
+  const result = await getTasks({ includeArchived: true, limit: 1000 });
   const tasks = Array.isArray(result) ? result : result.tasks;
   return tasks.find((t: Task) => String(t.id) === String(id)) || null;
 }

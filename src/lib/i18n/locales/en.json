@@ -642,6 +642,8 @@
 	"commandPalette__clear_filters_desc": "Reset all active filters",
 	"commandPalette__enter_key": "Enter",
 	"commandPalette__shortcut_hint": "⌘K / Ctrl+K",
+	"sidebar__search": "Search...",
+	"sidebar__new_issue": "New Issue",
 	"sidebar__personal": "Personal",
 	"sidebar__workspace": "Workspace",
 	"sidebar__configure": "Configure",

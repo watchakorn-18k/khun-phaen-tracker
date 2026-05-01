@@ -642,6 +642,8 @@
 	"commandPalette__clear_filters_desc": "คืนค่าตัวกรองที่ใช้งานอยู่ทั้งหมด",
 	"commandPalette__enter_key": "ENTER",
 	"commandPalette__shortcut_hint": "⌘K / Ctrl+K",
+	"sidebar__search": "ค้นหา...",
+	"sidebar__new_issue": "สร้างงานใหม่",
 	"sidebar__personal": "ส่วนตัว",
 	"sidebar__workspace": "เวิร์กสเปซ",
 	"sidebar__configure": "ตั้งค่าระบบ",

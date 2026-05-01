@@ -31,8 +31,13 @@
     Check,
     Undo2,
     LayoutDashboard,
+    Search,
+    SquarePen
   } from "lucide-svelte";
   import SidebarUtilityTools from "$lib/components/SidebarUtilityTools.svelte";
+  import { createUIActions } from "$lib/stores/uiActions";
+
+  const uiActions = createUIActions();
 
   interface Workspace {
     id: string;
@@ -52,6 +57,7 @@
   let previousWorkspace: { id: string, name: string, color: string } | null = null;
 
   $: workspaceId = $page.params.workspace_id;
+  $: routeTaskId = $page.params.task_id;
   $: isMyTasksWorkspace = workspaceId === MY_TASKS_WORKSPACE_ID || $page.url.pathname.includes('/dashboard');
   $: workspaceName =
     $currentWorkspaceName || (isMyTasksWorkspace ? $_("sidebar__focus_hub") : $_("sidebar__workspace"));
@@ -59,6 +65,12 @@
   $: workspaceIcon = $currentWorkspaceIcon;
 
   $: currentPath = $page.url.pathname;
+  $: normalizedCurrentPath = normalizePath(currentPath);
+  $: isPinnedTaskPage =
+    !!routeTaskId &&
+    ($page.url.searchParams.get("pinned") === "true" ||
+      $page.url.searchParams.get("pined") === "true" ||
+      $page.url.searchParams.get("pined") === "trure");
 
   let pinnedTasks: any[] = [];
   let isPinnedSectionOpen = true;
@@ -72,8 +84,47 @@
   }
 
   function isActive(path: string): boolean {
-    const cp = currentPath.replace(/\/+$/, "");
-    return cp === path;
+    return normalizedCurrentPath === normalizePath(path);
+  }
+
+  function normalizePath(path: string): string {
+    let normalized = path.replace(/\/+$/, "") || "/";
+    if (base && normalized.startsWith(base)) {
+      normalized = normalized.slice(base.length) || "/";
+    }
+    return normalized;
+  }
+
+  function isDashboardActive(): boolean {
+    return normalizedCurrentPath === "/dashboard";
+  }
+
+  function isMyTasksActive(): boolean {
+    return workspaceId === MY_TASKS_WORKSPACE_ID && !routeTaskId;
+  }
+
+  function isWorkspaceOverviewActive(): boolean {
+    return (
+      workspaceId !== MY_TASKS_WORKSPACE_ID &&
+      normalizedCurrentPath === `/workspace/${workspaceId}/overview`
+    );
+  }
+
+  function isWorkspaceBoardActive(): boolean {
+    return (
+      workspaceId !== MY_TASKS_WORKSPACE_ID &&
+      !routeTaskId &&
+      normalizedCurrentPath === `/workspace/${workspaceId}`
+    );
+  }
+
+  function isPinnedTaskActive(task: any): boolean {
+    return normalizedCurrentPath === getPinnedTaskPath(task);
+  }
+
+  function getPinnedTaskPath(task: any): string {
+    if (!task?.workspace_id || !task?.id) return "";
+    return `/workspace/${task.workspace_id}/task/${task.id}`;
   }
 
   function getPinnedTaskNumber(task: any): string {
@@ -293,6 +344,42 @@
           </div>
         {/if}
       </div>
+
+      <!-- Quick Actions -->
+      <div class="mt-4 space-y-1">
+        <button
+          on:click={async () => {
+            if ($page.url.pathname.includes('/task/')) {
+              await goto(`${base}/workspace/${workspaceId}`);
+            }
+            uiActions.openModal("commandPalette");
+          }}
+          class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-left group"
+        >
+          <div class="flex items-center gap-2.5">
+            <Search size={16} class="shrink-0" />
+            <span class="font-medium">{$_("sidebar__search")}</span>
+          </div>
+          <kbd class="px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700/50 bg-gray-50 dark:bg-gray-800/50 text-[10px] font-medium text-gray-400 dark:text-gray-500">⌘K</kbd>
+        </button>
+        {#if !isMyTasksWorkspace}
+          <button
+            on:click={async () => {
+              if ($page.url.pathname.includes('/task/')) {
+                await goto(`${base}/workspace/${workspaceId}`);
+              }
+              uiActions.openModal("form");
+            }}
+            class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm text-gray-700 dark:text-gray-300 bg-gray-100/50 dark:bg-gray-800/30 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors text-left group"
+          >
+            <div class="flex items-center gap-2.5">
+              <SquarePen size={16} class="shrink-0" />
+              <span class="font-medium">{$_("sidebar__new_issue")}</span>
+            </div>
+            <kbd class="px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700/50 bg-white dark:bg-gray-800/50 text-[10px] font-medium text-gray-500 dark:text-gray-400">C</kbd>
+          </button>
+        {/if}
+      </div>
     {:else}
       <div class="flex flex-col gap-4 items-center">
         <button
@@ -338,11 +425,11 @@
         <a
           href="{base}/dashboard"
           title={$_("sidebar__dashboard")}
-          class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isActive(`${base}/dashboard`)
+          class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isDashboardActive()
             ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-black shadow-[inset_0_0_12px_rgba(99,102,241,0.05)]'
             : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white'} {isSidebarCollapsed ? 'justify-center px-0' : ''}"
         >
-          {#if isActive(`${base}/dashboard`)}
+          {#if isDashboardActive()}
             <div class="absolute left-0 w-1 h-4 bg-indigo-500 rounded-r-full"></div>
           {/if}
           <LayoutDashboard size={isSidebarCollapsed ? 22 : 18} class="shrink-0 transition-transform group-hover:scale-110" />
@@ -353,11 +440,11 @@
         <a
           href="{base}/workspace/{MY_TASKS_WORKSPACE_ID}"
           title={$_("sidebar__my_tasks")}
-          class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isActive(`${base}/workspace/${MY_TASKS_WORKSPACE_ID}`)
+          class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isMyTasksActive()
             ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-black shadow-[inset_0_0_12px_rgba(99,102,241,0.05)]'
             : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white'} {isSidebarCollapsed ? 'justify-center px-0' : ''}"
         >
-          {#if isActive(`${base}/workspace/${MY_TASKS_WORKSPACE_ID}`)}
+          {#if isMyTasksActive()}
             <div class="absolute left-0 w-1 h-4 bg-indigo-500 rounded-r-full"></div>
           {/if}
           <Target size={isSidebarCollapsed ? 22 : 18} class="shrink-0 transition-transform group-hover:scale-110" />
@@ -382,15 +469,15 @@
         {/if}
         {#if isPinnedSectionOpen || isSidebarCollapsed}
           <div class="space-y-1">
-            {#each pinnedTasks.filter(t => t && typeof t === 'object' && t.id) as task}
+            {#each pinnedTasks.filter(t => t && typeof t === 'object' && t.id) as task (`${task.workspace_id}:${task.id}`)}
               <a
                 href="{base}/workspace/{task.workspace_id}/task/{task.id}?pinned=true"
                 title={getPinnedTaskTitle(task)}
-                class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isActive(`${base}/workspace/${task.workspace_id}/task/${task.id}`)
+                class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isPinnedTaskActive(task)
                   ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-black shadow-[inset_0_0_12px_rgba(99,102,241,0.05)]'
                   : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white'} {isSidebarCollapsed ? 'justify-center px-0' : ''}"
               >
-                {#if isActive(`${base}/workspace/${task.workspace_id}/task/${task.id}`)}
+                {#if isPinnedTaskActive(task)}
                   <div class="absolute left-0 w-1 h-4 bg-indigo-500 rounded-r-full"></div>
                 {/if}
                 <div class="w-2 h-2 rounded-full border border-gray-400 shrink-0"></div>
@@ -410,7 +497,7 @@
     {/if}
 
     <!-- Workspace -->
-    {#if !isMyTasksWorkspace && workspaceId && workspaceId !== MY_TASKS_WORKSPACE_ID}
+    {#if !isPinnedTaskPage && !isMyTasksWorkspace && workspaceId && workspaceId !== MY_TASKS_WORKSPACE_ID}
       <div>
         {#if !isSidebarCollapsed}
           <div class="px-2 py-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-2">
@@ -421,11 +508,11 @@
           <a
             href="{base}/workspace/{workspaceId}/overview{$page.url.search}"
             title={$_("sidebar__overview")}
-            class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isActive(`${base}/workspace/${workspaceId}/overview`)
+            class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isWorkspaceOverviewActive()
               ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-black shadow-[inset_0_0_12px_rgba(99,102,241,0.05)]'
               : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white'} {isSidebarCollapsed ? 'justify-center px-0' : ''}"
           >
-            {#if isActive(`${base}/workspace/${workspaceId}/overview`)}
+            {#if isWorkspaceOverviewActive()}
               <div class="absolute left-0 w-1 h-4 bg-indigo-500 rounded-r-full"></div>
             {/if}
             <LayoutDashboard size={isSidebarCollapsed ? 22 : 18} class="shrink-0 transition-transform group-hover:scale-110" />
@@ -436,11 +523,11 @@
           <a
             href={workspaceHref}
             title={$_("sidebar__issues")}
-            class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {(isActive(`${base}/workspace/${workspaceId}`) && !currentPath.includes('/overview'))
+            class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isWorkspaceBoardActive()
               ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-black shadow-[inset_0_0_12px_rgba(99,102,241,0.05)]'
               : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white'} {isSidebarCollapsed ? 'justify-center px-0' : ''}"
           >
-            {#if isActive(`${base}/workspace/${workspaceId}`) && !currentPath.includes('/overview')}
+            {#if isWorkspaceBoardActive()}
               <div class="absolute left-0 w-1 h-4 bg-indigo-500 rounded-r-full"></div>
             {/if}
             <ListTodo size={isSidebarCollapsed ? 22 : 18} class="shrink-0 transition-transform group-hover:scale-110" />
