@@ -4,6 +4,7 @@
   import type { Task, Sprint } from "$lib/types";
   import { MoreHorizontal, Plus, ListTodo } from "lucide-svelte";
   import PaginationFooter from "./PaginationFooter.svelte";
+  import PriorityBadge from "./PriorityBadge.svelte";
   import { _ } from "$lib/i18n";
 
   const dispatch = createEventDispatcher<{
@@ -299,12 +300,17 @@
                   {/if}
                 </div>
 
-                <!-- Category badge -->
-                {#if task.category}
-                  <span class="text-[10px] font-medium px-1.5 py-0.5 rounded {getCategoryBadgeClass(task.category)} shrink-0">
-                    {task.category}
-                  </span>
-                {/if}
+                <div class="flex items-center gap-1.5 flex-wrap justify-end">
+                  {#if task.priority && task.priority !== 'none'}
+                    <PriorityBadge priority={task.priority} />
+                  {/if}
+                  <!-- Category badge -->
+                  {#if task.category}
+                    <span class="text-[10px] font-medium px-1.5 py-0.5 rounded {getCategoryBadgeClass(task.category)} shrink-0">
+                      {task.category}
+                    </span>
+                  {/if}
+                </div>
               </div>
 
               <!-- Context menu -->

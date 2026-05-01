@@ -3,7 +3,7 @@
 	const dispatch = createEventDispatcher();
 	export let id: string = 'select';
 	export let value: string | number | null = 'all';
-	export let options: Array<{ value: string | number | null; label: string; badge?: boolean; badgeColor?: string; disabled?: boolean; icon?: any }> = [];
+	export let options: Array<{ value: string | number | null; label: string; badge?: boolean; badgeColor?: string; disabled?: boolean; icon?: any; iconClass?: string; pillClass?: string }> = [];
 	export let placeholder: string = 'ค้นหา...';
 	export let emptyText: string = 'ไม่พบรายการ';
 	export let showSearch: boolean = true;
@@ -36,6 +36,7 @@
 	$: selectedBadge = options.find(opt => isSameValue(opt.value, value))?.badge;
 	$: selectedBadgeColor = options.find(opt => isSameValue(opt.value, value))?.badgeColor;
 	$: selectedIcon = options.find(opt => isSameValue(opt.value, value))?.icon;
+	$: selectedIconClass = options.find(opt => isSameValue(opt.value, value))?.iconClass;
 
 	function selectOption(optionValue: string | number | null) {
 		value = optionValue;
@@ -76,7 +77,7 @@
 	>
 		<span class="truncate flex items-center gap-2">
 			{#if selectedIcon}
-				<span class="shrink-0 flex items-center justify-center">
+				<span class="shrink-0 flex items-center justify-center {selectedIconClass || 'text-gray-400'}">
 					<svelte:component this={selectedIcon} size={14} class="shrink-0" />
 				</span>
 			{/if}
@@ -95,20 +96,15 @@
 	{#if isOpen}
 		<div class="absolute z-[9000] w-full min-w-[180px] mt-1 bg-gray-900 border border-white/10 rounded-xl shadow-2xl max-h-80 overflow-hidden" transition:fade={{ duration: 100 }}>
 			<!-- Search Input -->
-			{#if showSearch && options.length > maxDisplay}
-				<div class="p-2 border-b border-gray-200 dark:border-gray-700">
-					<div class="relative">
-						<svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-						</svg>
-						<input
-							type="text"
-							bind:this={searchInputRef}
-							bind:value={searchQuery}
-							placeholder={placeholder}
-							class="w-full h-8 pl-9 pr-3 text-[13px] border border-white/10 rounded-lg focus:ring-1 focus:ring-white/20 outline-none bg-white/5 text-gray-200"
-						/>
-					</div>
+			{#if showSearch}
+				<div class="border-b border-white/10">
+					<input
+						type="text"
+						bind:this={searchInputRef}
+						bind:value={searchQuery}
+						placeholder={placeholder}
+						class="w-full h-10 px-4 text-[13px] bg-transparent border-none outline-none text-gray-200 placeholder:text-gray-500 focus:ring-0"
+					/>
 				</div>
 			{/if}
 
@@ -121,31 +117,33 @@
 				{:else}
 					{#each displayOptions as option}
 						{#if option.disabled}
-							<div class="px-4 py-1.5 text-xs text-gray-400 dark:text-gray-500 font-medium text-center uppercase tracking-wider border-t border-b border-gray-100 dark:border-gray-700">
+							<div class="px-4 py-2 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
 								{option.label}
 							</div>
 						{:else}
 							<button
 								type="button"
-								class="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors {isSameValue(value, option.value) ? 'bg-primary/10 text-primary font-medium' : 'text-gray-900 dark:text-gray-100'}"
+								class="w-full px-4 py-2 text-left text-[13px] hover:bg-white/5 flex items-center justify-between transition-colors {isSameValue(value, option.value) ? 'text-white font-medium' : 'text-gray-300'}"
 								on:click={() => selectOption(option.value)}
 							>
-								{#if option.icon}
-									<span class="shrink-0 flex items-center justify-center">
-										<svelte:component this={option.icon} size={14} class="shrink-0" />
-									</span>
-								{:else}
-									{#if option.badge}
-										{#if option.badgeColor?.startsWith('#')}
-											<span class="shrink-0 w-2 h-2 rounded-full" style="background-color: {option.badgeColor}"></span>
-										{:else}
-											<span class="shrink-0 w-2 h-2 rounded-full {option.badgeColor || 'bg-gray-400'}"></span>
+								<div class="flex items-center gap-2.5 {option.pillClass || ''}">
+									{#if option.icon}
+										<span class="shrink-0 flex items-center justify-center {option.iconClass || 'text-gray-400'}">
+											<svelte:component this={option.icon} size={14} class="shrink-0" />
+										</span>
+									{:else}
+										{#if option.badge}
+											{#if option.badgeColor?.startsWith('#')}
+												<span class="shrink-0 w-2 h-2 rounded-full" style="background-color: {option.badgeColor}"></span>
+											{:else}
+												<span class="shrink-0 w-2 h-2 rounded-full {option.badgeColor || 'bg-gray-400'}"></span>
+											{/if}
 										{/if}
 									{/if}
-								{/if}
-								<span class="truncate flex-1 text-[13px]">{option.label}</span>
+									<span>{option.label}</span>
+								</div>
 								{#if isSameValue(value, option.value)}
-									<svg class="w-3.5 h-3.5 shrink-0 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
 									</svg>
 								{/if}

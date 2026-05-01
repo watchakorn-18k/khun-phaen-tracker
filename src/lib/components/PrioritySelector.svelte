@@ -19,11 +19,11 @@
 	}>();
 
 	const priorityOptions = [
-		{ value: "none", label: "No priority", icon: Minus },
-		{ value: "urgent", label: "Urgent", icon: AlertTriangle },
-		{ value: "high", label: "High", icon: SignalHigh },
-		{ value: "medium", label: "Medium", icon: SignalMedium },
-		{ value: "low", label: "Low", icon: SignalLow },
+		{ value: "none", label: "No priority", icon: Minus, iconClass: "text-gray-400", pillClass: "" },
+		{ value: "urgent", label: "Urgent", icon: AlertTriangle, iconClass: "text-white", pillClass: "bg-orange-500 text-white px-2 py-0.5 rounded shadow-sm" },
+		{ value: "high", label: "High", icon: SignalHigh, iconClass: "text-white", pillClass: "bg-orange-600 text-white px-2 py-0.5 rounded shadow-sm" },
+		{ value: "medium", label: "Medium", icon: SignalMedium, iconClass: "text-orange-400", pillClass: "bg-orange-900/40 text-orange-400 px-2 py-0.5 rounded" },
+		{ value: "low", label: "Low", icon: SignalLow, iconClass: "text-orange-500", pillClass: "bg-orange-900/20 text-orange-500 px-2 py-0.5 rounded" },
 	];
 </script>
 

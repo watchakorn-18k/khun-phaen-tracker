@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher, tick } from 'svelte';
 	import type { Assignee, AssigneeGroup } from '$lib/types';
-	import { Users, User, Plus, X } from 'lucide-svelte';
+	import { Users, User, Plus, X, UserMinus } from 'lucide-svelte';
 	import { _ } from 'svelte-i18n';
 	import SearchableSelect from './SearchableSelect.svelte';
 
@@ -26,7 +26,10 @@
 	$: if (selectedValue !== null) {
 		const valueStr = String(selectedValue);
 
-		if (valueStr.startsWith('group_')) {
+		if (valueStr === 'all') {
+			// Clear selection
+			assignee_ids = [];
+		} else if (valueStr.startsWith('group_')) {
 			// Group selected - add all members
 			const groupId = valueStr.replace('group_', '');
 			const group = assigneeGroups.find((g) => isSameId(g.id, groupId));
@@ -71,6 +74,8 @@
 
 	// Build combined options: groups first, then individual assignees
 	$: combinedOptions = [
+		{ value: 'all', label: 'Unassigned', icon: UserMinus },
+		{ value: 'label_members', label: 'Members', disabled: true },
 		// Groups (if any)
 		...assigneeGroups
 			.filter((g) => g.id !== undefined && g.assignee_ids.length > 0)

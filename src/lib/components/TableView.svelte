@@ -31,6 +31,7 @@
   } from "lucide-svelte"; // Renamed FlaskConical to avoid conflict with type
   import PaginationFooter from "./PaginationFooter.svelte";
   import Tooltip from "./Tooltip.svelte";
+  import PriorityBadge from "./PriorityBadge.svelte";
 
   export let tasks: Task[] = [];
   export let sprints: Sprint[] = [];
@@ -614,19 +615,26 @@
             </td>
             <td class="px-3 py-2 overflow-hidden">
               <div class="flex flex-col min-w-0 w-full">
-                <span
-                  class="font-medium text-gray-900 dark:text-white text-sm truncate"
-                  title={task.title}
-                >
-                  {#if task.task_number}
-                    <span
-                      class="inline-flex items-center mr-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary align-middle"
-                    >
-                      #{task.task_number}
-                    </span>
+                <div class="flex items-center gap-2 min-w-0 w-full">
+                  <span
+                    class="font-medium text-gray-900 dark:text-white text-sm truncate"
+                    title={task.title}
+                  >
+                    {#if task.task_number}
+                      <span
+                        class="inline-flex items-center mr-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary align-middle"
+                      >
+                        #{task.task_number}
+                      </span>
+                    {/if}
+                    {task.title}
+                  </span>
+                  {#if task.priority && task.priority !== 'none'}
+                    <div class="shrink-0">
+                      <PriorityBadge priority={task.priority} />
+                    </div>
                   {/if}
-                  {task.title}
-                </span>
+                </div>
 
                 {#if task.checklist && task.checklist.length > 0}
                   {@const completed = task.checklist.filter(

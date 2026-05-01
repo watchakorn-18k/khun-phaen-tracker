@@ -1241,13 +1241,11 @@
                     id="status"
                     bind:value={status}
                     options={[
-                      { value: "backlog", label: "Backlog", icon: CircleDashed },
-                      { value: "todo", label: "Todo", icon: Circle },
-                      { value: "in-progress", label: "In Progress", icon: CircleDot },
-                      { value: "in-review", label: "In Review", icon: Clock },
-                      { value: "done", label: "Done", icon: CheckCircle2 },
-                      { value: "blocked", label: "Blocked", icon: Ban },
-                      { value: "cancelled", label: "Cancelled", icon: XCircle },
+                      { value: "pending", label: $_("taskForm__status_pending"), icon: CircleDashed, iconClass: "text-gray-500" },
+                      { value: "todo", label: $_("taskForm__status_todo"), icon: Circle, iconClass: "text-gray-400" },
+                      { value: "in-progress", label: $_("taskForm__status_in_progress"), icon: CircleDot, iconClass: "text-yellow-500" },
+                      { value: "in-test", label: $_("taskForm__status_in_test"), icon: CircleDot, iconClass: "text-green-500" },
+                      { value: "done", label: $_("taskForm__status_done"), icon: CheckCircle2, iconClass: "text-blue-500" }
                     ]}
                     showSearch={false}
                     minimal={true}

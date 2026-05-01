@@ -117,12 +117,34 @@
 
   $: workspaceRoom = $page.url.searchParams.get("room");
 
+  let isPinned = false;
+
   onMount(async () => {
+    const pinnedTasks = JSON.parse(localStorage.getItem("pinned-tasks") || "[]");
+    isPinned = pinnedTasks.includes(taskId);
+
     await Promise.all([
       loadTaskData(),
       loadMetadata()
     ]);
   });
+
+  function togglePin() {
+    isPinned = !isPinned;
+    const pinnedTasks = JSON.parse(localStorage.getItem("pinned-tasks") || "[]");
+    if (isPinned) {
+      if (!pinnedTasks.includes(taskId)) {
+        pinnedTasks.push(taskId);
+      }
+    } else {
+      const index = pinnedTasks.indexOf(taskId);
+      if (index > -1) {
+        pinnedTasks.splice(index, 1);
+      }
+    }
+    localStorage.setItem("pinned-tasks", JSON.stringify(pinnedTasks));
+    isMoreMenuOpen = false;
+  }
 
   async function loadTaskData() {
     loading = true;
@@ -233,11 +255,11 @@
   }
 
   const statusOptions = [
-    { value: "pending", label: $_("taskForm__status_pending"), icon: CircleDashed },
-    { value: "todo", label: $_("taskForm__status_todo"), icon: Circle },
-    { value: "in-progress", label: $_("taskForm__status_in_progress"), icon: CircleDot },
-    { value: "in-test", label: $_("taskForm__status_in_test"), icon: CircleDot },
-    { value: "done", label: $_("taskForm__status_done"), icon: CheckCircle2 }
+    { value: "pending", label: $_("taskForm__status_pending"), icon: CircleDashed, iconClass: "text-gray-500" },
+    { value: "todo", label: $_("taskForm__status_todo"), icon: Circle, iconClass: "text-gray-400" },
+    { value: "in-progress", label: $_("taskForm__status_in_progress"), icon: CircleDot, iconClass: "text-yellow-500" },
+    { value: "in-test", label: $_("taskForm__status_in_test"), icon: CircleDot, iconClass: "text-green-500" },
+    { value: "done", label: $_("taskForm__status_done"), icon: CheckCircle2, iconClass: "text-blue-500" }
   ];
 
   function getStatusLabel(status: string) {
@@ -322,8 +344,16 @@
       >
         <GitBranch size={18} />
       </button>
-      <button class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500 dark:text-slate-400">
-        <Pin size={18} />
+      <button 
+        on:click={togglePin}
+        class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors {isPinned ? 'text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10' : 'text-slate-500 dark:text-slate-400'}"
+        title={isPinned ? 'Unpin from sidebar' : 'Pin to sidebar'}
+      >
+        {#if isPinned}
+          <PinOff size={18} />
+        {:else}
+          <Pin size={18} />
+        {/if}
       </button>
       <div class="relative more-menu-container">
         <button 

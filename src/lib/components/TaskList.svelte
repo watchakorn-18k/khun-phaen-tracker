@@ -15,6 +15,7 @@
     ListTodo,
   } from "lucide-svelte";
   import PaginationFooter from "./PaginationFooter.svelte";
+  import PriorityBadge from "./PriorityBadge.svelte";
   import { _ } from "$lib/i18n";
 
   const dispatch = createEventDispatcher<{
@@ -133,6 +134,7 @@
               <div
                 class="flex items-center gap-4 mt-2 text-sm text-gray-500 dark:text-gray-400 flex-wrap"
               >
+                <PriorityBadge priority={task.priority} />
                 <span class="flex items-center gap-1">
                   <Calendar size={14} />
                   {formatDate(task.date)}
