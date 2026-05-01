@@ -80,6 +80,7 @@
   import MarkdownEditor from "./MarkdownEditor.svelte";
   import Pagination from "./Pagination.svelte";
   import SearchableSelect from "./SearchableSelect.svelte";
+  import PrioritySelector from "$lib/components/PrioritySelector.svelte";
 
   const dispatch = createEventDispatcher<{
     submit: Omit<Task, "id" | "created_at">;
@@ -1255,19 +1256,7 @@
 
                 <!-- Priority (Mock for now as it's not in schema yet?) -->
                 <div class="property-select min-w-[120px]">
-                  <SearchableSelect
-                    id="priority"
-                    bind:value={priority}
-                    options={[
-                      { value: "none", label: "No priority", icon: Minus },
-                      { value: "urgent", label: "Urgent", icon: AlertTriangle },
-                      { value: "high", label: "High", icon: SignalHigh },
-                      { value: "medium", label: "Medium", icon: SignalMedium },
-                      { value: "low", label: "Low", icon: SignalLow },
-                    ]}
-                    showSearch={false}
-                    minimal={true}
-                  />
+                  <PrioritySelector bind:value={priority} />
                 </div>
 
                 <!-- Assignee -->
@@ -2005,7 +1994,7 @@
 
   /* Style overrides for SearchableSelect and CustomDatePicker when used in Property Row */
   :global(.property-select button) {
-    @apply !bg-transparent !border-white/10 !text-gray-400 !rounded-full !h-8 !px-3 !text-[13px] hover:!bg-white/5 hover:!border-white/20 !shadow-none !ring-0 !transition-all;
+    @apply !bg-transparent !border !border-solid !border-white/10 !text-gray-400 !rounded-full !h-8 !px-3 !text-[13px] hover:!bg-white/5 hover:!border-white/20 !shadow-none !ring-0 !transition-all;
   }
 
   :global(.property-select button span) {

@@ -43,7 +43,8 @@
     SignalLow,
     Ban,
     GitBranch,
-    Trash2
+    Trash2,
+    AlertTriangle
   } from "lucide-svelte";
   import ConfirmModal from "$lib/components/ConfirmModal.svelte";
   import BranchDialog from "$lib/components/BranchDialog.svelte";
@@ -51,6 +52,7 @@
   import TitleEditor from "$lib/components/editor/TitleEditor.svelte";
   import ChecklistManager from "$lib/components/ChecklistManager.svelte";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
+  import PrioritySelector from "$lib/components/PrioritySelector.svelte";
   import CustomDatePicker from "$lib/components/CustomDatePicker.svelte";
   import { showMessage } from "$lib/stores/uiActions";
 
@@ -589,6 +591,19 @@
 
             <div class="col-span-2 grid grid-cols-subgrid items-center min-h-[32px] -mx-2 px-2 rounded-md hover:bg-slate-500/5 transition-colors group">
               <div class="flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400">
+                <AlertTriangle size={14} class="opacity-70 group-hover:opacity-100 transition-opacity" />
+                <span>Priority</span>
+              </div>
+              <div class="flex items-center justify-start min-w-0 property-select">
+                <PrioritySelector 
+                  value={task.priority || "none"}
+                  on:select={(e: CustomEvent<any>) => handleUpdateTask({ priority: e.detail as Task["priority"] })}
+                />
+              </div>
+            </div>
+
+            <div class="col-span-2 grid grid-cols-subgrid items-center min-h-[32px] -mx-2 px-2 rounded-md hover:bg-slate-500/5 transition-colors group">
+              <div class="flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400">
                 <User size={14} class="opacity-70 group-hover:opacity-100 transition-opacity" />
                 <span>{$_("taskForm__assignee_label")}</span>
               </div>
@@ -715,7 +730,7 @@
   @reference "../../../../../app.css";
 
   :global(.property-select button) {
-    @apply !bg-transparent !border-transparent !text-slate-700 dark:!text-slate-200 !rounded-md !h-8 !px-2 !text-[13px] hover:!bg-slate-500/5 !shadow-none !ring-0 !transition-all;
+    @apply !bg-transparent !border !border-solid !border-white/10 !text-gray-400 !rounded-full !h-8 !px-3 !text-[13px] hover:!bg-white/5 hover:!border-white/20 !shadow-none !ring-0 !transition-all;
   }
 
   :global(.property-select button span) {
