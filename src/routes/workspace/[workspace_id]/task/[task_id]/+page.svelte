@@ -16,6 +16,7 @@
   } from "$lib/db";
   import type { Task, TaskComment, Assignee, Project, Sprint, ChecklistItem } from "$lib/types";
   import { user } from "$lib/stores/auth";
+  import { currentWorkspaceName } from "$lib/stores/workspace";
   import { 
     MoreHorizontal, 
     PanelRight, 
@@ -294,7 +295,7 @@
           role="link"
           tabindex="0"
         >
-          <Layout size={14} /> Workspace
+          <Layout size={14} /> {$currentWorkspaceName || 'Workspace'}
         </span>
         <ChevronRight size={14} class="shrink-0" />
         {#if task}
@@ -729,15 +730,15 @@
 <style>
   @reference "../../../../../app.css";
 
-  :global(.property-select button) {
+  :global(.property-select .property-trigger-btn) {
     @apply !bg-transparent !border !border-solid !border-white/10 !text-gray-400 !rounded-full !h-8 !px-3 !text-[13px] hover:!bg-white/5 hover:!border-white/20 !shadow-none !ring-0 !transition-all;
   }
 
-  :global(.property-select button span) {
+  :global(.property-select .property-trigger-btn span) {
     @apply !text-[13px];
   }
 
-  :global(.property-select button svg) {
+  :global(.property-select .property-trigger-btn svg) {
     @apply !text-slate-400;
   }
 

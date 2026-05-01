@@ -215,7 +215,7 @@
 	<button
 		type="button"
 		bind:this={triggerEl}
-		class="w-full {minimal ? 'h-8 px-2.5 text-[13px] border-transparent bg-transparent hover:bg-white/5' : 'h-10 px-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'} rounded-lg outline-none text-left flex items-center justify-between transition-all group"
+		class="property-trigger-btn w-full {minimal ? 'h-8 px-2.5 text-[13px] border-transparent bg-transparent hover:bg-white/5' : 'h-10 px-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'} rounded-lg outline-none text-left flex items-center justify-between transition-all group"
 		on:click={toggleDropdown}
 	>
 		<span class="truncate flex items-center gap-2">

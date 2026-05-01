@@ -1993,15 +1993,15 @@
   }
 
   /* Style overrides for SearchableSelect and CustomDatePicker when used in Property Row */
-  :global(.property-select button) {
+  :global(.property-select .property-trigger-btn) {
     @apply !bg-transparent !border !border-solid !border-white/10 !text-gray-400 !rounded-full !h-8 !px-3 !text-[13px] hover:!bg-white/5 hover:!border-white/20 !shadow-none !ring-0 !transition-all;
   }
 
-  :global(.property-select button span) {
+  :global(.property-select .property-trigger-btn span) {
     @apply !text-gray-300;
   }
 
-  :global(.property-select button svg) {
+  :global(.property-select .property-trigger-btn svg) {
     @apply !text-gray-500;
   }
 
