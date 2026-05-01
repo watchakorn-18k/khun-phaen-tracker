@@ -320,7 +320,7 @@
   }
 </script>
 
-<div class="max-w-7xl mx-auto space-y-6 pb-24">
+<div class="px-4 sm:px-6 space-y-6 pb-24 pt-4">
   {#if $checkingAccess}
     <WorkspaceLoading />
   {:else if !$hasAccess}

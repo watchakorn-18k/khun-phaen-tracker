@@ -15,6 +15,7 @@
 - 📤 **นำเข้า/ส่งออก** - รองรับ CSV และ PDF
 - 🌙 **Dark Mode** - รองรับธีมมืด
 - 🔄 **Real-time Sync** - ซิงค์ข้อมูลข้ามเครื่อง (เมื่อเปิด Sync Server)
+- 🎨 **Whiteboard** - วาดเขียนไอเดียประกอบการวางแผนด้วย Excalidraw
 
 ## 🏗️ โครงสร้างโปรเจกต์
 
@@ -48,11 +49,7 @@ npm install
 cp .env.example .env
 ```
 
-แก้ไขไฟล์ `.env` แล้วใส่ tldraw license key:
-
-```
-VITE_TLDRAW_LICENSE_KEY=your-license-key
-```
+แก้ไขไฟล์ `.env` (ถ้าต้องการใช้งานฟีเจอร์ขั้นสูง):
 
 สำหรับ Backend `.env` ให้เพิ่มการตั้งค่าของ **ระบบที่เก็บไฟล์ (RustFS/S3)** ดังนี้ (ถ้าไม่ใช้ไฟล์แนบ สามารถละเว้นได้):
 ```
@@ -63,7 +60,7 @@ STORAGE_BUCKET="khunphaen-assets"
 ```
 **ข้อควรระวัง:** ระบบแบคเอนด์จะพยายามสร้าง Bucket ให้คุณโดยอัตโนมัติเมื่อเริ่มทำงาน แต่ถ้าคุณใช้ IP ของเซิร์ฟเวอร์แยกต่างหาก (เช่นใส่ `STORAGE_URL="http://45.xxx.xxx:9000"`) ระบบอาจจะโดนปฏิเสธการเข้าถึง (AccessDenied) ในกรณีนี้คุณต้องเข้าไปที่หน้า Console ของ RustFS เพื่อสร้าง Bucket ชื่อ `khunphaen-assets` (หรือตามที่คุณตั้งค่าไว้) ล่วงหน้าด้วยตนเองครับ
 
-> **วิธีขอ tldraw License Key:** ไปที่ [tldraw.dev](https://tldraw.dev) สมัครสมาชิก แล้วขอ license key ฟรีสำหรับการใช้งานแบบ non-commercial ฟีเจอร์ Whiteboard ใช้งานได้โดยไม่มี key แต่จะแสดง watermark/คำเตือน
+
 
 ### 3. รัน Development Server
 

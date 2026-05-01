@@ -42,6 +42,9 @@ function patchSvelteDndActionParentElementGuard(): Plugin {
 // More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
 export default defineConfig({
   plugins: [patchSvelteDndActionParentElementGuard(), tailwindcss(), sveltekit()],
+  resolve: {
+    dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
+  },
   optimizeDeps: {
     exclude: [
       "@duckdb/duckdb-wasm",

@@ -7,7 +7,6 @@
     Trash2,
     X,
     LoaderCircle,
-    TriangleAlert,
     Maximize2,
     Minimize2,
   } from "lucide-svelte";
@@ -18,15 +17,15 @@
   type BridgeMode = "offline" | "sync";
   type BridgeSyncStatus = "offline" | "connecting" | "online" | "error";
 
-  interface MountedTldrawBridge {
+  interface MountedExcalidrawBridge {
     unmount: () => void;
     loadSnapshot: (snapshot: Snapshot) => boolean;
     exportPng: () => Promise<string | null>;
     clearCurrentPage: () => void;
   }
 
-  interface TldrawBridgeModule {
-    mountTldrawBridge: (options: {
+  interface ExcalidrawBridgeModule {
+    mountExcalidrawBridge: (options: {
       target: HTMLElement;
       mode: BridgeMode;
       initialSnapshot: Snapshot | null;
@@ -35,15 +34,15 @@
       syncRoomId?: string;
       syncHost?: string;
       isDarkMode?: boolean;
-    }) => MountedTldrawBridge;
+    }) => MountedExcalidrawBridge;
   }
 
   type ConnectionState = "offline" | "connecting" | "online" | "error";
 
   const SYNC_ROOM_KEY = "sync-room-code";
-  const SNAPSHOT_KEY = "whiteboard-snapshot-v1";
+  const SNAPSHOT_KEY = "excalidraw-snapshot-v1";
   const SYNC_HOST_KEY = "whiteboard-sync-host";
-  const DEFAULT_SYNC_HOST = "https://demo.tldraw.xyz";
+  const DEFAULT_SYNC_HOST = "https://excalidraw.com"; // Updated default host placeholder
 
   const dispatch = createEventDispatcher<{
     close: void;
@@ -53,8 +52,8 @@
   export let open = false;
 
   let boardMountEl: HTMLDivElement | null = null;
-  let bridge: MountedTldrawBridge | null = null;
-  let bridgeModule: TldrawBridgeModule | null = null;
+  let bridge: MountedExcalidrawBridge | null = null;
+  let bridgeModule: ExcalidrawBridgeModule | null = null;
   let connectionState: ConnectionState = "offline";
   let statusMessage = $_("whiteboard__status_offline");
   let isBooting = false;
@@ -64,10 +63,7 @@
   let mode: BridgeMode = "offline";
   let roomCode = "";
   let syncHost = DEFAULT_SYNC_HOST;
-  let hasLicense = true;
-  let licenseChecked = false;
   let isFullscreen = false;
-  let showLicenseWarning = true;
 
   $: if (open && !active) {
     active = true;
@@ -105,7 +101,7 @@
       if (saveTimer) clearTimeout(saveTimer);
       saveTimer = setTimeout(() => {
         localStorage.setItem(SNAPSHOT_KEY, serialized);
-      }, 180);
+      }, 500); // Slightly longer debounce for excalidraw
     } catch (error) {
       console.warn("Failed to persist whiteboard snapshot", error);
     }
@@ -166,17 +162,15 @@
   async function ensureBridge() {
     if (!boardMountEl) return;
     if (!bridgeModule) {
-      const mod = await import("$lib/components/tldrawBridge");
-      bridgeModule = mod as TldrawBridgeModule;
-      hasLicense = mod.hasTldrawLicense();
-      licenseChecked = true;
+      const mod = await import("$lib/components/excalidrawBridge");
+      bridgeModule = mod as unknown as ExcalidrawBridgeModule;
     }
     if (bridge) return;
     const forceDark =
       typeof document !== "undefined" &&
       document.documentElement.classList.contains("dark");
 
-    bridge = bridgeModule.mountTldrawBridge({
+    bridge = bridgeModule.mountExcalidrawBridge({
       target: boardMountEl,
       mode,
       initialSnapshot: readSnapshotFromStorage(),
@@ -353,49 +347,6 @@
       </div>
 
       <div class="flex-1 min-h-0 relative">
-        {#if licenseChecked && !hasLicense && showLicenseWarning}
-          <div
-            class="mx-3 sm:mx-4 md:mx-5 mt-3 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg flex items-start gap-2.5"
-          >
-            <TriangleAlert
-              size={18}
-              class="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5"
-            />
-            <div class="flex-1 min-w-0">
-              <p class="font-semibold text-sm text-blue-900 dark:text-blue-100">
-                {$_("whiteboard__license_title")}
-              </p>
-              <p
-                class="mt-1.5 text-xs text-blue-800 dark:text-blue-200 leading-relaxed"
-              >
-                {$_("whiteboard__license_copy")}
-                <code
-                  class="bg-blue-100 dark:bg-blue-900 px-1 rounded font-mono"
-                  >.env.example</code
-                >
-                {$_("whiteboard__license_to")}
-                <code
-                  class="bg-blue-100 dark:bg-blue-900 px-1 rounded font-mono"
-                  >.env</code
-                >
-                {$_("whiteboard__license_then")}
-                <a
-                  href="https://tldraw.dev"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="underline hover:no-underline">tldraw.dev</a
-                >
-              </p>
-            </div>
-            <button
-              on:click={() => (showLicenseWarning = false)}
-              class="shrink-0 p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900 text-blue-600 dark:text-blue-400"
-              title={$_("whiteboard__btn_close")}
-            >
-              <X size={14} />
-            </button>
-          </div>
-        {/if}
         {#if isBooting}
           <div
             class="absolute inset-0 z-10 bg-white/80 dark:bg-gray-900/80 flex items-center justify-center"
@@ -408,12 +359,145 @@
             </div>
           </div>
         {/if}
-        <div class="w-full h-full" bind:this={boardMountEl}></div>
+        <div
+          class="whiteboard-excalidraw-host w-full h-full"
+          bind:this={boardMountEl}
+        ></div>
       </div>
     </div>
   </div>
 {/if}
 
 <style>
-  /* No explicit theme overrides needed, tldraw correctly handles dark mode with inferDarkMode: true */
+  :global(.whiteboard-excalidraw-host .excalidraw.theme--dark) {
+    --icon-fill-color: #e5e7eb;
+    --color-on-surface: #e5e7eb;
+    --text-primary-color: #e5e7eb;
+    --color-disabled: #8b8f9c;
+    --keybinding-color: #9ca3af;
+    --island-bg-color: #1f2028;
+    --button-gray-1: #2d2f3a;
+    --button-gray-2: #383a46;
+    --button-gray-3: #444653;
+    --button-hover-bg: #343642;
+    --default-border-color: #3f4250;
+  }
+
+  :global(.whiteboard-excalidraw-host .excalidraw.theme--dark button),
+  :global(.whiteboard-excalidraw-host .excalidraw.theme--dark button svg),
+  :global(.whiteboard-excalidraw-host .excalidraw.theme--dark .ToolIcon__icon),
+  :global(.whiteboard-excalidraw-host .excalidraw.theme--dark .ToolIcon__icon svg),
+  :global(.whiteboard-excalidraw-host .excalidraw.theme--dark .dropdown-menu-button),
+  :global(.whiteboard-excalidraw-host .excalidraw.theme--dark .dropdown-menu-button svg) {
+    color: var(--icon-fill-color);
+  }
+
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .dropdown-menu
+        .dropdown-menu-item-base
+    ),
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .dropdown-menu
+        .dropdown-menu-item__text
+    ),
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .dropdown-menu
+        .dropdown-menu-item__shortcut
+    ),
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .dropdown-menu
+        .dropdown-menu-group-title
+    ) {
+    color: #e5e7eb;
+  }
+
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .dropdown-menu
+        .dropdown-menu-item-base[aria-disabled="true"]
+    ),
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .dropdown-menu
+        .dropdown-menu-item-base[disabled]
+    ),
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .dropdown-menu
+        .dropdown-menu-item-base[aria-disabled="true"]
+        *
+    ),
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .dropdown-menu
+        .dropdown-menu-item-base[disabled]
+        *
+    ) {
+    color: var(--color-disabled);
+  }
+
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .ToolIcon
+        .ToolIcon_type_radio:checked
+        + .ToolIcon__icon
+    ),
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .ToolIcon
+        .ToolIcon_type_checkbox:checked
+        + .ToolIcon__icon
+    ) {
+    --color-on-primary-container: #ffffff;
+    background: #4f46a5;
+  }
+
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .ToolIcon
+        .ToolIcon_type_radio:checked
+        + .ToolIcon__icon
+        svg
+    ),
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .ToolIcon
+        .ToolIcon_type_checkbox:checked
+        + .ToolIcon__icon
+        svg
+    ) {
+    color: #ffffff;
+  }
+
+  :global(.whiteboard-excalidraw-host .excalidraw.theme--dark button:disabled),
+  :global(.whiteboard-excalidraw-host .excalidraw.theme--dark button:disabled svg),
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .ToolIcon__icon[aria-disabled="true"]
+    ),
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .ToolIcon__icon[aria-disabled="true"]
+        svg
+    ) {
+    color: var(--color-disabled);
+  }
 </style>

@@ -2,18 +2,7 @@
   import { dndzone, TRIGGERS, type DndEvent } from "svelte-dnd-action";
   import { createEventDispatcher, tick } from "svelte";
   import type { Task, Sprint } from "$lib/types";
-  import {
-    Edit2,
-    Trash2,
-    MoreVertical,
-    Folder,
-    Clock3,
-    Hammer,
-    CheckCircle2,
-    Flag,
-    FlaskConical,
-    ListTodo,
-  } from "lucide-svelte";
+  import { MoreHorizontal, Plus, ListTodo } from "lucide-svelte";
   import PaginationFooter from "./PaginationFooter.svelte";
   import { _ } from "$lib/i18n";
 
@@ -37,18 +26,15 @@
     id: string | number;
   }
 
-  // Local state สำหรับ drag and drop - เริ่มต้นจาก tasks
   let todoItems: TaskWithRequiredId[] = [];
   let inProgressItems: TaskWithRequiredId[] = [];
   let inTestItems: TaskWithRequiredId[] = [];
   let doneItems: TaskWithRequiredId[] = [];
 
-  // Flag เพื่อป้องกันการ sync ระหว่าง drag
   let isDragging = false;
 
-  // Sync items from tasks prop (เรียกเฉพาะเมื่อจำเป็น)
   function syncItemsFromTasks(nextTasks: Task[]) {
-    if (isDragging) return; // ไม่ sync ระหว่าง drag
+    if (isDragging) return;
 
     todoItems = nextTasks.filter(
       (t): t is TaskWithRequiredId =>
@@ -70,64 +56,42 @@
     );
   }
 
-  // Re-sync local columns whenever parent tasks update after drag is done.
   $: if (!isDragging && tasks) {
     syncItemsFromTasks(tasks);
   }
 
-  const columnsMetadata = [
-    {
-      id: "todo",
-      title: $_("kanbanBoard__column_todo"),
-      color: "bg-warning/10 border-warning/30",
-      textColor: "text-warning",
-      icon: Clock3,
-    },
-    {
-      id: "in-progress",
-      title: $_("kanbanBoard__column_in_progress"),
-      color: "bg-primary/10 border-primary/30",
-      textColor: "text-primary",
-      icon: Hammer,
-    },
-    {
-      id: "in-test",
-      title: $_("kanbanBoard__column_in_test"),
-      color:
-        "bg-purple-100/50 dark:bg-purple-900/20 border-purple-300/50 dark:border-purple-700/50",
-      textColor: "text-purple-600 dark:text-purple-400",
-      icon: FlaskConical,
-    },
-    {
-      id: "done",
-      title: $_("kanbanBoard__column_done"),
-      color: "bg-success/10 border-success/30",
-      textColor: "text-success",
-      icon: CheckCircle2,
-    },
-  ] as const;
-
-  // Define statusColumns explicitly for reactivity
   $: statusColumns = [
     {
       status: "todo" as Task["status"],
       items: todoItems,
-      meta: columnsMetadata[0],
+      label: $_("kanbanBoard__column_todo"),
+      dotClass: "border-2 border-gray-400 dark:border-gray-500",
+      countClass: "text-gray-500 dark:text-gray-400",
+      colBg: "bg-gray-50 dark:bg-gray-800/40",
     },
     {
       status: "in-progress" as Task["status"],
       items: inProgressItems,
-      meta: columnsMetadata[1],
+      label: $_("kanbanBoard__column_in_progress"),
+      dotClass: "bg-orange-400",
+      countClass: "text-orange-600 dark:text-orange-400",
+      colBg: "bg-orange-50/40 dark:bg-orange-900/10",
     },
     {
       status: "in-test" as Task["status"],
       items: inTestItems,
-      meta: columnsMetadata[2],
+      label: $_("kanbanBoard__column_in_test"),
+      dotClass: "bg-violet-500",
+      countClass: "text-violet-600 dark:text-violet-400",
+      colBg: "bg-violet-50/40 dark:bg-violet-900/10",
     },
     {
       status: "done" as Task["status"],
       items: doneItems,
-      meta: columnsMetadata[3],
+      label: $_("kanbanBoard__column_done"),
+      dotClass: "bg-green-500",
+      countClass: "text-green-600 dark:text-green-400",
+      colBg: "bg-green-50/30 dark:bg-green-900/10",
     },
   ];
 
@@ -135,24 +99,14 @@
     e: CustomEvent<DndEvent<TaskWithRequiredId>>,
     status: Task["status"],
   ) {
-    if (!isDragging) {
-      dispatch("dragState", { dragging: true });
-    }
+    if (!isDragging) dispatch("dragState", { dragging: true });
     isDragging = true;
     const items = e.detail.items;
     switch (status) {
-      case "todo":
-        todoItems = items;
-        break;
-      case "in-progress":
-        inProgressItems = items;
-        break;
-      case "in-test":
-        inTestItems = items;
-        break;
-      case "done":
-        doneItems = items;
-        break;
+      case "todo": todoItems = items; break;
+      case "in-progress": inProgressItems = items; break;
+      case "in-test": inTestItems = items; break;
+      case "done": doneItems = items; break;
     }
   }
 
@@ -161,7 +115,6 @@
     status: Task["status"],
   ) {
     const finishDrag = async () => {
-      // Wait for parent component's optimistic update to propagate back
       await tick();
       isDragging = false;
       dispatch("dragState", { dragging: false });
@@ -171,40 +124,21 @@
     const findTaskById = (id: string | number) =>
       tasks.find((t) => t.id !== undefined && String(t.id) === String(id));
 
-    // อัปเดท local state เพื่อแสดงผลลัพธ์ทันที
     switch (status) {
-      case "todo":
-        todoItems = items;
-        break;
-      case "in-progress":
-        inProgressItems = items;
-        break;
-      case "in-test":
-        inTestItems = items;
-        break;
-      case "done":
-        doneItems = items;
-        break;
+      case "todo": todoItems = items; break;
+      case "in-progress": inProgressItems = items; break;
+      case "in-test": inTestItems = items; break;
+      case "done": doneItems = items; break;
     }
 
-    // Cross-column drag fires finalize for origin and destination zones.
-    // Ignore origin-zone finalize; destination-zone finalize will commit the move.
-    if (trigger === (TRIGGERS.DROPPED_INTO_ANOTHER as any)) {
-      return;
-    }
+    if (trigger === (TRIGGERS.DROPPED_INTO_ANOTHER as any)) return;
 
-    // Commit move on destination finalize.
     if (trigger === (TRIGGERS.DROPPED_INTO_ZONE as any)) {
       let droppedId: string | number | null = null;
       const infoId = e.detail.info.id;
 
-      if (
-        typeof infoId === "string" ||
-        typeof infoId === "number"
-      ) {
-        const droppedItem = items.find(
-          (item) => String(item.id) === String(infoId),
-        );
+      if (typeof infoId === "string" || typeof infoId === "number") {
+        const droppedItem = items.find((item) => String(item.id) === String(infoId));
         droppedId = droppedItem?.id ?? infoId;
       }
 
@@ -229,299 +163,163 @@
     }
   }
 
-  function getColumnBg(status: Task["status"]): string {
-    switch (status) {
-      case "pending":
-        return "bg-gray-100 dark:bg-gray-800";
-      case "todo":
-        return "bg-gray-100 dark:bg-gray-800";
-      case "in-progress":
-        return "bg-primary/5 dark:bg-primary/10 border-2 border-primary/20 dark:border-primary/30";
-      case "in-test":
-        return "bg-purple-50/50 dark:bg-purple-900/10 border-2 border-purple-200/40 dark:border-purple-700/30";
-      case "done":
-        return "bg-success/5 dark:bg-success/10 border-2 border-success/20 dark:border-success/30";
-    }
+  function getTaskId(task: Task): string {
+    const prefix = task.workspace_short_name || "T";
+    if (task.task_number) return `${prefix}-${task.task_number}`;
+    return "";
   }
 
-  function getCardBorderClass(status: Task["status"]): string {
-    switch (status) {
-      case "in-progress":
-        return "border-primary/30";
-      case "in-test":
-        return "border-purple-300/30 dark:border-purple-600/30";
-      case "done":
-        return "border-success/30 opacity-75";
-      default:
-        return "";
-    }
+  function getCategoryBadgeClass(category: string): string {
+    const lower = category?.toLowerCase() || "";
+    if (lower.includes("high") || lower.includes("urgent") || lower.includes("สูง"))
+      return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300";
+    if (lower.includes("low") || lower.includes("ต่ำ"))
+      return "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400";
+    return "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300";
   }
 
-  function getCountBadgeClass(status: Task["status"]): string {
-    switch (status) {
-      case "pending":
-        return "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300";
-      case "todo":
-        return "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300";
-      case "in-progress":
-        return "bg-primary/20 text-primary";
-      case "in-test":
-        return "bg-purple-200/50 dark:bg-purple-800/30 text-purple-600 dark:text-purple-400";
-      case "done":
-        return "bg-success/20 text-success";
-    }
-  }
-
-  function getCategoryBadgeClass(status: Task["status"]): string {
-    switch (status) {
-      case "in-progress":
-        return "bg-primary/10 text-primary";
-      case "in-test":
-        return "bg-purple-100/50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400";
-      case "done":
-        return "bg-success/10 text-success";
-      default:
-        return "bg-gray-100 dark:bg-gray-700";
-    }
-  }
-
-  function getTitleClass(status: Task["status"]): string {
-    if (status === "done")
-      return "font-medium text-gray-900 dark:text-white text-sm flex-1 line-through";
-    return "font-medium text-gray-900 dark:text-white text-sm flex-1";
-  }
-
-  function getIconByStatus(status: Task["status"]) {
-    switch (status) {
-      case "pending":
-        return Clock3;
-      case "todo":
-        return Clock3;
-      case "in-progress":
-        return Hammer;
-      case "in-test":
-        return FlaskConical;
-      case "done":
-        return CheckCircle2;
-    }
-  }
-
-  function getIconColorClass(status: Task["status"]): string {
-    switch (status) {
-      case "pending":
-        return "text-warning";
-      case "todo":
-        return "text-warning";
-      case "in-progress":
-        return "text-primary";
-      case "in-test":
-        return "text-purple-600 dark:text-purple-400";
-      case "done":
-        return "text-success";
-    }
-  }
-
-  function getHeaderTextClass(status: Task["status"]): string {
-    switch (status) {
-      case "pending":
-        return "font-semibold text-gray-700 dark:text-gray-200";
-      case "todo":
-        return "font-semibold text-gray-700 dark:text-gray-200";
-      case "in-progress":
-        return "font-semibold text-primary";
-      case "in-test":
-        return "font-semibold text-purple-600 dark:text-purple-400";
-      case "done":
-        return "font-semibold text-success";
-    }
-  }
-
-  function getColumnTitle(status: Task["status"]): string {
-    switch (status) {
-      case "pending":
-        return $_("kanbanBoard__column_todo");
-      case "todo":
-        return $_("kanbanBoard__column_todo");
-      case "in-progress":
-        return $_("kanbanBoard__column_in_progress");
-      case "in-test":
-        return $_("kanbanBoard__column_in_test");
-      case "done":
-        return $_("kanbanBoard__column_done");
-    }
-  }
-
-  function getSprintName(
-    sprintId: string | number | null | undefined,
-  ): string | null {
-    if (!sprintId) return null;
-    return sprints.find((s) => String(s.id) === String(sprintId))?.name || null;
+  function getCardOpacity(status: Task["status"]): string {
+    return status === "done" ? "opacity-60" : "";
   }
 
   let openMenuId: string | number | null = null;
+  let openColumnMenu: string | null = null;
 </script>
 
-<div
-  class="bg-white dark:bg-gray-800/20 rounded-xl border border-gray-200 dark:border-gray-700/50 overflow-hidden flex flex-col"
->
-  <div
-    class="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1 overflow-x-auto"
-  >
-    {#each statusColumns as { status, items, meta }}
-      <!-- ... existing column structure ... -->
-      <div
-        class="{getColumnBg(
-          status,
-        )} rounded-xl p-3 transition-colors flex flex-col min-w-[280px]"
-      >
-        <div class="flex items-center justify-between mb-3 px-1">
+<div class="flex flex-col">
+  <!-- Kanban columns -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 overflow-x-auto pb-4">
+    {#each statusColumns as { status, items, label, dotClass, countClass, colBg }}
+      <div class="{colBg} rounded-xl p-3 flex flex-col min-w-65">
+
+        <!-- Column header -->
+        <div class="flex items-center justify-between mb-3 px-0.5">
           <div class="flex items-center gap-2">
-            <svelte:component
-              this={getIconByStatus(status)}
-              size={18}
-              class={getIconColorClass(status)}
-            />
-            <h3 class={getHeaderTextClass(status)}>{getColumnTitle(status)}</h3>
-            <span
-              class="{getCountBadgeClass(
-                status,
-              )} px-2 py-0.5 rounded-full text-xs font-medium"
+            <span class="w-2.5 h-2.5 rounded-full {dotClass} shrink-0"></span>
+            <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">{label}</span>
+            <span class="text-xs font-medium {countClass} tabular-nums">{items.length}</span>
+          </div>
+          <div class="flex items-center gap-0.5">
+            <button
+              on:click|stopPropagation={() =>
+                (openColumnMenu = openColumnMenu === status ? null : status)}
+              class="p-1 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
             >
-              {items.length}
-            </span>
+              <MoreHorizontal size={14} />
+            </button>
+            <button
+              class="p-1 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+              title="Add task"
+            >
+              <Plus size={14} />
+            </button>
           </div>
         </div>
 
+        <!-- Drop zone -->
         <div
           use:dndzone={{ items, flipDurationMs: 200 }}
           on:consider={(e) => handleDndConsider(e, status)}
           on:finalize={(e) => handleDndFinalize(e, status)}
-          class="space-y-1.5 min-h-[300px] flex-1 pb-4"
+          class="space-y-2 min-h-75 flex-1"
         >
           {#each items as task (task.id)}
             <!-- svelte-ignore a11y-click-events-have-key-events -->
             <div
-              class="kanban-card relative group bg-white dark:bg-gray-900 p-3 rounded-lg border border-gray-200 dark:border-gray-700/50 {getCardBorderClass(
-                status,
-              )} cursor-pointer hover:border-primary/50 transition-all shadow-sm"
+              class="relative group bg-white dark:bg-gray-900 rounded-lg border border-gray-200/80 dark:border-gray-700/60 p-3 cursor-pointer hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm transition-all {getCardOpacity(status)}"
               on:click={() => dispatch("edit", task)}
               role="button"
               tabindex="0"
             >
-              <div class="flex items-start justify-between gap-2">
-                <h4 class={getTitleClass(status)}>
-                  {#if task.task_number}
-                    <span
-                      class="inline-flex items-center mr-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary align-middle"
-                    >
-                      #{task.task_number}
-                    </span>
-                  {/if}
-                  {task.title}
-                </h4>
+              <!-- Task ID + menu -->
+              <div class="flex items-center justify-between mb-1.5">
+                {#if getTaskId(task)}
+                  <span class="text-[10px] font-semibold text-gray-400 dark:text-gray-500 tracking-wide">
+                    {getTaskId(task)}
+                  </span>
+                {:else}
+                  <span></span>
+                {/if}
                 <button
                   on:click|stopPropagation={() =>
                     (openMenuId = openMenuId === task.id ? null : task.id)}
-                  class="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                  class="p-0.5 rounded text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                  <MoreVertical size={14} />
+                  <MoreHorizontal size={13} />
                 </button>
               </div>
 
-              <div
-                class="flex items-center gap-2 mt-2 text-xs text-gray-500 dark:text-gray-400 flex-wrap"
-              >
-                {#if task.project}
-                  <span
-                    class="flex items-center gap-0.5 px-1.5 py-0.5 bg-primary/10 text-primary rounded"
-                  >
-                    <Folder size={10} />
-                    <span class="truncate max-w-15">{task.project}</span>
-                  </span>
-                {/if}
-                {#if getSprintName(task.sprint_id)}
-                  <span
-                    class="flex items-center gap-0.5 px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded"
-                  >
-                    <Flag size={10} />
-                    <span class="truncate max-w-15"
-                      >{getSprintName(task.sprint_id)}</span
-                    >
-                  </span>
-                {/if}
-                <span
-                  class="px-1.5 py-0.5 {getCategoryBadgeClass(status)} rounded"
-                  >{task.category}</span
-                >
-                {#if task.assignees && task.assignees.length > 0}
-                  <div class="flex items-center gap-1 flex-wrap">
-                    {#each task.assignees as assignee}
-                      <span
-                        class="flex items-center gap-1"
-                        title={assignee.name}
-                      >
-                        <span
-                          class="w-2 h-2 rounded-full"
-                          style="background-color: {assignee.color}"
-                        ></span>
-                        <span class="truncate max-w-15 text-[10px]"
-                          >{assignee.name}</span
-                        >
-                      </span>
-                    {/each}
-                  </div>
-                {/if}
-              </div>
+              <!-- Title -->
+              <h4 class="text-sm font-medium text-gray-900 dark:text-white leading-snug mb-1 {status === 'done' ? 'line-through' : ''}">
+                {task.title}
+              </h4>
 
+              <!-- Description (notes) -->
+              {#if task.notes}
+                <p class="text-xs text-gray-400 dark:text-gray-500 line-clamp-2 mb-2">
+                  {task.notes}
+                </p>
+              {/if}
+
+              <!-- Checklist progress -->
               {#if task.checklist && task.checklist.length > 0}
-                {@const completed = task.checklist.filter(
-                  (i) => i.completed,
-                ).length}
+                {@const completed = task.checklist.filter((i) => i.completed).length}
                 {@const total = task.checklist.length}
                 {@const percent = Math.round((completed / total) * 100)}
-                <div class="mt-3">
-                  <div
-                    class="flex justify-between items-center text-[10px] text-gray-400 dark:text-gray-500 mb-1 px-0.5"
-                  >
-                    <span class="flex items-center gap-1">
-                      <ListTodo size={11} />
-                      {completed}/{total}
-                    </span>
-                    <span>{percent}%</span>
-                  </div>
-                  <div
-                    class="h-1 w-full bg-gray-200 dark:bg-gray-700/50 rounded-full overflow-hidden"
-                  >
-                    <div
-                      class="h-full bg-primary transition-all duration-300"
-                      style="width: {percent}%"
-                    ></div>
+                <div class="mb-2">
+                  <div class="flex items-center gap-1.5 text-[10px] text-gray-400 dark:text-gray-500 mb-1">
+                    <ListTodo size={10} />
+                    <span>{completed}/{total}</span>
+                    <div class="flex-1 h-1 bg-gray-100 dark:bg-gray-700/50 rounded-full overflow-hidden">
+                      <div class="h-full bg-primary transition-all duration-300" style="width: {percent}%"></div>
+                    </div>
                   </div>
                 </div>
               {/if}
 
+              <!-- Footer: assignees + category -->
+              <div class="flex items-center justify-between mt-1.5 gap-2">
+                <!-- Assignee avatars -->
+                <div class="flex items-center -space-x-1.5">
+                  {#if task.assignees && task.assignees.length > 0}
+                    {#each task.assignees.slice(0, 3) as assignee}
+                      <div
+                        class="w-5 h-5 rounded-full border-2 border-white dark:border-gray-900 flex items-center justify-center text-[9px] font-bold text-white shrink-0"
+                        style="background-color: {assignee.color || '#6366f1'}"
+                        title={assignee.name}
+                      >
+                        {assignee.name?.[0]?.toUpperCase() || "?"}
+                      </div>
+                    {/each}
+                    {#if task.assignees.length > 3}
+                      <div class="w-5 h-5 rounded-full border-2 border-white dark:border-gray-900 bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-[9px] font-bold text-gray-600 dark:text-gray-300 shrink-0">
+                        +{task.assignees.length - 3}
+                      </div>
+                    {/if}
+                  {/if}
+                </div>
+
+                <!-- Category badge -->
+                {#if task.category}
+                  <span class="text-[10px] font-medium px-1.5 py-0.5 rounded {getCategoryBadgeClass(task.category)} shrink-0">
+                    {task.category}
+                  </span>
+                {/if}
+              </div>
+
+              <!-- Context menu -->
               {#if openMenuId === task.id}
-                <div
-                  class="absolute right-2 top-8 w-32 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10"
-                >
+                <div class="absolute right-2 top-7 w-32 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
                   <button
-                    on:click={() => {
-                      dispatch("edit", task);
-                      openMenuId = null;
-                    }}
-                    class="w-full px-3 py-1.5 text-left text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-1.5"
+                    on:click={() => { dispatch("edit", task); openMenuId = null; }}
+                    class="w-full px-3 py-1.5 text-left text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                   >
-                    <Edit2 size={12} />
                     {$_("kanbanBoard__edit")}
                   </button>
                   <button
-                    on:click={() => {
-                      dispatch("delete", task.id!);
-                      openMenuId = null;
-                    }}
-                    class="w-full px-3 py-1.5 text-left text-xs text-danger hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-1.5"
+                    on:click={() => { dispatch("delete", task.id!); openMenuId = null; }}
+                    class="w-full px-3 py-1.5 text-left text-xs text-danger hover:bg-gray-50 dark:hover:bg-gray-700"
                   >
-                    <Trash2 size={12} />
                     {$_("kanbanBoard__delete")}
                   </button>
                 </div>
@@ -545,12 +343,12 @@
   {/if}
 </div>
 
-<!-- Click outside to close menu -->
-{#if openMenuId !== null}
+<!-- Click outside to close menus -->
+{#if openMenuId !== null || openColumnMenu !== null}
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <button
     class="fixed inset-0 z-0"
-    on:click={() => (openMenuId = null)}
+    on:click={() => { openMenuId = null; openColumnMenu = null; }}
     tabindex="-1"
     aria-label={$_("kanbanBoard__close_menu")}
   ></button>

@@ -311,6 +311,55 @@
     <main class="w-full h-screen overflow-hidden">
       <slot />
     </main>
+  {:else if isWorkspacePage}
+    <slot />
+
+    {#if whiteboardMessage}
+      <div class="fixed top-4 right-4 z-110 animate-fade-in">
+        <div
+          class="{whiteboardMessageType === 'success'
+            ? 'bg-success'
+            : 'bg-danger'} text-white px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium"
+        >
+          {whiteboardMessage}
+        </div>
+      </div>
+    {/if}
+
+    {#if showBookmarkManager}
+      <BookmarkManager on:close={() => (showBookmarkManager = false)} />
+    {/if}
+
+    {#if showQuickNotes}
+      <QuickNotes on:close={() => (showQuickNotes = false)} />
+    {/if}
+
+    {#if showWhiteboard}
+      <WhiteboardModal
+        open={showWhiteboard}
+        on:close={() => (showWhiteboard = false)}
+        on:notify={(event) =>
+          showToast(event.detail.message, event.detail.type)}
+      />
+    {/if}
+
+    {#if showProfileModal}
+      <ProfileModal
+        open={showProfileModal}
+        on:close={() => (showProfileModal = false)}
+        on:notify={(event) =>
+          showToast(event.detail.message, event.detail.type)}
+      />
+    {/if}
+
+    <!-- Dev Timer - Fixed Bottom Right -->
+    <DevTimer
+      on:showBookmarks={() => (showBookmarkManager = true)}
+      on:showWhiteboard={() => (showWhiteboard = true)}
+      on:showQuickNotes={() => (showQuickNotes = true)}
+    />
+
+    <GlobalConfirmModal />
   {:else}
     <header
       class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 fixed top-0 left-0 right-0 z-999 transition-all duration-300 {showHeader
