@@ -42,6 +42,7 @@
     Music,
     Smile,
   } from "lucide-svelte";
+  import Sidebar from "$lib/components/Sidebar.svelte";
 
   interface Workspace {
     id: string;
@@ -486,8 +487,10 @@
   ] as const;
 </script>
 
-<div class="min-h-screen bg-slate-50 dark:bg-slate-950 px-4 py-8 rounded-2xl">
-  <div class="w-full mx-auto space-y-6">
+<div class="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
+  <Sidebar />
+  <main class="flex-1 overflow-y-auto min-w-0 relative p-4 lg:p-8 custom-scrollbar">
+    <div class="w-full mx-auto space-y-6">
     <!-- Header Section -->
     <header class="overflow-hidden rounded-[30px] border border-slate-200 bg-white text-slate-900 shadow-[0_30px_80px_rgba(15,23,42,0.12)] dark:border-slate-800/80 dark:bg-slate-950 dark:text-white dark:shadow-[0_30px_80px_rgba(15,23,42,0.45)]">
       <div class="bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.20),_transparent_35%),linear-gradient(135deg,_#f8fafc_0%,_#e2e8f0_48%,_#c7d2fe_100%)] px-6 py-7 dark:bg-[radial-gradient(circle_at_top_left,_rgba(99,102,241,0.28),_transparent_35%),linear-gradient(135deg,_#020617_0%,_#0f172a_48%,_#1e1b4b_100%)] sm:px-8">
@@ -1268,7 +1271,8 @@
         {/if}
       {/if}
     {/if}
-  </div>
+    </div>
+  </main>
 </div>
 
 <!-- Create Modal -->
@@ -1469,4 +1473,17 @@
 {/if}
 
 <style>
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(156, 163, 175, 0.2);
+    border-radius: 10px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(156, 163, 175, 0.4);
+  }
 </style>

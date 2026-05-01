@@ -250,9 +250,9 @@
           </div>
         </div>
 
-        <button 
+        <button
           on:click={() => goto(`${base}/workspace/${workspaceId}${$page.url.search}`)}
-          class="relative z-10 mt-6 w-full py-3 bg-white text-gray-900 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-50 transition-colors shadow-lg"
+          class="relative z-10 mt-6 w-full py-3 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-colors"
         >
           {$_("overview__view_all_issues")}
           <ChevronRight size={14} />
