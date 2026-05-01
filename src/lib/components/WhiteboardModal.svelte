@@ -500,4 +500,113 @@
     ) {
     color: var(--color-disabled);
   }
+
+  :global(.whiteboard-excalidraw-host .excalidraw.theme--dark .context-menu),
+  :global(.whiteboard-excalidraw-host .excalidraw.theme--dark .context-menu button),
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .context-menu-item
+        .context-menu-item__label
+    ),
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .context-menu-item
+        .context-menu-item__shortcut
+    ) {
+    color: #e5e7eb;
+  }
+
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .context-menu-item[aria-disabled="true"]
+    ),
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .context-menu-item[disabled]
+    ),
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .context-menu-item[aria-disabled="true"]
+        *
+    ),
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .context-menu-item[disabled]
+        *
+    ) {
+    color: #8b8f9c;
+  }
+
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .context-menu-item.dangerous
+        .context-menu-item__label
+    ) {
+    color: #ff6b6b;
+  }
+
+  :global(.whiteboard-excalidraw-host .excalidraw.theme--dark .panelColumn h3),
+  :global(.whiteboard-excalidraw-host .excalidraw.theme--dark .panelColumn legend),
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .panelColumn
+        .control-label
+    ),
+  :global(.whiteboard-excalidraw-host .excalidraw.theme--dark .zero-label),
+  :global(.whiteboard-excalidraw-host .excalidraw.theme--dark .value-bubble),
+  :global(.whiteboard-excalidraw-host .excalidraw.theme--dark .drag-input-label),
+  :global(.whiteboard-excalidraw-host .excalidraw.theme--dark .color-picker__heading),
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .color-picker__input-label
+    ) {
+    color: #e5e7eb;
+  }
+
+  :global(.whiteboard-excalidraw-host .excalidraw.theme--dark .zoom-actions),
+  :global(.whiteboard-excalidraw-host .excalidraw.theme--dark .undo-redo-buttons) {
+    background-color: #1f2028;
+  }
+
+  :global(.whiteboard-excalidraw-host .excalidraw.theme--dark .zoom-button),
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .undo-redo-buttons
+        button
+    ) {
+    background-color: #252631 !important;
+    color: #e5e7eb !important;
+  }
+
+  :global(.whiteboard-excalidraw-host .excalidraw.theme--dark .reset-zoom-button),
+  :global(.whiteboard-excalidraw-host .excalidraw.theme--dark .zoom-button svg),
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .undo-redo-buttons
+        button
+        svg
+    ) {
+    color: #e5e7eb !important;
+  }
+
+  :global(.whiteboard-excalidraw-host .excalidraw.theme--dark .zoom-button:hover),
+  :global(
+      .whiteboard-excalidraw-host
+        .excalidraw.theme--dark
+        .undo-redo-buttons
+        button:hover
+    ) {
+    background-color: #343642 !important;
+  }
 </style>

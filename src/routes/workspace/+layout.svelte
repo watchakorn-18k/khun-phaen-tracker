@@ -67,10 +67,16 @@
     } catch {}
   }
 
-  function switchWorkspace(ws: Workspace) {
+  async function switchWorkspace(ws: Workspace) {
     closeAllDropdowns();
+    if (ws.id === workspaceId) return;
     setWorkspaceId(ws.id, ws.name, ws.owner_id, ws.color, ws.icon, ws.short_name);
-    goto(`${base}/workspace/${ws.id}?room=${ws.room_code}`);
+    localStorage.setItem("sync-room-code", ws.room_code);
+    localStorage.setItem(
+      "backend-server-url",
+      import.meta.env.VITE_SERVER_URL || "http://127.0.0.1:3002",
+    );
+    await goto(`${base}/workspace/${ws.id}?room=${ws.room_code}`);
   }
 
   async function handleLogout() {

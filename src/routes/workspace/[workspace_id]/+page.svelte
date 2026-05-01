@@ -89,6 +89,8 @@
   let editingMilestone: Milestone | null = null;
   let assigneeGroups: AssigneeGroup[] = [];
   let suppressTaskAutoOpen = false;
+  let activeWorkspaceKey = "";
+  let workspaceInitRun = 0;
   type SavedMyTasksFilter = {
     enabled: boolean;
     assignee_id: string | number | null;
@@ -204,11 +206,20 @@
     }),
   );
 
-  onMount(async () => {
-    const workspaceId = $page.params.workspace_id;
-    const urlRoom = new URLSearchParams(window.location.search).get("room");
+  async function initializeWorkspace(workspaceId: string, urlRoom: string | null) {
+    const runId = ++workspaceInitRun;
     if (!workspaceId) return goto(`${base}/dashboard`);
+
+    checkingAccess.set(true);
+    hasAccess.set(false);
+    milestones = [];
+    editingMilestone = null;
+    assigneeGroups = [];
+    $editingTask = null;
+    disconnectRealtime();
+
     if (workspaceId === MY_TASKS_WORKSPACE_ID) {
+      if (runId !== workspaceInitRun) return;
       checkingAccess.set(false);
       hasAccess.set(true);
       setWorkspaceId(
@@ -225,13 +236,13 @@
       }
       await loadAssigneeGroups();
       initWasmSearch();
-      document.addEventListener("keydown", keyboardHandler);
       return;
     }
     if (!urlRoom) return goto(`${base}/dashboard`);
     try {
       const res = await api.workspaces.checkAccess(urlRoom);
       const data = await res.json();
+      if (runId !== workspaceInitRun) return;
       checkingAccess.set(false);
       if (data.success && data.has_access) {
         hasAccess.set(true);
@@ -271,9 +282,23 @@
         hasAccess.set(false);
       }
     } catch (err) {
+      if (runId !== workspaceInitRun) return;
       checkingAccess.set(false);
       hasAccess.set(false);
     }
+  }
+
+  $: if (browser) {
+    const workspaceId = $page.params.workspace_id;
+    const urlRoom = $page.url.searchParams.get("room");
+    const nextWorkspaceKey = `${workspaceId || ""}:${urlRoom || ""}`;
+    if (nextWorkspaceKey !== activeWorkspaceKey) {
+      activeWorkspaceKey = nextWorkspaceKey;
+      void initializeWorkspace(workspaceId, urlRoom);
+    }
+  }
+
+  onMount(() => {
     document.addEventListener("keydown", keyboardHandler);
   });
 
