@@ -76,6 +76,16 @@
     return cp === path;
   }
 
+  function getPinnedTaskNumber(task: any): string {
+    if (!task?.task_number) return "";
+    return task.short_name ? `${task.short_name}-${task.task_number}` : `#${task.task_number}`;
+  }
+
+  function getPinnedTaskTitle(task: any): string {
+    const taskNumber = getPinnedTaskNumber(task);
+    return taskNumber ? `${taskNumber} ${task.title || ""}` : task.title || "";
+  }
+
   async function loadWorkspaces() {
     try {
       const res = await api.workspaces.getList();
@@ -372,10 +382,10 @@
         {/if}
         {#if isPinnedSectionOpen || isSidebarCollapsed}
           <div class="space-y-1">
-            {#each pinnedTasks as task}
+            {#each pinnedTasks.filter(t => t && typeof t === 'object' && t.id) as task}
               <a
-                href="{base}/workspace/{task.workspace_id}/task/{task.id}"
-                title={task.title}
+                href="{base}/workspace/{task.workspace_id}/task/{task.id}?pinned=true"
+                title={getPinnedTaskTitle(task)}
                 class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isActive(`${base}/workspace/${task.workspace_id}/task/${task.id}`)
                   ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-black shadow-[inset_0_0_12px_rgba(99,102,241,0.05)]'
                   : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white'} {isSidebarCollapsed ? 'justify-center px-0' : ''}"
@@ -386,8 +396,8 @@
                 <div class="w-2 h-2 rounded-full border border-gray-400 shrink-0"></div>
                 {#if !isSidebarCollapsed}
                   <span class="truncate">
-                    {#if task.short_name && task.task_number}
-                      <span class="text-gray-400 font-normal mr-1">{task.short_name}-{task.task_number}</span>
+                    {#if getPinnedTaskNumber(task)}
+                      <span class="text-gray-400 font-normal mr-1">{getPinnedTaskNumber(task)}</span>
                     {/if}
                     {task.title}
                   </span>

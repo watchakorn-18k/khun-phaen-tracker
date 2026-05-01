@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
+  import { browser } from "$app/environment";
   import { page } from "$app/stores";
-  import { goto } from "$app/navigation";
+  import { goto, afterNavigate } from "$app/navigation";
   import { base } from "$app/paths";
   import { _ } from "svelte-i18n";
   import { 
@@ -15,8 +16,9 @@
     deleteTask
   } from "$lib/db";
   import type { Task, TaskComment, Assignee, Project, Sprint, ChecklistItem } from "$lib/types";
+  import { get } from "svelte/store";
   import { user } from "$lib/stores/auth";
-  import { currentWorkspaceName } from "$lib/stores/workspace";
+  import { currentWorkspaceName, setWorkspaceId, currentWorkspaceId } from "$lib/stores/workspace";
   import { 
     MoreHorizontal, 
     PanelRight, 
@@ -58,8 +60,8 @@
   import CustomDatePicker from "$lib/components/CustomDatePicker.svelte";
   import { showMessage } from "$lib/stores/uiActions";
 
-  let taskId = $page.params.task_id;
-  let workspaceId = $page.params.workspace_id;
+  let taskId = "";
+  let workspaceId = "";
   let task: Task | null = null;
   let loading = true;
   let error = "";
@@ -92,6 +94,12 @@
 
   let isMoreMenuOpen = false;
   let isDeleteConfirm = false;
+  let mounted = false;
+  let loadedTaskKey = "";
+
+  $: taskId = $page.params.task_id || "";
+  $: workspaceId = $page.params.workspace_id || "";
+  $: routeTaskKey = workspaceId && taskId ? `${workspaceId}:${taskId}` : "";
 
   function toggleMoreMenu() {
     isMoreMenuOpen = !isMoreMenuOpen;
@@ -120,22 +128,40 @@
 
   let isPinned = false;
 
-  onMount(async () => {
-    const pinnedTasks = JSON.parse(localStorage.getItem("pinned-tasks") || "[]");
-    isPinned = !!pinnedTasks.find((t: any) => t.id === taskId);
-
-    await Promise.all([
-      loadTaskData(),
-      loadMetadata()
-    ]);
+  afterNavigate(() => {
+    if (workspaceId && get(currentWorkspaceId) !== workspaceId) {
+      setWorkspaceId(workspaceId);
+    }
+    if (routeTaskKey && routeTaskKey !== loadedTaskKey) {
+      loadedTaskKey = routeTaskKey;
+      void loadRouteTask(routeTaskKey, taskId);
+    }
   });
+
+  function updatePinnedState() {
+    if (!browser) return;
+    try {
+      const pinnedTasks = JSON.parse(localStorage.getItem("pinned-tasks") || "[]");
+      isPinned = !!pinnedTasks.find((t: any) => t === taskId || t.id === taskId);
+    } catch {
+      isPinned = false;
+    }
+  }
+
+  async function loadRouteTask(routeKey: string, id: string) {
+    updatePinnedState();
+    Promise.all([
+      loadTaskData(routeKey, id),
+      loadMetadata()
+    ]).catch(console.error);
+  }
 
   function togglePin() {
     isPinned = !isPinned;
     let pinnedTasks: any[] = JSON.parse(localStorage.getItem("pinned-tasks") || "[]");
     
     if (isPinned) {
-      if (!pinnedTasks.find(t => t.id === taskId)) {
+      if (!pinnedTasks.find((t: any) => t === taskId || t.id === taskId)) {
         // Add to the top
         pinnedTasks.unshift({
           id: taskId,
@@ -150,30 +176,35 @@
         }
       }
     } else {
-      pinnedTasks = pinnedTasks.filter(t => t.id !== taskId);
+      pinnedTasks = pinnedTasks.filter((t: any) => t !== taskId && t.id !== taskId);
     }
     localStorage.setItem("pinned-tasks", JSON.stringify(pinnedTasks));
     window.dispatchEvent(new CustomEvent('pinnedTasksChanged'));
   }
 
-  async function loadTaskData() {
+  async function loadTaskData(routeKey = routeTaskKey, id = taskId) {
     loading = true;
     error = "";
+    task = null;
+    comments = [];
     try {
-      if (!taskId) return;
-      const result = await getTaskById(taskId);
+      if (!id) return;
+      const result = await getTaskById(id);
+      if (routeKey !== routeTaskKey) return;
       if (result) {
         task = result;
         editedTitle = task.title;
         editedDescription = task.notes || "";
-        await loadComments();
+        await loadComments(result.id, routeKey);
       } else {
         error = $_("taskList__no_tasks");
       }
     } catch (e) {
       error = $_("page__load_data_error");
     } finally {
-      loading = false;
+      if (routeKey === routeTaskKey) {
+        loading = false;
+      }
     }
   }
 
@@ -192,16 +223,20 @@
     }
   }
 
-  async function loadComments() {
-    if (!task?.id) return;
+  async function loadComments(commentTaskId = task?.id, routeKey = routeTaskKey) {
+    if (!commentTaskId) return;
     commentsLoading = true;
     try {
-      const response = await getTaskComments(task.id, { page: 1, limit: 50 });
-      comments = response.comments;
+      const response = await getTaskComments(commentTaskId, { page: 1, limit: 50 });
+      if (routeKey === routeTaskKey) {
+        comments = response.comments;
+      }
     } catch (e) {
       console.error("Failed to load comments:", e);
     } finally {
-      commentsLoading = false;
+      if (routeKey === routeTaskKey) {
+        commentsLoading = false;
+      }
     }
   }
 
@@ -450,6 +485,13 @@
                 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white leading-tight"
               />
             {:else}
+              <div class="flex items-center gap-2 mb-1">
+                {#if task.workspace_short_name && task.task_number}
+                  <span class="text-sm font-medium text-slate-500 dark:text-slate-400">
+                    {task.workspace_short_name}-{task.task_number}
+                  </span>
+                {/if}
+              </div>
               <h1 
                 on:click={() => { isEditingTitle = true; setTimeout(() => titleInputRef?.focus(), 0); }}
                 on:keydown={(e) => e.key === 'Enter' && (isEditingTitle = true)}

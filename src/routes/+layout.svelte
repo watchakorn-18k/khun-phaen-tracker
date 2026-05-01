@@ -248,8 +248,12 @@
       // Check if trying to access main app without a room
       const urlParams = new URLSearchParams(window.location.search);
       const urlRoom = urlParams.get("room");
+      const isPinnedTaskLink =
+        urlParams.get("pinned") === "true" ||
+        urlParams.get("pined") === "true" ||
+        urlParams.get("pined") === "trure";
 
-      if (!urlRoom && isWorkspacePage && !isMyTasksWorkspacePage) {
+      if (!urlRoom && !isPinnedTaskLink && isWorkspacePage && !isMyTasksWorkspacePage) {
         goto(`${base}/dashboard`);
       }
     }
