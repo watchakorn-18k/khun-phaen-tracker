@@ -88,9 +88,9 @@
   </div>
 
   <!-- Timer Widget in Sidebar -->
-  <div class="px-2 group">
-    <div class="flex items-center justify-between py-1 mb-1 transition-opacity opacity-40 group-hover:opacity-100">
-      <div class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+  <div class="px-2 group w-[85%] hover:w-full transition-all duration-300">
+    <div class="flex items-center justify-between py-1 mb-1 transition-opacity opacity-20 group-hover:opacity-100">
+      <div class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest truncate max-w-[80px]">
         {$timerStore.timerMode === 'countup' ? $_('timer__mode_countup') : $timerStore.timerMode === 'pomodoro' ? $_('timer__mode_pomodoro') : $_('timer__mode_goal')}
       </div>
       <button 
@@ -102,18 +102,18 @@
       </button>
     </div>
     
-    <div class="bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700/50 rounded-xl p-2.5 group-hover:p-3 transition-all shadow-sm relative overflow-hidden group-hover:bg-white dark:group-hover:bg-gray-800">
+    <div class="bg-gray-50 dark:bg-gray-800/40 border {isRunning ? 'border-red-500/50' : 'border-gray-200 dark:border-gray-700/50'} rounded-xl p-2 group-hover:p-3 transition-all shadow-sm relative overflow-hidden group-hover:bg-white dark:group-hover:bg-gray-800">
       <div class="flex items-center justify-between gap-2">
         <div class="flex flex-col">
           <span class="font-mono text-base group-hover:text-lg font-bold text-gray-900 dark:text-white leading-none transition-all">
             {$formattedTime}
           </span>
-          <span class="text-[9px] text-gray-400 dark:text-gray-500 mt-1 uppercase tracking-widest font-bold group-hover:text-gray-500 transition-colors">
+          <span class="text-[9px] text-gray-400 dark:text-gray-500 mt-1 uppercase tracking-widest font-bold group-hover:text-gray-500 transition-colors truncate">
             {$timerStore.timerMode === 'pomodoro' ? $timerStore.pomodoroPhase : $_("timer__status_active")}
           </span>
         </div>
         
-        <div class="flex items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+        <div class="flex items-center gap-1 opacity-20 group-hover:opacity-100 transition-opacity">
           {#if hasTime && !isRunning}
             <button
               on:click={openDashboard}
@@ -140,7 +140,7 @@
     </div>
 
     <!-- Quick Mode Switcher icons - ONLY visible on hover -->
-    <div class="mt-2 flex items-center gap-2 justify-center opacity-0 group-hover:opacity-100 transition-all transform translate-y-1 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto">
+    <div class="mt-2 flex items-center gap-2 justify-center opacity-0 group-hover:opacity-100 transition-all transform translate-y-1 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto overflow-hidden">
        <button 
          on:click={() => timerStore.setMode('countup')}
          class="p-1 rounded-md transition-colors {$timerStore.timerMode === 'countup' ? 'text-indigo-500 bg-indigo-500/10' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}"
