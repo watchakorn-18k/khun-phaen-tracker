@@ -218,6 +218,7 @@
 			bind:value={selectedValue}
 			options={combinedOptions}
 			placeholder={$_('taskForm__assignee_placeholder')}
+			{minimal}
 		/>
 		{:else if selectedAssignees.length === 0}
 			<p class="text-sm text-gray-500 dark:text-gray-400 italic">{$_('taskForm__unassigned')}</p>

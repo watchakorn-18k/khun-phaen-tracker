@@ -200,6 +200,7 @@ pub async fn list_my_tasks(
                         "end_date": task.end_date,
                         "due_date": task.due_date,
                         "status": task.status,
+                        "priority": task.priority,
                         "category": task.category,
                         "notes": task.notes,
                         "attachments": task.attachments,
@@ -327,6 +328,7 @@ pub async fn create_task(
             end_date: resolved_due_date.clone(),
             due_date: resolved_due_date.clone(),
             status: payload.status.clone(),
+            priority: payload.priority.clone(),
             category: payload.category.clone(),
             notes: payload.notes.clone(),
             assignee_ids: payload.assignee_ids.clone(),
@@ -425,6 +427,9 @@ pub async fn update_task(
     }
     if let Some(v) = payload.status.clone() {
         updates.insert("status", v);
+    }
+    if let Some(v) = payload.priority.clone() {
+        updates.insert("priority", v);
     }
     if let Some(v) = payload.category {
         updates.insert("category", v);

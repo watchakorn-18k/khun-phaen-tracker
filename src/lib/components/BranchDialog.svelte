@@ -1,6 +1,8 @@
 <script lang="ts">
   import { createEventDispatcher, onDestroy } from 'svelte';
-  import { GitBranch, X, Copy, Check } from 'lucide-svelte';
+  import { fade } from 'svelte/transition';
+  import { _ } from 'svelte-i18n';
+  import { GitBranch, X, Copy, Check, ChevronDown } from 'lucide-svelte';
   import {
     getBranchSlug as buildBranchSlug,
     getCheckoutCommand as buildCheckoutCommand,
@@ -295,129 +297,150 @@
 </script>
 
 {#if show}
-  <div class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[30000] p-4">
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full">
-      <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
-        <h3 class="text-base font-semibold text-gray-800 dark:text-white flex items-center gap-2">
-          <GitBranch size={18} class="text-primary" />
-          สร้างชื่อ Branch
+  <div class="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[30000] p-4" transition:fade={{ duration: 200 }}>
+    <div class="bg-gray-900 border border-white/10 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-modal-in">
+      <!-- Header -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-white/5">
+        <h3 class="text-sm font-bold text-white flex items-center gap-2 tracking-wide uppercase">
+          <GitBranch size={16} class="text-indigo-400" />
+          {$_("branchDialog__title")}
         </h3>
         <button
           type="button"
           on:click={() => dispatch('close')}
-          class="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          class="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl transition-all"
         >
           <X size={18} />
         </button>
       </div>
 
-      <div class="px-5 py-4 space-y-3">
-        <div>
-          <label for="branch-task-title" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Task Title</label>
+      <div class="p-6 space-y-5">
+        <!-- Task Title Input -->
+        <div class="space-y-1.5">
+          <label for="branch-task-title" class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">{$_("branchDialog__task_title")}</label>
           <input
             id="branch-task-title"
             type="text"
             bind:value={editableTitle}
             on:input={() => scheduleBranchPreview(editableTitle)}
-            class="w-full h-10 px-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+            placeholder={$_("branchDialog__task_title_placeholder")}
+            class="w-full h-11 px-4 bg-white/5 border border-white/10 rounded-xl text-white text-[13px] placeholder:text-gray-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
           />
         </div>
 
-        <div>
-          <label for="git-flow-prefix" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Git Flow Prefix</label>
-          <select
-            id="git-flow-prefix"
-            bind:value={gitFlowType}
-            class="w-full h-10 px-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          >
-            {#each gitFlowTypes as flow}
-              <option value={flow}>{flow}</option>
-            {/each}
-          </select>
+        <!-- Git Flow Prefix -->
+        <div class="space-y-1.5">
+          <label for="git-flow-prefix" class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">{$_("branchDialog__prefix")}</label>
+          <div class="relative group">
+            <select
+              id="git-flow-prefix"
+              bind:value={gitFlowType}
+              class="w-full h-11 px-4 bg-white/5 border border-white/10 rounded-xl text-white text-[13px] appearance-none focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all cursor-pointer"
+            >
+              {#each gitFlowTypes as flow}
+                <option value={flow} class="bg-gray-900">{flow}</option>
+              {/each}
+            </select>
+            <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500 group-hover:text-gray-300 transition-colors">
+              <ChevronDown size={14} />
+            </div>
+          </div>
         </div>
 
-        <div>
-          <label for="branch-name-preview" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Branch Name</label>
+        <!-- Branch Name Preview -->
+        <div class="space-y-1.5">
+          <label for="branch-name-preview" class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">{$_("branchDialog__branch_name")}</label>
           <div class="flex gap-2">
             <input
               id="branch-name-preview"
               type="text"
               value={getComputedBranchName()}
               readonly
-              on:focus={(event) => (event.currentTarget as HTMLInputElement).select()}
-              class="flex-1 h-10 px-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 font-mono text-sm"
+              class="flex-1 h-11 px-4 bg-white/5 border border-white/10 rounded-xl text-indigo-300 font-mono text-[13px] focus:outline-none"
             />
             <button
               type="button"
               on:click={handleCopyBranchName}
               disabled={!editableTitle.trim() || isTranslatingBranch}
-              class="h-10 px-3 inline-flex items-center gap-1.5 bg-primary hover:bg-primary-dark disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
-              title="คัดลอกชื่อ branch"
+              class="h-11 px-4 inline-flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-[13px] font-bold transition-all shadow-lg shadow-indigo-500/20"
             >
               {#if copySucceeded && copiedField === 'branch'}
-                <Check size={15} />
-                Copied
+                <Check size={14} strokeWidth={3} />
+                <span>{$_("branchDialog__btn_copied")}</span>
               {:else}
-                <Copy size={15} />
-                Copy
+                <Copy size={14} />
+                <span>{$_("branchDialog__btn_copy")}</span>
               {/if}
             </button>
           </div>
         </div>
 
-        <div>
-          <label for="checkout-command-preview" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Git Command</label>
+        <!-- Git Checkout Command Preview -->
+        <div class="space-y-1.5">
+          <label for="checkout-command-preview" class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">{$_("branchDialog__checkout_command")}</label>
           <div class="flex gap-2">
             <input
               id="checkout-command-preview"
               type="text"
               value={getCheckoutCommand()}
               readonly
-              on:focus={(event) => (event.currentTarget as HTMLInputElement).select()}
-              class="flex-1 h-10 px-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 font-mono text-sm"
+              class="flex-1 h-11 px-4 bg-white/5 border border-white/10 rounded-xl text-gray-300 font-mono text-[13px] focus:outline-none"
             />
             <button
               type="button"
               on:click={handleCopyCheckoutCommand}
               disabled={!editableTitle.trim() || isTranslatingBranch}
-              class="h-10 px-3 inline-flex items-center gap-1.5 bg-primary hover:bg-primary-dark disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
-              title="คัดลอกคำสั่ง checkout"
+              class="h-11 px-4 inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-[13px] font-bold transition-all"
             >
               {#if copySucceeded && copiedField === 'command'}
-                <Check size={15} />
-                Copied
+                <Check size={14} strokeWidth={3} />
+                <span>{$_("branchDialog__btn_copied")}</span>
               {:else}
-                <Copy size={15} />
-                Copy
+                <Copy size={14} />
+                <span>{$_("branchDialog__btn_copy")}</span>
               {/if}
             </button>
           </div>
         </div>
 
-        <div class="text-xs {getBranchMessageClass()}">
-          {#if !editableTitle.trim()}
-            กรอกชื่องานก่อน เพื่อสร้างชื่อ branch อัตโนมัติ
-          {:else if isTranslatingBranch}
-            กำลังแปลชื่อ task เป็นภาษาอังกฤษ...
-          {:else}
-            <span class="text-gray-500 dark:text-gray-400">
-              ชื่ออังกฤษ: <span class="font-medium text-gray-700 dark:text-gray-200">{translatedTitle || '-'}</span>
-            </span>
-            <span class="mx-1 text-gray-400">•</span>
-            <span>{branchMessage}</span>
-          {/if}
+        <!-- Status Message -->
+        <div class="flex items-center gap-2 px-1">
+          <div class="w-1.5 h-1.5 rounded-full {branchMessageType === 'error' ? 'bg-red-400' : branchMessageType === 'success' ? 'bg-green-400 animate-pulse' : 'bg-indigo-400'}"></div>
+          <p class="text-[11px] font-medium text-gray-500">
+            {#if !editableTitle.trim()}
+              {$_("branchDialog__msg_empty")}
+            {:else if isTranslatingBranch}
+              {$_("branchDialog__msg_translating")}
+            {:else}
+              <span class="text-gray-400">{$_("branchDialog__translated")}:</span>
+              <span class="text-indigo-300 mx-1">{translatedTitle || '-'}</span>
+              <span class="mx-1 opacity-30">|</span>
+              <span class={branchMessageType === 'error' ? 'text-red-400' : 'text-gray-500'}>{branchMessage}</span>
+            {/if}
+          </p>
         </div>
       </div>
 
-      <div class="px-5 pb-4 flex justify-end">
+      <!-- Footer -->
+      <div class="px-6 pb-6 pt-2 flex justify-end gap-3">
         <button
           type="button"
           on:click={() => dispatch('close')}
-          class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium"
+          class="px-5 py-2.5 bg-white/5 border border-white/10 text-gray-300 rounded-xl hover:bg-white/10 hover:text-white transition-all text-[13px] font-bold"
         >
-          ปิด
+          {$_("branchDialog__btn_close")}
         </button>
       </div>
     </div>
   </div>
 {/if}
+
+<style>
+  @keyframes modal-in {
+    from { opacity: 0; transform: scale(0.95) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .animate-modal-in {
+    animation: modal-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+</style>

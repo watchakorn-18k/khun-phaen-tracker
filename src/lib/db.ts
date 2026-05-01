@@ -116,6 +116,7 @@ function docToTask(doc: any): Task {
     due_date: resolvedDueDate,
     end_date: resolvedDueDate,
     status: doc.status || "todo",
+    priority: doc.priority || "none",
     category: doc.category || "อื่นๆ",
     notes: doc.notes || "",
     assignee_ids: doc.assignee_ids || [],
@@ -227,6 +228,7 @@ export async function addTask(
     due_date: task.due_date || task.end_date || null,
     end_date: task.end_date || null,
     status: task.status,
+    priority: task.priority || "none",
     category: task.category || "อื่นๆ",
     notes: task.notes || "",
     assignee_ids: task.assignee_ids && task.assignee_ids.length > 0
@@ -265,6 +267,7 @@ export async function updateTask(
   if (updates.end_date !== undefined)
     payload.end_date = updates.end_date || null;
   if (updates.status !== undefined) payload.status = updates.status;
+  if (updates.priority !== undefined) payload.priority = updates.priority;
   if (updates.category !== undefined) payload.category = updates.category;
   if (updates.notes !== undefined) payload.notes = updates.notes;
   if (updates.assignee_ids !== undefined)
@@ -463,6 +466,8 @@ export async function getTasks(
     params.category = filter.category;
   if (filter?.project && filter.project !== "all")
     params.project = filter.project;
+  if (filter?.priority && filter.priority !== "all")
+    params.priority = filter.priority;
   if (filter?.assignee_id === null) {
     params.assignee_id = "none";
   } else if (filter?.assignee_id && filter.assignee_id !== "all") {

@@ -11,7 +11,8 @@
     updateTask, 
     getProjectsList, 
     getAssignees,
-    getSprints
+    getSprints,
+    deleteTask
   } from "$lib/db";
   import type { Task, TaskComment, Assignee, Project, Sprint, ChecklistItem } from "$lib/types";
   import { user } from "$lib/stores/auth";
@@ -40,12 +41,17 @@
     SignalHigh,
     SignalMedium,
     SignalLow,
-    Ban
+    Ban,
+    GitBranch,
+    Trash2
   } from "lucide-svelte";
+  import ConfirmModal from "$lib/components/ConfirmModal.svelte";
+  import BranchDialog from "$lib/components/BranchDialog.svelte";
   import RichTextEditor from "$lib/components/editor/RichTextEditor.svelte";
   import TitleEditor from "$lib/components/editor/TitleEditor.svelte";
   import ChecklistManager from "$lib/components/ChecklistManager.svelte";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
+  import CustomDatePicker from "$lib/components/CustomDatePicker.svelte";
   import { showMessage } from "$lib/stores/uiActions";
 
   let taskId = $page.params.task_id;
@@ -69,6 +75,42 @@
 
   let editedDescription = "";
   $: isDescriptionDirty = task && editedDescription !== (task.notes || "");
+
+  let isBranchDialogOpen = false;
+
+  function openBranchDialog() {
+    isBranchDialogOpen = true;
+  }
+
+  function closeBranchDialog() {
+    isBranchDialogOpen = false;
+  }
+
+  let isMoreMenuOpen = false;
+  let isDeleteConfirm = false;
+
+  function toggleMoreMenu() {
+    isMoreMenuOpen = !isMoreMenuOpen;
+    if (!isMoreMenuOpen) isDeleteConfirm = false;
+  }
+
+  function handleMoreMenuClickOutside(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.more-menu-container')) {
+      isMoreMenuOpen = false;
+      isDeleteConfirm = false;
+    }
+  }
+
+  async function handleDeleteTask() {
+    if (!task || task.id == null) return;
+    try {
+      await deleteTask(task.id);
+      goBack();
+    } catch (e) {
+      console.error('Delete task failed', e);
+    }
+  }
 
   $: workspaceRoom = $page.url.searchParams.get("room");
 
@@ -230,6 +272,8 @@
   }
 </script>
 
+<svelte:window on:click={handleMoreMenuClickOutside} />
+
 <div class="flex flex-col h-full bg-white dark:bg-[#0b1120] text-slate-900 dark:text-slate-100">
   <!-- Header -->
   <header class="flex items-center justify-between px-4 h-14 border-b border-slate-200 dark:border-slate-800 shrink-0 bg-white/80 dark:bg-[#0b1120]/80 backdrop-blur-md sticky top-0 z-10">
@@ -268,12 +312,37 @@
       >
         <CheckCircle2 size={18} />
       </button>
+      <button 
+        on:click={openBranchDialog}
+        class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500 dark:text-slate-400"
+        title={$_("taskForm__branch")}
+      >
+        <GitBranch size={18} />
+      </button>
       <button class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500 dark:text-slate-400">
         <Pin size={18} />
       </button>
-      <button class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500 dark:text-slate-400">
-        <MoreHorizontal size={18} />
-      </button>
+      <div class="relative more-menu-container">
+        <button 
+          on:click={toggleMoreMenu}
+          class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors {isMoreMenuOpen ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-white' : 'text-slate-500 dark:text-slate-400'}"
+        >
+          <MoreHorizontal size={18} />
+        </button>
+
+        {#if isMoreMenuOpen}
+          <div class="absolute right-0 top-full mt-1 w-52 bg-[#1c1c1c] border border-white/10 rounded-xl shadow-2xl z-[99999] overflow-hidden animate-dropdown-in py-1">
+              <button
+                type="button"
+                on:click={() => { isDeleteConfirm = true; isMoreMenuOpen = false; }}
+                class="w-full flex items-center gap-3 px-3 py-2 text-[13px] text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+              >
+                <Trash2 size={14} />
+                <span>{$_("taskDetail__delete_task")}</span>
+              </button>
+          </div>
+        {/if}
+      </div>
       <div class="w-px h-4 bg-slate-200 dark:bg-slate-800 mx-1"></div>
       <button 
         on:click={() => sidebarOpen = !sidebarOpen}
@@ -574,12 +643,12 @@
                 <Calendar size={14} class="opacity-70 group-hover:opacity-100 transition-opacity" />
                 <span>{$_("taskForm__due_date_label")}</span>
               </div>
-              <div class="flex items-center justify-start min-w-0">
-                <input 
-                  type="date"
+              <div class="flex items-center justify-start min-w-0 property-select">
+                <CustomDatePicker
                   value={task.due_date || task.end_date || ""}
-                  on:change={(e) => handleUpdateTask({ due_date: e.currentTarget.value })}
-                  class="bg-transparent border-none text-[13px] text-slate-700 dark:text-slate-300 focus:ring-0 outline-none cursor-pointer px-2 h-8 w-full placeholder:text-slate-500"
+                  placeholder={$_("taskForm__due_date_placeholder")}
+                  on:select={(e: CustomEvent<string>) => handleUpdateTask({ due_date: e.detail })}
+                  minimal={true}
                 />
               </div>
             </div>
@@ -619,9 +688,32 @@
     </aside>
   {/if}
 </div>
+
+{#if isBranchDialogOpen && task}
+  <BranchDialog 
+    show={isBranchDialogOpen}
+    title={task.title}
+    workspaceShortName={task.workspace_short_name || ''}
+    taskNumber={task.task_number || null}
+    on:close={closeBranchDialog}
+  />
+{/if}
+
+<ConfirmModal 
+  show={isDeleteConfirm} 
+  title={$_("taskDetail__delete_task")} 
+  message={$_("taskDetail__delete_confirm")}
+  confirmText={$_("taskDetail__delete_confirm_yes")}
+  cancelText={$_("page__cancel")}
+  type="danger"
+  onConfirm={handleDeleteTask}
+  onClose={() => isDeleteConfirm = false}
+/>
 </div>
 
 <style>
+  @reference "../../../../../app.css";
+
   :global(.property-select button) {
     @apply !bg-transparent !border-transparent !text-slate-700 dark:!text-slate-200 !rounded-md !h-8 !px-2 !text-[13px] hover:!bg-slate-500/5 !shadow-none !ring-0 !transition-all;
   }

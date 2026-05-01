@@ -349,10 +349,10 @@
   <div class="space-y-1">
     {#each visibleChecklist as item (item.id)}
       <div
-        class="flex items-start gap-2 group py-1.5 px-2 rounded-xl transition-all {checklistSelectMode &&
+        class="flex items-start gap-2 group py-1.5 px-0 transition-all {checklistSelectMode &&
         selectedChecklistIds.has(item.id)
           ? 'bg-primary/5 border-primary/10'
-          : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}"
+          : '!bg-transparent'}"
       >
         {#if checklistSelectMode}
           <button
@@ -372,7 +372,7 @@
           <button
             type="button"
             on:click={() => toggleChecklistItem(item.id)}
-            class="mt-0.5 w-5 h-5 flex items-center justify-center rounded-lg border-2 border-white/10 hover:border-white/30 transition-all shrink-0 bg-white/5"
+            class="mt-0.5 w-5 h-5 flex items-center justify-center rounded-lg border-2 border-white/10 hover:border-white/30 transition-all shrink-0 bg-transparent"
           >
             {#if item.completed}
               <Check size={12} strokeWidth={4} class="text-primary" />
@@ -385,7 +385,7 @@
             type="text"
             bind:value={item.text}
             on:change={notifyUpdate}
-            class="w-full bg-transparent border-none focus:ring-0 text-sm p-0 font-semibold transition-all {item.completed
+            class="w-full !bg-transparent border-none focus:ring-0 text-sm p-0 font-semibold transition-all {item.completed
               ? 'text-gray-400 line-through opacity-50'
               : 'text-gray-800 dark:text-gray-200'}"
           />

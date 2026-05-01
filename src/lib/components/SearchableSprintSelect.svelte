@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { _ } from 'svelte-i18n';
+	import { fade } from 'svelte/transition';
 	import type { Sprint } from '$lib/stores/sprintStore';
 
 	export let sprints: Sprint[] = [];
@@ -80,24 +81,27 @@
 	<button
 		type="button"
 		{id}
-		class="w-full h-10 px-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none bg-white dark:bg-gray-800 text-left flex items-center justify-between"
+		class="w-full h-8 px-2 bg-transparent hover:bg-white/5 border border-transparent hover:border-white/10 rounded-md transition-all text-left flex items-center justify-between group"
 		on:click={toggleDropdown}
 	>
-		<span class="truncate {value === 'all' || value === null ? 'text-gray-500' : 'text-gray-900 dark:text-gray-100'}">
-			{selectedLabel}
-		</span>
-		<svg class="w-4 h-4 text-gray-400 shrink-0 ml-2 transition-transform {isOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+		<div class="flex items-center gap-2 overflow-hidden">
+			<div class="w-2 h-2 rounded-full {value === 'all' || value === null ? 'bg-gray-600' : 'bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.5)]'}"></div>
+			<span class="truncate text-[13px] {value === 'all' || value === null ? 'text-gray-500' : 'text-gray-200 font-medium'}">
+				{selectedLabel}
+			</span>
+		</div>
+		<svg class="w-3.5 h-3.5 text-gray-500 group-hover:text-gray-300 shrink-0 ml-1 transition-transform duration-200 {isOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
 		</svg>
 	</button>
 
 	<!-- Dropdown -->
 	{#if isOpen}
-		<div class="absolute z-[9000] w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-80 overflow-hidden">
+		<div class="absolute z-[9000] w-full min-w-[200px] mt-1 bg-gray-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-dropdown-in" transition:fade={{ duration: 100 }}>
 			<!-- Search Input -->
-			<div class="p-2 border-b border-gray-200 dark:border-gray-700">
+			<div class="p-2 border-b border-white/5">
 				<div class="relative">
-					<svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
 					</svg>
 					<input
@@ -105,63 +109,83 @@
 						bind:this={searchInputRef}
 						bind:value={searchQuery}
 						placeholder={$_('page__filter_sprint_search_placeholder')}
-						class="w-full h-9 pl-9 pr-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+						class="w-full h-8 pl-8 pr-3 text-[13px] bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-indigo-500/50 transition-all text-white placeholder:text-gray-600"
 					/>
 				</div>
 			</div>
 
 			<!-- Options -->
-			<div class="overflow-y-auto max-h-60">
-				<!-- Default options -->
+			<div class="overflow-y-auto max-h-64 py-1 custom-scrollbar">
 				{#if !formMode}
 					<button
 						type="button"
-						class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 {value === 'all' ? 'bg-primary/10 text-primary font-medium' : 'text-gray-900 dark:text-gray-100'}"
+						class="w-full px-3 py-1.5 text-left text-[13px] hover:bg-white/5 transition-colors flex items-center gap-2 {value === 'all' ? 'text-indigo-400 font-bold' : 'text-gray-400'}"
 						on:click={() => selectSprint('all')}
 					>
+						<div class="w-1.5 h-1.5 rounded-full {value === 'all' ? 'bg-indigo-400' : 'bg-transparent border border-gray-600'}"></div>
 						{$_('page__filter_sprint_all')}
 					</button>
 				{/if}
 				<button
 					type="button"
-					class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 {value === null ? 'bg-primary/10 text-primary font-medium' : 'text-gray-900 dark:text-gray-100'}"
+					class="w-full px-3 py-1.5 text-left text-[13px] hover:bg-white/5 transition-colors flex items-center gap-2 {value === null ? 'text-indigo-400 font-bold' : 'text-gray-400'}"
 					on:click={() => selectSprint(null)}
 				>
+					<div class="w-1.5 h-1.5 rounded-full {value === null ? 'bg-indigo-400' : 'bg-transparent border border-gray-600'}"></div>
 					{formMode ? $_('page__filter_sprint_unspecified') : $_('page__filter_sprint_none')}
 				</button>
 
-				<div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
-
-				<!-- Sprint options -->
-				{#if displaySprints.length === 0}
-					<div class="px-4 py-3 text-sm text-gray-500 text-center">
-						{$_('page__filter_sprint_not_found')}
-					</div>
-				{:else}
+				{#if displaySprints.length > 0}
+					<div class="h-[1px] bg-white/5 my-1 mx-2"></div>
 					{#each displaySprints as sprint}
 						<button
 							type="button"
-							class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 {String(value) === String(sprint.id) ? 'bg-primary/10 text-primary font-medium' : 'text-gray-900 dark:text-gray-100'}"
+							class="w-full px-3 py-2 text-left text-[13px] hover:bg-white/5 transition-colors flex items-center gap-3 {String(value) === String(sprint.id) ? 'text-white font-bold bg-white/5' : 'text-gray-400'}"
 							on:click={() => selectSprint(sprint.id)}
 						>
-							<span class="truncate flex-1">{sprint.name}</span>
+							<div class="flex flex-col flex-1 overflow-hidden">
+								<span class="truncate">{sprint.name}</span>
+								<span class="text-[10px] opacity-50 uppercase tracking-tighter">
+									{new Date(sprint.start_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - 
+									{new Date(sprint.end_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+								</span>
+							</div>
 							{#if sprint.status === 'active'}
-								<span class="shrink-0 px-2 py-0.5 text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full">{$_('page__filter_sprint_status_active')}</span>
+								<span class="shrink-0 px-1.5 py-0.5 text-[10px] font-bold bg-green-500/10 text-green-400 border border-green-500/20 rounded uppercase tracking-wider">{$_('page__filter_sprint_status_active')}</span>
 							{:else if sprint.status === 'completed'}
-								<span class="shrink-0 px-2 py-0.5 text-xs bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 rounded-full">{$_('page__filter_sprint_status_completed')}</span>
-							{:else}
-								<span class="shrink-0 px-2 py-0.5 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-full">{$_('page__filter_sprint_status_planned')}</span>
+								<span class="shrink-0 px-1.5 py-0.5 text-[10px] font-bold bg-gray-500/10 text-gray-500 border border-gray-500/20 rounded uppercase tracking-wider">{$_('page__filter_sprint_status_completed')}</span>
 							{/if}
 						</button>
 					{/each}
-
-					{#if hasMore}
-						<div class="px-4 py-2 text-xs text-gray-500 text-center border-t border-gray-200 dark:border-gray-700">
-							{$_('page__filter_sprint_search_more', { values: { count: filteredSprints.length - 5 } })}
-						</div>
-					{/if}
+				{:else if searchQuery}
+					<div class="px-4 py-4 text-[13px] text-gray-600 text-center italic">
+						{$_('page__filter_sprint_not_found')}
+					</div>
 				{/if}
 			</div>
 		</div>
 	{/if}
 </div>
+
+<style>
+	@keyframes dropdown-in {
+		from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+		to { opacity: 1; transform: translateY(0) scale(1); }
+	}
+	.animate-dropdown-in {
+		animation: dropdown-in 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+	}
+	.custom-scrollbar::-webkit-scrollbar {
+		width: 4px;
+	}
+	.custom-scrollbar::-webkit-scrollbar-track {
+		background: transparent;
+	}
+	.custom-scrollbar::-webkit-scrollbar-thumb {
+		background: rgba(255, 255, 255, 0.1);
+		border-radius: 10px;
+	}
+	.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+		background: rgba(255, 255, 255, 0.2);
+	}
+</style>

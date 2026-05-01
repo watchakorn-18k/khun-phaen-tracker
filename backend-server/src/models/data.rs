@@ -102,6 +102,8 @@ pub struct TaskDocument {
     pub due_date: Option<String>,
     #[serde(default = "default_status")]
     pub status: String,
+    #[serde(default = "default_priority")]
+    pub priority: String,
     #[serde(default = "default_category")]
     pub category: String,
     #[serde(default)]
@@ -128,6 +130,9 @@ fn default_status() -> String {
 fn default_category() -> String {
     "อื่นๆ".to_string()
 }
+fn default_priority() -> String {
+    "none".to_string()
+}
 
 #[derive(Debug, Deserialize)]
 pub struct CreateTaskRequest {
@@ -146,6 +151,8 @@ pub struct CreateTaskRequest {
     pub due_date: Option<String>,
     #[serde(default = "default_status")]
     pub status: String,
+    #[serde(default = "default_priority")]
+    pub priority: String,
     #[serde(default = "default_category")]
     pub category: String,
     #[serde(default)]
@@ -170,6 +177,7 @@ pub struct UpdateTaskRequest {
     pub end_date: Option<Option<String>>,
     pub due_date: Option<Option<String>>,
     pub status: Option<String>,
+    pub priority: Option<String>,
     pub category: Option<String>,
     pub notes: Option<String>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
@@ -323,6 +331,7 @@ pub struct UpdateSprintRequest {
 pub struct TaskFilterQuery {
     pub status: Option<String>,
     pub category: Option<String>,
+    pub priority: Option<String>,
     pub project: Option<String>,
     pub assignee_id: Option<String>,
     pub sprint_id: Option<String>,

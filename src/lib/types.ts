@@ -53,6 +53,7 @@ export interface Task {
   start_date?: string; // YYYY-MM-DD
   date: string; // YYYY-MM-DD
   status: "pending" | "todo" | "in-progress" | "in-test" | "done";
+  priority?: "urgent" | "high" | "medium" | "low" | "none";
   category: string;
   notes: string;
   assignee_ids?: (string | number)[]; // Array of assignee IDs (multiple assignees)
@@ -126,6 +127,7 @@ export interface FilterOptions {
   status?: Task["status"] | "all" | "archived" | "active" | "today";
   category?: string | "all";
   project?: string | "all";
+  priority?: Task["priority"] | "all";
   assignee_id?: string | number | "all" | null;
   sprint_id?: string | number | "all" | null;
   includeArchived?: boolean;

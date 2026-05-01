@@ -71,7 +71,7 @@
 	<button
 		type="button"
 		{id}
-		class="w-full h-10 px-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none bg-white dark:bg-gray-800 text-left flex items-center justify-between transition-colors hover:border-gray-400 dark:hover:border-gray-500"
+		class="w-full {minimal ? 'h-8 px-2.5 text-[13px] border-transparent bg-transparent hover:bg-white/5' : 'h-10 px-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'} rounded-lg outline-none text-left flex items-center justify-between transition-all"
 		on:click={toggleDropdown}
 	>
 		<span class="truncate flex items-center gap-2">
@@ -93,7 +93,7 @@
 
 	<!-- Dropdown -->
 	{#if isOpen}
-		<div class="absolute z-[9000] w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-80 overflow-hidden" transition:fade={{ duration: 100 }}>
+		<div class="absolute z-[9000] w-full min-w-[180px] mt-1 bg-gray-900 border border-white/10 rounded-xl shadow-2xl max-h-80 overflow-hidden" transition:fade={{ duration: 100 }}>
 			<!-- Search Input -->
 			{#if showSearch && options.length > maxDisplay}
 				<div class="p-2 border-b border-gray-200 dark:border-gray-700">
@@ -106,7 +106,7 @@
 							bind:this={searchInputRef}
 							bind:value={searchQuery}
 							placeholder={placeholder}
-							class="w-full h-9 pl-9 pr-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+							class="w-full h-8 pl-9 pr-3 text-[13px] border border-white/10 rounded-lg focus:ring-1 focus:ring-white/20 outline-none bg-white/5 text-gray-200"
 						/>
 					</div>
 				</div>
@@ -143,9 +143,9 @@
 										{/if}
 									{/if}
 								{/if}
-								<span class="truncate flex-1">{option.label}</span>
+								<span class="truncate flex-1 text-[13px]">{option.label}</span>
 								{#if isSameValue(value, option.value)}
-									<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<svg class="w-3.5 h-3.5 shrink-0 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
 									</svg>
 								{/if}

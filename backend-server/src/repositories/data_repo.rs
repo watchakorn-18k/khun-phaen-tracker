@@ -144,6 +144,11 @@ impl DataRepository {
                 query.insert("project", project.as_str());
             }
         }
+        if let Some(priority) = &filter.priority {
+            if priority != "all" {
+                query.insert("priority", priority.as_str());
+            }
+        }
         if let Some(assignee_id) = &filter.assignee_id {
             if assignee_id == "none" || assignee_id == "unassigned" {
                 query.insert(
@@ -244,7 +249,7 @@ impl DataRepository {
 
         let sort_field = match filter.sort_by.as_deref() {
             Some("date") | Some("created_at") | Some("updated_at") | Some("task_number")
-            | Some("title") | Some("status") | Some("due_date") | Some("start_date") => {
+            | Some("title") | Some("status") | Some("due_date") | Some("start_date") | Some("priority") => {
                 filter.sort_by.as_deref().unwrap_or("updated_at")
             }
             _ => "updated_at",

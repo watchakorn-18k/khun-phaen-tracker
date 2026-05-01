@@ -57,6 +57,18 @@
     ArrowLeftRight,
     Tag,
     Trash2,
+    CheckCircle2,
+    Circle,
+    CircleDashed,
+    CircleDot,
+    Ban,
+    XCircle,
+    Clock,
+    AlertTriangle,
+    SignalLow,
+    SignalMedium,
+    SignalHigh,
+    Minus,
     X,
     ZoomIn,
     ZoomOut,
@@ -89,6 +101,7 @@
   let date = new Date().toISOString().split("T")[0];
   let end_date = "";
   let status: Task["status"] = "todo";
+  let priority: string = "none";
   let category = "งานหลัก";
   let notes = "";
   let assignee_ids: (string | number)[] = [];
@@ -208,6 +221,7 @@
         editingTask.end_date ||
         (legacyDueDateOnly ? editingTask.date : "");
       status = editingTask.status || "todo";
+      priority = editingTask.priority || "none";
       category = editingTask.category || "งานหลัก";
       notes = editingTask.notes || "";
       assignee_ids = (
@@ -227,6 +241,7 @@
       date = new Date().toISOString().split("T")[0];
       end_date = "";
       status = "todo";
+      priority = "none";
       category = $taskDefaults.category || "งานหลัก";
       notes = "";
       assignee_ids = $taskDefaults.assignee_id
@@ -1032,6 +1047,7 @@
       due_date: end_date || undefined,
       end_date: end_date || undefined,
       status,
+      priority: priority as Task["priority"],
       category,
       notes: notes.trim(),
       assignee_ids: assignee_ids.length > 0 ? assignee_ids : undefined,
@@ -1136,9 +1152,9 @@
     tabindex="-1"
   >
     <div
-      class="bg-[#1c1c1c] dark:bg-[#1c1c1c] border border-white/10 rounded-2xl shadow-2xl {isExpanded ? 'max-w-[95vw] h-[90vh]' : (editingTask?.id
+      class="bg-gray-900 dark:bg-gray-900 border border-white/10 rounded-2xl shadow-2xl {isExpanded ? 'max-w-[95vw] h-[90vh]' : (editingTask?.id
         ? 'max-w-6xl'
-        : 'max-w-3xl')} w-full animate-modal-in relative max-h-[95vh] flex flex-col overflow-hidden text-[#f5f5f5] transition-all duration-300"
+        : 'max-w-3xl min-h-[680px]')} w-full animate-modal-in relative max-h-[98vh] flex flex-col overflow-hidden text-[#f5f5f5] transition-all duration-300"
     >
       <!-- Header -->
       <div class="flex items-center justify-between px-5 py-4 shrink-0">
@@ -1150,6 +1166,14 @@
           </span>
         </div>
         <div class="flex items-center gap-1">
+          <button
+            type="button"
+            on:click={openBranchDialog}
+            class="p-1.5 text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-all"
+            title={$_("taskForm__branch")}
+          >
+            <GitBranch size={16} />
+          </button>
           <button
             type="button"
             on:click={() => isExpanded = !isExpanded}
@@ -1185,17 +1209,19 @@
               <div
                 class={editingTask?.id ? "xl:col-span-3 space-y-6" : "space-y-6"}
               >
+
+
                 <!-- Title -->
-              <div>
-                <input
-                  id="title"
-                  type="text"
-                  bind:value={title}
-                  placeholder={$_("taskForm__task_title_placeholder")}
-                  class="w-full !bg-transparent text-xl font-bold outline-none placeholder:text-gray-600 border-none px-0 py-2 text-white"
-                  required
-                />
-              </div>
+                <div>
+                  <input
+                    id="title"
+                    type="text"
+                    bind:value={title}
+                    placeholder={$_("taskForm__task_title_placeholder")}
+                    class="w-full !bg-transparent text-xl font-bold outline-none placeholder:text-gray-600 border-none px-0 py-2 text-white"
+                    required
+                  />
+                </div>
 
               <!-- Description -->
               <div class="min-h-[100px]">
@@ -1214,11 +1240,13 @@
                     id="status"
                     bind:value={status}
                     options={[
-                      { value: "todo", label: $_("taskForm__status_todo"), badge: true, badgeColor: "bg-gray-500" },
-                      { value: "in-progress", label: $_("taskForm__status_in_progress"), badge: true, badgeColor: "bg-gray-400" },
-                      { value: "in-test", label: $_("taskForm__status_in_test"), badge: true, badgeColor: "bg-gray-400" },
-                      { value: "done", label: $_("taskForm__status_done"), badge: true, badgeColor: "bg-gray-300" },
-                      { value: "pending", label: $_("taskForm__status_pending"), badge: true, badgeColor: "bg-gray-500" },
+                      { value: "backlog", label: "Backlog", icon: CircleDashed },
+                      { value: "todo", label: "Todo", icon: Circle },
+                      { value: "in-progress", label: "In Progress", icon: CircleDot },
+                      { value: "in-review", label: "In Review", icon: Clock },
+                      { value: "done", label: "Done", icon: CheckCircle2 },
+                      { value: "blocked", label: "Blocked", icon: Ban },
+                      { value: "cancelled", label: "Cancelled", icon: XCircle },
                     ]}
                     showSearch={false}
                     minimal={true}
@@ -1226,10 +1254,21 @@
                 </div>
 
                 <!-- Priority (Mock for now as it's not in schema yet?) -->
-                <button type="button" class="property-btn">
-                  <div class="w-3 h-[2px] bg-gray-500 rounded-full"></div>
-                  <span>{$_("taskForm__no_priority")}</span>
-                </button>
+                <div class="property-select min-w-[120px]">
+                  <SearchableSelect
+                    id="priority"
+                    bind:value={priority}
+                    options={[
+                      { value: "none", label: "No priority", icon: Minus },
+                      { value: "urgent", label: "Urgent", icon: AlertTriangle },
+                      { value: "high", label: "High", icon: SignalHigh },
+                      { value: "medium", label: "Medium", icon: SignalMedium },
+                      { value: "low", label: "Low", icon: SignalLow },
+                    ]}
+                    showSearch={false}
+                    minimal={true}
+                  />
+                </div>
 
                 <!-- Assignee -->
                 <div class="property-select">
@@ -1250,8 +1289,10 @@
                     placeholder={$_("taskForm__due_date_placeholder")}
                     on:select={(e) => (end_date = e.detail)}
                     minimal={true}
+                    dropdownPosition="top"
                   />
                 </div>
+
 
                 <!-- Project -->
                 <div class="property-select min-w-[120px]">
@@ -1259,20 +1300,18 @@
                     id="project"
                     bind:value={project}
                     options={[
-                      { value: "", label: $_("taskForm__no_project") },
+                      { value: "", label: $_("taskForm__no_project"), icon: Folder },
                       ...projects.map((proj) => ({
                         value: proj.name,
                         label: proj.name,
+                        icon: Folder,
                       })),
                     ]}
                     placeholder={$_("taskForm__project_placeholder")}
                     minimal={true}
                   />
                 </div>
-                <!-- More Button -->
-                <button type="button" class="property-btn-icon">
-                  <span class="text-lg leading-none mt-[-4px]">...</span>
-                </button>
+ 
               </div>
               <!-- Checklist -->
               <div class="pt-4 border-t border-white/5">
@@ -1686,32 +1725,12 @@
           >
             <!-- Left side: Attachments -->
             <div class="flex items-center">
-              <button
-                type="button"
-                class="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-all"
-                title={$_("taskForm__comments_attach_images")}
-              >
-                <Paperclip size={18} />
-              </button>
+         
             </div>
 
             <!-- Right side: Actions -->
             <div class="flex items-center gap-4">
-              <button
-                type="button"
-                class="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors"
-              >
-                <ArrowLeftRight size={14} />
-                <span>{$_("taskForm__btn_switch_to_agent")}</span>
-              </button>
 
-              <div class="flex items-center gap-2">
-                <label class="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" bind:checked={createAnother} class="sr-only peer" />
-                  <div class="w-8 h-4 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white/20 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-500"></div>
-                  <span class="ml-2 text-[13px] text-gray-400">{$_("taskForm__create_another")}</span>
-                </label>
-              </div>
 
               <button
                 type="submit"
@@ -1986,7 +2005,7 @@
 
   /* Style overrides for SearchableSelect and CustomDatePicker when used in Property Row */
   :global(.property-select button) {
-    @apply !bg-transparent !border-transparent !text-gray-400 !rounded-md !h-8 !px-2 !text-[13px] hover:!bg-white/5 !shadow-none !ring-0 !transition-all;
+    @apply !bg-transparent !border-white/10 !text-gray-400 !rounded-full !h-8 !px-3 !text-[13px] hover:!bg-white/5 hover:!border-white/20 !shadow-none !ring-0 !transition-all;
   }
 
   :global(.property-select button span) {
