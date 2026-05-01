@@ -21,7 +21,8 @@
     MoreHorizontal, 
     PanelRight, 
     CircleCheck, 
-    Pin, 
+    Pin,
+    PinOff,
     Calendar,
     Clock,
     User,
@@ -131,19 +132,27 @@
 
   function togglePin() {
     isPinned = !isPinned;
-    const pinnedTasks = JSON.parse(localStorage.getItem("pinned-tasks") || "[]");
+    let pinnedTasks: any[] = JSON.parse(localStorage.getItem("pinned-tasks") || "[]");
+    
     if (isPinned) {
-      if (!pinnedTasks.includes(taskId)) {
-        pinnedTasks.push(taskId);
+      if (!pinnedTasks.find(t => t.id === taskId)) {
+        // Add to the top
+        pinnedTasks.unshift({
+          id: taskId,
+          title: task?.title || "",
+          short_name: task?.workspace_short_name || "",
+          task_number: task?.task_number || "",
+          workspace_id: workspaceId || task?.workspace_id || ""
+        });
+        // Limit to 5
+        if (pinnedTasks.length > 5) {
+          pinnedTasks = pinnedTasks.slice(0, 5);
+        }
       }
     } else {
-      const index = pinnedTasks.indexOf(taskId);
-      if (index > -1) {
-        pinnedTasks.splice(index, 1);
-      }
+      pinnedTasks = pinnedTasks.filter(t => t.id !== taskId);
     }
     localStorage.setItem("pinned-tasks", JSON.stringify(pinnedTasks));
-    isMoreMenuOpen = false;
   }
 
   async function loadTaskData() {
