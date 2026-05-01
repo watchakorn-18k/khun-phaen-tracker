@@ -54,64 +54,88 @@
   $: if (browser && !$authLoading && $user?.role && $user.role !== "admin") {
     goto(`${base}/dashboard`);
   }
+
+  import Sidebar from "$lib/components/Sidebar.svelte";
 </script>
 
-<div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-  <div class="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-    <aside class="lg:sticky lg:top-24 lg:self-start">
-      <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.08)] dark:border-gray-700 dark:bg-gray-800 dark:shadow-none">
-        <div class="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.22),_transparent_38%),linear-gradient(135deg,_#f8fafc_0%,_#e2e8f0_45%,_#c7d2fe_100%)] p-5 text-slate-900 dark:border-gray-700 dark:bg-gradient-to-br dark:from-slate-900 dark:via-slate-800 dark:to-indigo-950 dark:text-white">
-          <div class="mb-3 inline-flex rounded-2xl bg-white/70 p-3 text-slate-700 ring-1 ring-slate-200/80 backdrop-blur dark:bg-white/10 dark:text-white dark:ring-white/15">
-            <Shield size={20} />
+<div class="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
+  <Sidebar />
+  
+  <main class="flex-1 overflow-y-auto min-w-0 relative p-4 lg:p-8 custom-scrollbar">
+    <div class="max-w-7xl mx-auto">
+      <div class="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <aside class="lg:sticky lg:top-0 lg:self-start">
+          <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.08)] dark:border-gray-800 dark:bg-gray-800/50 dark:backdrop-blur-sm dark:shadow-none">
+            <div class="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.22),_transparent_38%),linear-gradient(135deg,_#f8fafc_0%,_#e2e8f0_45%,_#c7d2fe_100%)] p-5 text-slate-900 dark:border-gray-700 dark:bg-gradient-to-br dark:from-slate-900 dark:via-slate-800 dark:to-indigo-950 dark:text-white">
+              <div class="mb-3 inline-flex rounded-2xl bg-white/70 p-3 text-slate-700 ring-1 ring-slate-200/80 backdrop-blur dark:bg-white/10 dark:text-white dark:ring-white/15">
+                <Shield size={20} />
+              </div>
+              <h1 class="text-lg font-bold tracking-tight">{$_("settings__title")}</h1>
+              <p class="mt-1 text-sm text-slate-600 dark:text-slate-200/80">
+                {$_("settings__subtitle")}
+              </p>
+            </div>
+
+            <nav class="space-y-2 p-3">
+              {#each tabs as tab}
+                <a
+                  href={tab.href}
+                  class={`group flex items-start gap-3 rounded-2xl px-4 py-3 transition-all ${
+                    tab.match($page.url.pathname)
+                      ? "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-300 dark:ring-indigo-500/20"
+                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-white"
+                  }`}
+                >
+                  <div
+                    class={`mt-0.5 rounded-xl p-2 ${
+                      tab.match($page.url.pathname)
+                        ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300"
+                        : "bg-gray-100 text-gray-500 group-hover:bg-white dark:bg-gray-700 dark:text-gray-300 dark:group-hover:bg-gray-700"
+                    }`}
+                  >
+                    <svelte:component this={tab.icon} size={16} />
+                  </div>
+
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center justify-between gap-3">
+                      <span class="text-sm font-semibold">{$_(tab.label)}</span>
+                      <ChevronRight
+                        size={14}
+                        class={tab.match($page.url.pathname)
+                          ? "opacity-100"
+                          : "opacity-40 transition-opacity group-hover:opacity-80"}
+                      />
+                    </div>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      {$_(tab.description)}
+                    </p>
+                  </div>
+                </a>
+              {/each}
+            </nav>
           </div>
-          <h1 class="text-lg font-bold tracking-tight">{$_("settings__title")}</h1>
-          <p class="mt-1 text-sm text-slate-600 dark:text-slate-200/80">
-            {$_("settings__subtitle")}
-          </p>
-        </div>
+        </aside>
 
-        <nav class="space-y-2 p-3">
-          {#each tabs as tab}
-            <a
-              href={tab.href}
-              class={`group flex items-start gap-3 rounded-2xl px-4 py-3 transition-all ${
-                tab.match($page.url.pathname)
-                  ? "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-300 dark:ring-indigo-500/20"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-white"
-              }`}
-            >
-              <div
-                class={`mt-0.5 rounded-xl p-2 ${
-                  tab.match($page.url.pathname)
-                    ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300"
-                    : "bg-gray-100 text-gray-500 group-hover:bg-white dark:bg-gray-700 dark:text-gray-300 dark:group-hover:bg-gray-700"
-                }`}
-              >
-                <svelte:component this={tab.icon} size={16} />
-              </div>
-
-              <div class="min-w-0 flex-1">
-                <div class="flex items-center justify-between gap-3">
-                  <span class="text-sm font-semibold">{$_(tab.label)}</span>
-                  <ChevronRight
-                    size={14}
-                    class={tab.match($page.url.pathname)
-                      ? "opacity-100"
-                      : "opacity-40 transition-opacity group-hover:opacity-80"}
-                  />
-                </div>
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  {$_(tab.description)}
-                </p>
-              </div>
-            </a>
-          {/each}
-        </nav>
+        <section class="min-w-0">
+          <slot />
+        </section>
       </div>
-    </aside>
-
-    <section class="min-w-0">
-      <slot />
-    </section>
-  </div>
+    </div>
+  </main>
 </div>
+
+<style>
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(156, 163, 175, 0.2);
+    border-radius: 10px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(156, 163, 175, 0.4);
+  }
+</style>

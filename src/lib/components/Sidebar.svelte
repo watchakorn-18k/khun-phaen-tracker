@@ -53,7 +53,6 @@
 
   $: workspaceId = $page.params.workspace_id;
   $: isMyTasksWorkspace = workspaceId === MY_TASKS_WORKSPACE_ID || $page.url.pathname.includes('/dashboard');
-  console.log('[Sidebar Debug]', { workspaceId, isMyTasksWorkspace, MY_TASKS_WORKSPACE_ID, pathname: $page.url.pathname });
   $: workspaceName =
     $currentWorkspaceName || (isMyTasksWorkspace ? $_("sidebar__focus_hub") : $_("sidebar__workspace"));
   $: workspaceColor = $currentWorkspaceColor || "#6366f1";
@@ -63,22 +62,7 @@
 
   function isActive(path: string): boolean {
     const cp = currentPath.replace(/\/+$/, "");
-    const result = cp === path;
-    console.log('[Sidebar isActive]', {
-      base,
-      currentPath,
-      path,
-      cp,
-      matches: result,
-      workspaceId,
-      // Show which link is being checked
-      linkName: path.includes('/dashboard') ? 'Dashboard' :
-                 path.includes('/overview') ? 'Overview' :
-                 path.includes('/settings') ? 'Settings' :
-                 path.includes(MY_TASKS_WORKSPACE_ID) ? 'MyTasks' :
-                 workspaceId && path.includes(workspaceId) ? 'Issues' : 'Unknown'
-    });
-    return result;
+    return cp === path;
   }
 
   async function loadWorkspaces() {
@@ -338,11 +322,11 @@
         <a
           href="{base}/workspace/{MY_TASKS_WORKSPACE_ID}"
           title={$_("sidebar__my_tasks")}
-          class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isMyTasksWorkspace
+          class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isActive(`${base}/workspace/${MY_TASKS_WORKSPACE_ID}`)
             ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-black shadow-[inset_0_0_12px_rgba(99,102,241,0.05)]'
             : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white'} {isSidebarCollapsed ? 'justify-center px-0' : ''}"
         >
-          {#if isMyTasksWorkspace}
+          {#if isActive(`${base}/workspace/${MY_TASKS_WORKSPACE_ID}`)}
             <div class="absolute left-0 w-1 h-4 bg-indigo-500 rounded-r-full"></div>
           {/if}
           <Target size={isSidebarCollapsed ? 22 : 18} class="shrink-0 transition-transform group-hover:scale-110" />

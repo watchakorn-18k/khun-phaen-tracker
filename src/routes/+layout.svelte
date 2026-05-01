@@ -312,7 +312,7 @@
     <main class="w-full h-screen overflow-hidden">
       <slot />
     </main>
-  {:else if isWorkspacePage || isDashboard}
+  {:else if isWorkspacePage || isDashboard || isSettingsPage}
     <slot />
 
     {#if whiteboardMessage}
