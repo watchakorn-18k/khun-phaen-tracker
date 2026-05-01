@@ -60,6 +60,17 @@
 
   $: currentPath = $page.url.pathname;
 
+  let pinnedTasks: any[] = [];
+  let isPinnedSectionOpen = true;
+
+  function loadPinnedTasks() {
+    try {
+      pinnedTasks = JSON.parse(localStorage.getItem("pinned-tasks") || "[]");
+    } catch {
+      pinnedTasks = [];
+    }
+  }
+
   function isActive(path: string): boolean {
     const cp = currentPath.replace(/\/+$/, "");
     return cp === path;
@@ -152,6 +163,16 @@
   onMount(() => {
     loadWorkspaces();
     isSidebarCollapsed = localStorage.getItem("sidebar-collapsed") === "true";
+    loadPinnedTasks();
+
+    const handlePinnedTasksChange = () => {
+      loadPinnedTasks();
+    };
+    window.addEventListener('pinnedTasksChanged', handlePinnedTasksChange);
+    
+    return () => {
+      window.removeEventListener('pinnedTasksChanged', handlePinnedTasksChange);
+    };
   });
 
   $: workspaceHref = isMyTasksWorkspace
@@ -336,6 +357,47 @@
         </a>
       </div>
     </div>
+
+    <!-- Pinned Tasks -->
+    {#if pinnedTasks.length > 0}
+      <div>
+        {#if !isSidebarCollapsed}
+          <button
+            on:click={() => isPinnedSectionOpen = !isPinnedSectionOpen}
+            class="w-full flex items-center gap-1 px-2 py-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-2 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+          >
+            <span>Pinned</span>
+            <ChevronDown size={12} class="transition-transform duration-200 {isPinnedSectionOpen ? '' : '-rotate-90'}" />
+          </button>
+        {/if}
+        {#if isPinnedSectionOpen || isSidebarCollapsed}
+          <div class="space-y-1">
+            {#each pinnedTasks as task}
+              <a
+                href="{base}/workspace/{task.workspace_id}/task/{task.id}"
+                title={task.title}
+                class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isActive(`${base}/workspace/${task.workspace_id}/task/${task.id}`)
+                  ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-black shadow-[inset_0_0_12px_rgba(99,102,241,0.05)]'
+                  : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white'} {isSidebarCollapsed ? 'justify-center px-0' : ''}"
+              >
+                {#if isActive(`${base}/workspace/${task.workspace_id}/task/${task.id}`)}
+                  <div class="absolute left-0 w-1 h-4 bg-indigo-500 rounded-r-full"></div>
+                {/if}
+                <div class="w-2 h-2 rounded-full border border-gray-400 shrink-0"></div>
+                {#if !isSidebarCollapsed}
+                  <span class="truncate">
+                    {#if task.short_name && task.task_number}
+                      <span class="text-gray-400 font-normal mr-1">{task.short_name}-{task.task_number}</span>
+                    {/if}
+                    {task.title}
+                  </span>
+                {/if}
+              </a>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/if}
 
     <!-- Workspace -->
     {#if !isMyTasksWorkspace && workspaceId && workspaceId !== MY_TASKS_WORKSPACE_ID}

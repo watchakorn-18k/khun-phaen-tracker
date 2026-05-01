@@ -122,7 +122,7 @@
 
   onMount(async () => {
     const pinnedTasks = JSON.parse(localStorage.getItem("pinned-tasks") || "[]");
-    isPinned = pinnedTasks.includes(taskId);
+    isPinned = !!pinnedTasks.find((t: any) => t.id === taskId);
 
     await Promise.all([
       loadTaskData(),
@@ -153,6 +153,7 @@
       pinnedTasks = pinnedTasks.filter(t => t.id !== taskId);
     }
     localStorage.setItem("pinned-tasks", JSON.stringify(pinnedTasks));
+    window.dispatchEvent(new CustomEvent('pinnedTasksChanged'));
   }
 
   async function loadTaskData() {
