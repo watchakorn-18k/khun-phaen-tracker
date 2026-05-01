@@ -27,7 +27,11 @@ export type ModalName =
   | "dailyReflect"
   | "pageSize"
   | "workspaceSettings"
-  | "milestoneManager";
+  | "milestoneManager"
+  | "bookmarkManager"
+  | "whiteboard"
+  | "quickNotes"
+  | "timerDashboard";
 
 export type ModalState = {
   form: boolean;
@@ -44,6 +48,10 @@ export type ModalState = {
   pageSize: boolean;
   workspaceSettings: boolean;
   milestoneManager: boolean;
+  bookmarkManager: boolean;
+  whiteboard: boolean;
+  quickNotes: boolean;
+  timerDashboard: boolean;
 };
 
 const initialModalState: ModalState = {
@@ -61,6 +69,10 @@ const initialModalState: ModalState = {
   pageSize: false,
   workspaceSettings: false,
   milestoneManager: false,
+  bookmarkManager: false,
+  whiteboard: false,
+  quickNotes: false,
+  timerDashboard: false,
 };
 
 export const modals = writable<ModalState>(initialModalState);

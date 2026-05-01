@@ -292,7 +292,7 @@
     const workspaceId = $page.params.workspace_id;
     const urlRoom = $page.url.searchParams.get("room");
     const nextWorkspaceKey = `${workspaceId || ""}:${urlRoom || ""}`;
-    if (nextWorkspaceKey !== activeWorkspaceKey) {
+    if (workspaceId && nextWorkspaceKey !== activeWorkspaceKey) {
       activeWorkspaceKey = nextWorkspaceKey;
       void initializeWorkspace(workspaceId, urlRoom);
     }

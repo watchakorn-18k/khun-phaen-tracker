@@ -1,13 +1,12 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import { 
-		CheckCircle2, Circle, Loader2, Calendar, FlaskConical, LayoutTemplate, ArrowLeft, PauseCircle,
+		CheckCircle2, Circle, Loader2, Calendar, FlaskConical, LayoutTemplate, PauseCircle,
 		Briefcase, Code2, Rocket, Zap, Heart, Target, Globe, Book, Camera, Coffee, Music, Smile
 	} from 'lucide-svelte';
 	import { currentWorkspaceName, currentWorkspaceColor, currentWorkspaceIcon } from '$lib/stores/workspace';
 	import ExportImport from '$lib/components/ExportImport.svelte';
 	import { _ } from 'svelte-i18n';
-	import { base } from '$app/paths';
 
 	const ICON_MAP: Record<string, any> = {
 		'LayoutTemplate': LayoutTemplate,
@@ -60,14 +59,6 @@
 			<div class="flex flex-col gap-4">
 				<div class="flex flex-wrap items-start justify-between gap-3">
 					<div class="space-y-3">
-						<a 
-							href="{base}/dashboard" 
-							class="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200/90 bg-white/75 px-3 text-[10px] font-black uppercase tracking-[0.24em] text-slate-700 shadow-sm backdrop-blur transition-colors hover:bg-white dark:border-white/10 dark:bg-white/10 dark:text-slate-100 dark:hover:bg-white/15"
-						>
-							<ArrowLeft size={14} />
-							{$_('statsPanel__switch_workspace')}
-						</a>
-
 						<div class="flex flex-wrap items-center gap-3">
 							<div 
 								class="inline-flex h-11 max-w-full items-center gap-3 rounded-2xl border px-4"

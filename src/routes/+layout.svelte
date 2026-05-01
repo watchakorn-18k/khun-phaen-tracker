@@ -20,6 +20,7 @@
   import WhiteboardModal from "$lib/components/WhiteboardModal.svelte";
   import QuickNotes from "$lib/components/QuickNotes.svelte";
   import ProfileModal from "$lib/components/ProfileModal.svelte";
+  import TimerDashboard from "$lib/components/TimerDashboard.svelte";
   import GlobalConfirmModal from "$lib/components/GlobalConfirmModal.svelte";
   import { _ } from "svelte-i18n";
   import { initAuth, user, authLoading } from "$lib/stores/auth";
@@ -41,14 +42,14 @@
     clearWorkspaceId,
   } from "$lib/stores/workspace";
   import { githubStore } from "$lib/stores/github";
+  import { modals, createUIActions } from "$lib/stores/uiActions";
+
+  const ui = createUIActions();
 
   let loading = true;
   let error = "";
   let currentTime = new Date();
   let timeInterval: ReturnType<typeof setInterval>;
-  let showBookmarkManager = false;
-  let showWhiteboard = false;
-  let showQuickNotes = false;
   let showLanguageDropdown = false;
   let showAccountDropdown = false;
   let showProfileModal = false;
@@ -79,15 +80,15 @@
     const customEvent = event as CustomEvent<{ kind?: string }>;
     const kind = customEvent.detail?.kind;
     if (kind === "bookmark") {
-      showBookmarkManager = true;
+      ui.openModal("bookmarkManager");
       return;
     }
     if (kind === "whiteboard") {
-      showWhiteboard = true;
+      ui.openModal("whiteboard");
       return;
     }
     if (kind === "quick-notes") {
-      showQuickNotes = true;
+      ui.openModal("quickNotes");
     }
   }
 
@@ -326,18 +327,22 @@
       </div>
     {/if}
 
-    {#if showBookmarkManager}
-      <BookmarkManager on:close={() => (showBookmarkManager = false)} />
+    {#if $modals.bookmarkManager}
+      <BookmarkManager on:close={() => ui.closeModal("bookmarkManager")} />
     {/if}
 
-    {#if showQuickNotes}
-      <QuickNotes on:close={() => (showQuickNotes = false)} />
+    {#if $modals.quickNotes}
+      <QuickNotes on:close={() => ui.closeModal("quickNotes")} />
     {/if}
 
-    {#if showWhiteboard}
+    {#if $modals.timerDashboard}
+      <TimerDashboard />
+    {/if}
+
+    {#if $modals.whiteboard}
       <WhiteboardModal
-        open={showWhiteboard}
-        on:close={() => (showWhiteboard = false)}
+        open={$modals.whiteboard}
+        on:close={() => ui.closeModal("whiteboard")}
         on:notify={(event) =>
           showToast(event.detail.message, event.detail.type)}
       />
@@ -351,13 +356,6 @@
           showToast(event.detail.message, event.detail.type)}
       />
     {/if}
-
-    <!-- Dev Timer - Fixed Bottom Right -->
-    <DevTimer
-      on:showBookmarks={() => (showBookmarkManager = true)}
-      on:showWhiteboard={() => (showWhiteboard = true)}
-      on:showQuickNotes={() => (showQuickNotes = true)}
-    />
 
     <GlobalConfirmModal />
   {:else}
@@ -697,27 +695,36 @@
       </div>
     {/if}
 
-    <!-- Dev Timer - Fixed Bottom Right -->
-    {#if !isDashboard && !isSettingsPage && !isUsersPage && !isErrorPage}
-      <DevTimer
-        on:showBookmarks={() => (showBookmarkManager = true)}
-        on:showWhiteboard={() => (showWhiteboard = true)}
-        on:showQuickNotes={() => (showQuickNotes = true)}
+
+    {#if $modals.bookmarkManager}
+      <BookmarkManager on:close={() => ui.closeModal("bookmarkManager")} />
+    {/if}
+
+    {#if $modals.quickNotes}
+      <QuickNotes on:close={() => ui.closeModal("quickNotes")} />
+    {/if}
+
+    {#if $modals.timerDashboard}
+      <TimerDashboard />
+    {/if}
+
+    {#if $modals.whiteboard}
+      <WhiteboardModal
+        open={$modals.whiteboard}
+        on:close={() => ui.closeModal("whiteboard")}
+        on:notify={(event) =>
+          showToast(event.detail.message, event.detail.type)}
       />
     {/if}
 
-    <!-- Bookmark Manager Modal -->
-    {#if showBookmarkManager}
-      <BookmarkManager on:close={() => (showBookmarkManager = false)} />
+    {#if showProfileModal}
+      <ProfileModal
+        open={showProfileModal}
+        on:close={() => (showProfileModal = false)}
+        on:notify={(event) =>
+          showToast(event.detail.message, event.detail.type)}
+      />
     {/if}
-
-    <!-- Quick Notes Modal -->
-    {#if showQuickNotes}
-      <QuickNotes on:close={() => (showQuickNotes = false)} />
-    {/if}
-
-    <!-- Spacer for fixed timer -->
-    <div class="h-10"></div>
 
     <footer
       class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 py-6 transition-colors"
@@ -732,24 +739,6 @@
         </div>
       </div>
     </footer>
-
-    {#if showWhiteboard}
-      <WhiteboardModal
-        open={showWhiteboard}
-        on:close={() => (showWhiteboard = false)}
-        on:notify={(event) =>
-          showToast(event.detail.message, event.detail.type)}
-      />
-    {/if}
-
-    {#if showProfileModal}
-      <ProfileModal
-        open={showProfileModal}
-        on:close={() => (showProfileModal = false)}
-        on:notify={(event) =>
-          showToast(event.detail.message, event.detail.type)}
-      />
-    {/if}
 
     <GlobalConfirmModal />
   {/if}

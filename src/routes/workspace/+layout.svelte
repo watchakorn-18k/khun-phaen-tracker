@@ -27,7 +27,9 @@
     Target,
     Plus,
     Check,
+    LayoutDashboard,
   } from "lucide-svelte";
+  import SidebarUtilityTools from "$lib/components/SidebarUtilityTools.svelte";
 
   interface Workspace {
     id: string;
@@ -67,16 +69,18 @@
     } catch {}
   }
 
-  async function switchWorkspace(ws: Workspace) {
+  function workspaceUrl(ws: Workspace) {
+    return `${base}/workspace/${ws.id}?room=${ws.room_code}`;
+  }
+
+  function prepareWorkspaceSwitch(ws: Workspace) {
     closeAllDropdowns();
-    if (ws.id === workspaceId) return;
     setWorkspaceId(ws.id, ws.name, ws.owner_id, ws.color, ws.icon, ws.short_name);
     localStorage.setItem("sync-room-code", ws.room_code);
     localStorage.setItem(
       "backend-server-url",
       import.meta.env.VITE_SERVER_URL || "http://127.0.0.1:3002",
     );
-    await goto(`${base}/workspace/${ws.id}?room=${ws.room_code}`);
   }
 
   async function handleLogout() {
@@ -116,7 +120,7 @@
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 {#if showWorkspaceSwitcher || showLanguageDropdown || showAccountDropdown}
-  <div class="fixed inset-0 z-30" on:click={closeAllDropdowns}></div>
+  <div class="fixed inset-0 z-10" on:click={closeAllDropdowns}></div>
 {/if}
 
 <div class="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
@@ -163,9 +167,9 @@
             </p>
             <div class="px-1 pb-1">
               {#each workspaceList as ws}
-                <button
-                  type="button"
-                  on:click={() => switchWorkspace(ws)}
+                <a
+                  href={workspaceUrl(ws)}
+                  on:click={() => prepareWorkspaceSwitch(ws)}
                   class="w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left"
                 >
                   <div
@@ -178,7 +182,7 @@
                   {#if ws.id === workspaceId}
                     <Check size={13} class="text-primary shrink-0" />
                   {/if}
-                </button>
+                </a>
               {/each}
             </div>
 
@@ -199,12 +203,22 @@
 
     <!-- Navigation -->
     <nav class="flex-1 overflow-y-auto p-2 space-y-4">
-      <!-- Personal -->
       <div>
         <div class="px-2 py-1 text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
           Personal
         </div>
         <div class="mt-1 space-y-0.5">
+          <a
+            href="{base}/dashboard"
+            class="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm transition-colors {isActive(
+              `${base}/dashboard`,
+            )
+              ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-medium'
+              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'}"
+          >
+            <LayoutDashboard size={16} class="shrink-0" />
+            <span>Dashboard</span>
+          </a>
           <a
             href="{base}/workspace/{MY_TASKS_WORKSPACE_ID}"
             class="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm transition-colors {isMyTasksWorkspace
@@ -214,6 +228,10 @@
             <Target size={16} class="shrink-0" />
             <span>My Tasks</span>
           </a>
+        </div>
+
+        <div class="mt-4">
+          <SidebarUtilityTools />
         </div>
       </div>
 

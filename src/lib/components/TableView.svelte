@@ -77,14 +77,44 @@
   let expandedChecklists: Set<string | number> = new Set();
 
   const COL_WIDTHS_KEY = "tableView_colWidths";
-  const defaultColWidths = { title: 280, project: 120, category: 100, assignee: 150, sprint: 110, status: 100, date: 100 };
-  function loadColWidths() {
+  type ColumnKey =
+    | "title"
+    | "project"
+    | "category"
+    | "assignee"
+    | "sprint"
+    | "status"
+    | "date";
+  type ColumnWidths = Record<ColumnKey, number>;
+  const defaultColWidths: ColumnWidths = {
+    title: 280,
+    project: 120,
+    category: 100,
+    assignee: 150,
+    sprint: 110,
+    status: 100,
+    date: 100,
+  };
+  const STATIC_TABLE_WIDTH = 120;
+  function loadColWidths(): ColumnWidths {
     try {
       const s = typeof localStorage !== "undefined" ? localStorage.getItem(COL_WIDTHS_KEY) : null;
       return s ? { ...defaultColWidths, ...JSON.parse(s) } : { ...defaultColWidths };
     } catch { return { ...defaultColWidths }; }
   }
-  let colWidths = loadColWidths();
+  let colWidths: ColumnWidths = loadColWidths();
+  let tableViewportWidth = 0;
+  $: resizableWidthTotal = Object.values(colWidths).reduce(
+    (sum, width) => sum + Number(width || 0),
+    0,
+  );
+  $: colWidthScale =
+    tableViewportWidth > STATIC_TABLE_WIDTH + resizableWidthTotal
+      ? (tableViewportWidth - STATIC_TABLE_WIDTH) / resizableWidthTotal
+      : 1;
+  function displayColWidth(col: ColumnKey) {
+    return Math.round((colWidths[col] ?? defaultColWidths[col]) * colWidthScale);
+  }
   let resizingCol: string | null = null;
   let resizeStartX = 0;
   let resizeStartWidth = 0;
@@ -99,7 +129,13 @@
   }
   function onColResizeMove(e: MouseEvent) {
     if (!resizingCol) return;
-    colWidths = { ...colWidths, [resizingCol]: Math.max(60, resizeStartWidth + (e.clientX - resizeStartX)) };
+    colWidths = {
+      ...colWidths,
+      [resizingCol]: Math.max(
+        60,
+        resizeStartWidth + (e.clientX - resizeStartX) / colWidthScale,
+      ),
+    };
   }
   function stopColResize() {
     resizingCol = null;
@@ -448,8 +484,13 @@
   {/if}
 
   <!-- Desktop Table View -->
-  <div class="hidden md:block overflow-x-auto" class:select-none={!!resizingCol} class:cursor-col-resize={!!resizingCol}>
-    <table style="table-layout: fixed;">
+  <div
+    class="hidden md:block overflow-x-auto"
+    class:select-none={!!resizingCol}
+    class:cursor-col-resize={!!resizingCol}
+    bind:clientWidth={tableViewportWidth}
+  >
+    <table class="w-full min-w-[1080px] table-fixed">
       <thead class="bg-gray-50 dark:bg-gray-700/50">
         <tr>
           <th class="px-3 py-2 text-left w-10">
@@ -461,7 +502,7 @@
               class="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
             />
           </th>
-          <th class="px-3 py-2 text-left relative" style="width: {colWidths.title}px;">
+          <th class="px-3 py-2 text-left relative" style="width: {displayColWidth('title')}px;">
             <button
               on:click={() => toggleSort("title")}
               class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
@@ -472,7 +513,7 @@
             <!-- svelte-ignore a11y-no-static-element-interactions -->
             <div class="col-resize-handle {resizingCol === 'title' ? 'active' : ''}" on:mousedown={(e) => startColResize('title', e)}></div>
           </th>
-          <th class="px-3 py-2 text-left hidden lg:table-cell relative" style="width: {colWidths.project}px;">
+          <th class="px-3 py-2 text-left hidden lg:table-cell relative" style="width: {displayColWidth('project')}px;">
             <button
               on:click={() => toggleSort("project")}
               class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
@@ -484,7 +525,7 @@
             <!-- svelte-ignore a11y-no-static-element-interactions -->
             <div class="col-resize-handle {resizingCol === 'project' ? 'active' : ''}" on:mousedown={(e) => startColResize('project', e)}></div>
           </th>
-          <th class="px-3 py-2 text-left hidden xl:table-cell relative" style="width: {colWidths.category}px;">
+          <th class="px-3 py-2 text-left hidden xl:table-cell relative" style="width: {displayColWidth('category')}px;">
             <button
               on:click={() => toggleSort("category")}
               class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
@@ -495,7 +536,7 @@
             <!-- svelte-ignore a11y-no-static-element-interactions -->
             <div class="col-resize-handle {resizingCol === 'category' ? 'active' : ''}" on:mousedown={(e) => startColResize('category', e)}></div>
           </th>
-          <th class="px-3 py-2 text-left relative" style="width: {colWidths.assignee}px;">
+          <th class="px-3 py-2 text-left relative" style="width: {displayColWidth('assignee')}px;">
             <button
               on:click={() => toggleSort("assignee")}
               class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
@@ -512,7 +553,7 @@
             <!-- svelte-ignore a11y-no-static-element-interactions -->
             <div class="col-resize-handle {resizingCol === 'assignee' ? 'active' : ''}" on:mousedown={(e) => startColResize('assignee', e)}></div>
           </th>
-          <th class="px-3 py-2 text-left hidden xl:table-cell relative" style="width: {colWidths.sprint}px;">
+          <th class="px-3 py-2 text-left hidden xl:table-cell relative" style="width: {displayColWidth('sprint')}px;">
             <span
               class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider"
             >
@@ -522,7 +563,7 @@
             <!-- svelte-ignore a11y-no-static-element-interactions -->
             <div class="col-resize-handle {resizingCol === 'sprint' ? 'active' : ''}" on:mousedown={(e) => startColResize('sprint', e)}></div>
           </th>
-          <th class="px-3 py-2 text-left relative" style="width: {colWidths.status}px;">
+          <th class="px-3 py-2 text-left relative" style="width: {displayColWidth('status')}px;">
             <button
               on:click={() => toggleSort("status")}
               class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
@@ -533,7 +574,7 @@
             <!-- svelte-ignore a11y-no-static-element-interactions -->
             <div class="col-resize-handle {resizingCol === 'status' ? 'active' : ''}" on:mousedown={(e) => startColResize('status', e)}></div>
           </th>
-          <th class="px-3 py-2 text-left relative" style="width: {colWidths.date}px;">
+          <th class="px-3 py-2 text-left relative" style="width: {displayColWidth('date')}px;">
             <button
               on:click={() => toggleSort("date")}
               class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
@@ -571,7 +612,7 @@
                 class="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
               />
             </td>
-            <td class="px-3 py-2 overflow-hidden" style="max-width: 0;">
+            <td class="px-3 py-2 overflow-hidden">
               <div class="flex flex-col min-w-0 w-full">
                 <span
                   class="font-medium text-gray-900 dark:text-white text-sm truncate"
@@ -1078,9 +1119,8 @@
     border-radius: 2px;
   }
 
-  :global(table[style*="table-layout"] td) {
+  :global(.table-fixed td) {
     overflow: hidden;
-    max-width: 0;
   }
 
   .line-clamp-1 {
