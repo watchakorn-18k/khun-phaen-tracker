@@ -37,6 +37,7 @@
     History,
     AlertCircle,
     Check,
+    Shield,
   } from "lucide-svelte";
   import { _ } from "svelte-i18n";
   import TestCaseStepList from "$lib/components/TestCaseStepList.svelte";
@@ -155,21 +156,21 @@
 
   let isEditingSidebarSteps = false;
   let showActionsMenu = false;
-  
+
   let showFilterDropdown = false;
   let activeFilterProperty: string | null = null;
   let activeFilters: Record<string, string[]> = {
     priority: [],
     status: [],
     fixed: [],
-    assign_dev: []
+    assign_dev: [],
   };
 
   const filterProperties = [
     { id: "priority", label: "Priority" },
     { id: "status", label: "Status" },
     { id: "fixed", label: "Fixed" },
-    { id: "assign_dev", label: "Assign Dev" }
+    { id: "assign_dev", label: "Assign Dev" },
   ];
 
   function toggleFilterValue(property: string, value: string) {
@@ -178,7 +179,9 @@
     }
     const idx = activeFilters[property].indexOf(value);
     if (idx >= 0) {
-      activeFilters[property] = activeFilters[property].filter(v => v !== value);
+      activeFilters[property] = activeFilters[property].filter(
+        (v) => v !== value,
+      );
     } else {
       activeFilters[property] = [...activeFilters[property], value];
     }
@@ -186,6 +189,19 @@
     loadData(query, field);
   }
 
+  function getFilterLabel(prop: string, value: string) {
+    if (prop === "priority")
+      return priorityOptions.find((o) => o.value === value)?.label || value;
+    if (prop === "status")
+      return statusOptions.find((o) => o.value === value)?.label || value;
+    if (prop === "fixed")
+      return fixedOptions.find((o) => o.value === value)?.label || value;
+    if (prop === "assign_dev") {
+      const opt = availableAssigneeOptions.find((o) => o.value === value);
+      return opt ? opt.label : value;
+    }
+    return value;
+  }
 
   $: if (selectedCase && selectedCase.id !== lastLoadedCaseId) {
     lastLoadedCaseId = selectedCase.id;
@@ -467,9 +483,59 @@
     }
   }
 
+  async function updatePriority(testCase: TestCase, newPriority: string) {
+    try {
+      const resp = await api.data.testCases.updatePriority(
+        testCase.id,
+        newPriority,
+      );
+      if (resp.ok) {
+        suites = suites.map((s) => ({
+          ...s,
+          cases: s.cases.map((c) =>
+            c.id === testCase.id ? { ...c, priority: newPriority as any } : c,
+          ),
+        }));
+        ui.showMessage("Priority updated", "success");
+      } else {
+        ui.showMessage("Failed to update priority", "error");
+      }
+    } catch (e) {
+      ui.showMessage("Failed to update priority", "error");
+    }
+  }
+
+  async function updateAssignTester(
+    testCase: TestCase,
+    newAssignTester: string,
+  ) {
+    try {
+      const resp = await api.data.testCases.updateAssignTester(
+        testCase.id,
+        newAssignTester,
+      );
+      if (resp.ok) {
+        suites = suites.map((s) => ({
+          ...s,
+          cases: s.cases.map((c) =>
+            c.id === testCase.id ? { ...c, assignee: newAssignTester } : c,
+          ),
+        }));
+        ui.showMessage("Tester updated", "success");
+      } else {
+        ui.showMessage("Failed to update tester", "error");
+      }
+    } catch (e) {
+      ui.showMessage("Failed to update tester", "error");
+    }
+  }
+
   async function updateAssignDev(testCase: TestCase, newAssignDev: string) {
     try {
-      const resp = await api.data.testCases.updateAssignDev(testCase.id, newAssignDev);
+      const resp = await api.data.testCases.updateAssignDev(
+        testCase.id,
+        newAssignDev,
+      );
       if (resp.ok) {
         suites = suites.map((s) => ({
           ...s,
@@ -490,18 +556,30 @@
   async function loadData(q?: string, searchField?: string) {
     if (!workspaceId) return;
     try {
-      const priorityQuery = activeFilters.priority?.length > 0 ? activeFilters.priority.join(",") : undefined;
-      const statusQuery = activeFilters.status?.length > 0 ? activeFilters.status.join(",") : undefined;
-      const fixedQuery = activeFilters.fixed?.length > 0 ? activeFilters.fixed.join(",") : undefined;
+      const priorityQuery =
+        activeFilters.priority?.length > 0
+          ? activeFilters.priority.join(",")
+          : undefined;
+      const statusQuery =
+        activeFilters.status?.length > 0
+          ? activeFilters.status.join(",")
+          : undefined;
+      const fixedQuery =
+        activeFilters.fixed?.length > 0
+          ? activeFilters.fixed.join(",")
+          : undefined;
 
       const [suiteResp, caseResp] = await Promise.all([
         api.data.testSuites.list(workspaceId),
-        api.data.testCases.list(workspaceId, { 
-          q, 
+        api.data.testCases.list(workspaceId, {
+          q,
           field: searchField,
           priority: priorityQuery,
           status: statusQuery,
-          fixed: fixedQuery
+          fixed: fixedQuery,
+          assign_dev: activeFilters.assign_dev?.length > 0
+            ? activeFilters.assign_dev.join(",")
+            : undefined,
         }),
       ]);
 
@@ -865,6 +943,12 @@
     { value: "comments", label: "Comments" },
     { value: "steps", label: "Steps" },
   ];
+  
+  const priorityOptions = [
+    { value: "high", label: "High" },
+    { value: "medium", label: "Medium" },
+    { value: "low", label: "Low" },
+  ];
 
   const statusOptions = [
     {
@@ -925,19 +1009,31 @@
     label: suite.title,
   }));
   $: assigneeOptions = [
-    { value: "unassigned", label: "Unassigned", user_id: null },
+    {
+      value: "unassigned",
+      label: "Unassigned",
+      user_id: null,
+      avatarColor: "#64748b",
+    },
     ...assignees.map((assignee) => ({
       value: String(assignee.id),
       label: assignee.name,
       user_id: assignee.user_id,
-    }))
+      avatarUrl: assignee.avatar_url || assignee.avatarUrl,
+      avatarColor: assignee.color || "#6366f1",
+    })),
   ];
 
-  $: availableAssigneeOptions = isAuthorized 
-    ? assigneeOptions 
+  $: availableAssigneeOptions = isAuthorized
+    ? assigneeOptions
     : assigneeOptions
-        .filter((o) => o.value === "unassigned" || String(o.user_id) === String($user?.id))
-        .map((o) => (String(o.user_id) === String($user?.id) ? { ...o, label: "me" } : o));
+        .filter(
+          (o) =>
+            o.value === "unassigned" || String(o.user_id) === String($user?.id),
+        )
+        .map((o) =>
+          String(o.user_id) === String($user?.id) ? { ...o, label: "me" } : o,
+        );
 
   $: workspaceId = $page.params.workspace_id;
   $: workspaceLabel = $currentWorkspaceName || "Current workspace";
@@ -1200,7 +1296,9 @@
       >
         <div class="flex flex-col gap-4">
           <div class="flex items-baseline gap-3">
-            <h1 class="text-2xl font-black tracking-tight text-slate-800 dark:text-white">
+            <h1
+              class="text-2xl font-black tracking-tight text-slate-800 dark:text-white"
+            >
               {workspaceLabel} repository
             </h1>
             <span class="text-sm font-medium text-slate-500">
@@ -1208,108 +1306,293 @@
             </span>
           </div>
 
-          <div class="flex flex-wrap items-center gap-3">
-            <div
-              class="group flex h-10 min-w-[320px] rounded-xl border border-slate-200 bg-white shadow-sm transition-all focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 dark:border-gray-700 dark:bg-gray-900 dark:focus-within:border-indigo-400"
-            >
-              <label class="flex min-w-0 flex-1 items-center gap-2.5 px-3.5">
-                <Search
-                  size={18}
-                  class="shrink-0 text-slate-400 group-focus-within:text-indigo-500"
-                />
-                <input
-                  bind:value={query}
-                  class="min-w-0 flex-1 border-0 bg-transparent text-sm font-bold text-slate-700 outline-none placeholder:text-slate-400 dark:!bg-transparent dark:text-gray-200"
-                  placeholder="Search test cases, ID, description..."
-                />
-                {#if query}
-                  <button
-                    on:click={() => (query = "")}
-                    class="p-1 hover:bg-slate-100 rounded-full dark:hover:bg-gray-800"
-                  >
-                    <X size={14} class="text-slate-400" />
-                  </button>
-                {/if}
-              </label>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-3">
               <div
-                class="flex h-full items-center w-48 rounded-r-xl border-l border-slate-200 bg-slate-50/50 dark:border-gray-700 dark:bg-gray-800/50"
+                class="group flex h-10 min-w-[320px] rounded-xl border border-slate-200 bg-white shadow-sm transition-all focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 dark:border-gray-700 dark:bg-gray-900 dark:focus-within:border-indigo-400"
               >
-                <SearchableSelect
-                  id="test-case-search-field"
-                  bind:value={field}
-                  options={fieldOptions}
-                  showSearch={false}
-                  minimal={true}
-                />
-              </div>
-            </div>
-            <button
-              class="flex h-10 items-center gap-2 rounded-xl bg-slate-100 px-4 text-[13px] font-black text-slate-600 hover:bg-slate-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-            >
-              <Plus size={16} />
-              Add filter
-            </button>
-            <div class="h-6 w-px bg-slate-200 dark:bg-gray-800"></div>
-            <div class="relative flex items-center gap-2">
-              <button
-                class="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 dark:text-gray-300 dark:hover:bg-gray-800"
-                on:click={() => (showActionsMenu = !showActionsMenu)}
-                title="Actions"
-              >
-                <MoreHorizontal size={16} />
-              </button>
-
-              {#if showActionsMenu}
-                <!-- svelte-ignore a11y_consider_explicit_label -->
-                <button
-                  class="fixed inset-0 z-40 h-full w-full cursor-default border-none bg-transparent"
-                  on:click={() => (showActionsMenu = false)}
-                ></button>
-
-                <div class="absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800">
-                  <div class="flex flex-col py-1">
+                <label class="flex min-w-0 flex-1 items-center gap-2.5 px-3.5">
+                  <Search
+                    size={18}
+                    class="shrink-0 text-slate-400 group-focus-within:text-indigo-500"
+                  />
+                  <input
+                    bind:value={query}
+                    class="min-w-0 flex-1 border-0 bg-transparent text-sm font-bold text-slate-700 outline-none placeholder:text-slate-400 dark:!bg-transparent dark:text-gray-200"
+                    placeholder="Search test cases, ID, description..."
+                  />
+                  {#if query}
                     <button
-                      class="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-black text-slate-700 hover:bg-slate-50 dark:text-gray-200 dark:hover:bg-gray-700/50 transition-colors"
-                      on:click={() => {
-                        downloadTemplate();
-                        showActionsMenu = false;
-                      }}
+                      on:click={() => (query = "")}
+                      class="p-1 hover:bg-slate-100 rounded-full dark:hover:bg-gray-800"
                     >
-                      <Download size={16} class="text-slate-400" />
-                      {$_("testCases__download_template")}
+                      <X size={14} class="text-slate-400" />
                     </button>
-                    
-                    {#if isAuthorized}
-                      <label
-                        class="flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left text-sm font-black text-slate-700 hover:bg-slate-50 dark:text-gray-200 dark:hover:bg-gray-700/50 transition-colors"
-                      >
-                        <FileUp size={16} class="text-slate-400" />
-                        {$_("testCases__import")}
-                        <input
-                          type="file"
-                          accept=".csv"
-                          class="hidden"
-                          on:change={(e) => {
-                            handleImport(e);
-                            showActionsMenu = false;
-                          }}
-                        />
-                      </label>
-                    {/if}
-                    
+                  {/if}
+                </label>
+                <div
+                  class="flex h-full items-center w-48 rounded-r-xl border-l border-slate-200 bg-slate-50/50 dark:border-gray-700 dark:bg-gray-800/50"
+                >
+                  <SearchableSelect
+                    id="test-case-search-field"
+                    bind:value={field}
+                    options={fieldOptions}
+                    showSearch={false}
+                    minimal={true}
+                  />
+                </div>
+              </div>
+
+              <!-- Active Filter Chips -->
+              {#each Object.entries(activeFilters) as [prop, values]}
+                {#if values.length > 0}
+                  <div
+                    class="flex items-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-100 px-2.5 py-1.5 text-[13px] font-black text-indigo-700 dark:bg-indigo-500/10 dark:border-indigo-500/20 dark:text-indigo-300 shadow-sm"
+                  >
+                    <span class="opacity-60"
+                      >{filterProperties.find((p) => p.id === prop)?.label ||
+                        prop}:</span
+                    >
+                    <span>{values.map((v) => getFilterLabel(prop, v)).join(", ")}</span>
                     <button
-                      class="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-black text-slate-700 hover:bg-slate-50 dark:text-gray-200 dark:hover:bg-gray-700/50 transition-colors"
+                      class="ml-1 rounded-full p-0.5 hover:bg-indigo-200 dark:hover:bg-indigo-500/30 transition-colors"
                       on:click={() => {
-                        exportToCSV();
-                        showActionsMenu = false;
+                        activeFilters[prop] = [];
+                        loadData(query, field);
                       }}
                     >
-                      <FileDown size={16} class="text-slate-400" />
-                      {$_("testCases__export")}
+                      <X size={12} strokeWidth={3} />
                     </button>
                   </div>
-                </div>
-              {/if}
+                {/if}
+              {/each}
+
+              <!-- Add Filter Dropdown -->
+              <div class="relative">
+                <button
+                  class="flex h-10 items-center gap-2 rounded-xl bg-slate-100 px-4 text-[13px] font-black text-slate-600 hover:bg-slate-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition-all active:scale-95"
+                  on:click={() => {
+                    showFilterDropdown = !showFilterDropdown;
+                    activeFilterProperty = null;
+                  }}
+                >
+                  <Plus size={16} />
+                  Add filter
+                </button>
+
+                {#if showFilterDropdown}
+                  <!-- svelte-ignore a11y_consider_explicit_label -->
+                  <button
+                    class="fixed inset-0 z-40 h-full w-full cursor-default border-none bg-transparent"
+                    on:click={() => (showFilterDropdown = false)}
+                  ></button>
+
+                  <div
+                    class="absolute left-0 top-full z-50 mt-1 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800 animate-in fade-in slide-in-from-top-1 duration-200"
+                  >
+                    {#if !activeFilterProperty}
+                      <div class="flex flex-col py-1">
+                        <div
+                          class="px-4 py-2 text-[10px] font-black uppercase tracking-wider text-slate-400"
+                        >
+                          Filter by
+                        </div>
+                        {#each filterProperties as prop}
+                          <button
+                            class="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm font-bold text-slate-700 hover:bg-slate-50 dark:text-gray-200 dark:hover:bg-gray-700/50 transition-colors"
+                            on:click={() => {
+                              activeFilterProperty = prop.id;
+                            }}
+                          >
+                            <span>{prop.label}</span>
+                            <ChevronRight size={14} class="opacity-30" />
+                          </button>
+                        {/each}
+                        <div class="h-px bg-slate-100 dark:bg-gray-700 my-1"></div>
+                        <button
+                          class="px-4 py-2 text-sm font-black text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/10 text-center w-full transition-colors"
+                          on:click={() => {
+                            activeFilters = {
+                              priority: [],
+                              status: [],
+                              fixed: [],
+                              assign_dev: [],
+                            };
+                            loadData(query, field);
+                            showFilterDropdown = false;
+                          }}
+                        >
+                          Clear selection
+                        </button>
+                      </div>
+                    {:else}
+                      <div class="flex flex-col py-1 max-h-[400px] overflow-y-auto">
+                        <div class="flex items-center gap-2 px-3 py-2">
+                          <button
+                            class="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg dark:hover:bg-gray-700 dark:hover:text-gray-200 transition-colors"
+                            on:click={() => (activeFilterProperty = null)}
+                          >
+                            <ChevronLeft size={16} />
+                          </button>
+                          <span
+                            class="text-[10px] font-black uppercase tracking-wider text-slate-400"
+                            >{filterProperties.find(
+                              (p) => p.id === activeFilterProperty,
+                            )?.label}</span
+                          >
+                        </div>
+                        <div class="h-px bg-slate-100 dark:bg-gray-700 mb-1"></div>
+
+                        <!-- Render options based on property -->
+                        {#if activeFilterProperty === "priority"}
+                          {#each priorityOptions as opt}
+                            <label
+                              class="flex cursor-pointer items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-gray-700/50 transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 w-4 h-4"
+                                checked={activeFilters.priority.includes(
+                                  opt.value,
+                                )}
+                                on:change={() =>
+                                  toggleFilterValue("priority", opt.value)}
+                              />
+                              <span
+                                class="text-sm font-bold text-slate-700 dark:text-gray-200"
+                                >{opt.label}</span
+                              >
+                            </label>
+                          {/each}
+                        {:else if activeFilterProperty === "status"}
+                          {#each statusOptions as opt}
+                            <label
+                              class="flex cursor-pointer items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-gray-700/50 transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 w-4 h-4"
+                                checked={activeFilters.status.includes(opt.value)}
+                                on:change={() =>
+                                  toggleFilterValue("status", opt.value)}
+                              />
+                              <span
+                                class="text-sm font-bold text-slate-700 dark:text-gray-200"
+                                >{opt.label}</span
+                              >
+                            </label>
+                          {/each}
+                        {:else if activeFilterProperty === "fixed"}
+                          {#each fixedOptions as opt}
+                            <label
+                              class="flex cursor-pointer items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-gray-700/50 transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 w-4 h-4"
+                                checked={activeFilters.fixed.includes(opt.value)}
+                                on:change={() =>
+                                  toggleFilterValue("fixed", opt.value)}
+                              />
+                              <span
+                                class="text-sm font-bold text-slate-700 dark:text-gray-200"
+                                >{opt.label}</span
+                              >
+                            </label>
+                          {/each}
+                        {:else if activeFilterProperty === "assign_dev"}
+                          {#each availableAssigneeOptions as opt}
+                            <label
+                              class="flex cursor-pointer items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-gray-700/50 transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 w-4 h-4"
+                                checked={activeFilters.assign_dev.includes(
+                                  opt.value,
+                                )}
+                                on:change={() =>
+                                  toggleFilterValue("assign_dev", opt.value)}
+                              />
+                              <span
+                                class="text-sm font-bold text-slate-700 dark:text-gray-200"
+                                >{opt.label}</span
+                              >
+                            </label>
+                          {/each}
+                        {/if}
+                      </div>
+                    {/if}
+                  </div>
+                {/if}
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <div class="h-6 w-px bg-slate-200 dark:bg-gray-800"></div>
+              <div class="relative flex items-center gap-2">
+                <button
+                  class="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
+                  on:click={() => (showActionsMenu = !showActionsMenu)}
+                  title="Actions"
+                >
+                  <MoreHorizontal size={16} />
+                </button>
+
+                {#if showActionsMenu}
+                  <!-- svelte-ignore a11y_consider_explicit_label -->
+                  <button
+                    class="fixed inset-0 z-40 h-full w-full cursor-default border-none bg-transparent"
+                    on:click={() => (showActionsMenu = false)}
+                  ></button>
+
+                  <div
+                    class="absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800 animate-in fade-in slide-in-from-top-1 duration-200"
+                  >
+                    <div class="flex flex-col py-1">
+                      <button
+                        class="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-black text-slate-700 hover:bg-slate-50 dark:text-gray-200 dark:hover:bg-gray-700/50 transition-colors"
+                        on:click={() => {
+                          downloadTemplate();
+                          showActionsMenu = false;
+                        }}
+                      >
+                        <Download size={16} class="text-slate-400" />
+                        {$_("testCases__download_template")}
+                      </button>
+
+                      {#if isAuthorized}
+                        <label
+                          class="flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left text-sm font-black text-slate-700 hover:bg-slate-50 dark:text-gray-200 dark:hover:bg-gray-700/50 transition-colors"
+                        >
+                          <FileUp size={16} class="text-slate-400" />
+                          {$_("testCases__import")}
+                          <input
+                            type="file"
+                            accept=".csv"
+                            class="hidden"
+                            on:change={(e) => {
+                              handleImport(e);
+                              showActionsMenu = false;
+                            }}
+                          />
+                        </label>
+                      {/if}
+
+                      <button
+                        class="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-black text-slate-700 hover:bg-slate-50 dark:text-gray-200 dark:hover:bg-gray-700/50 transition-colors"
+                        on:click={() => {
+                          exportToCSV();
+                          showActionsMenu = false;
+                        }}
+                      >
+                        <FileDown size={16} class="text-slate-400" />
+                        {$_("testCases__export")}
+                      </button>
+                    </div>
+                  </div>
+                {/if}
+              </div>
             </div>
           </div>
         </div>
@@ -1488,7 +1771,8 @@
                             options={availableAssigneeOptions}
                             showSearch={true}
                             minimal={true}
-                            on:select={(e) => updateAssignDev(testCase, e.detail)}
+                            on:select={(e) =>
+                              updateAssignDev(testCase, e.detail)}
                           />
                         </div>
                       </div>
@@ -1674,109 +1958,147 @@
         </div>
 
         {#if sidebarTab === "general"}
-
-        <div class="space-y-7 px-5 py-6">
-          <section>
-            <h3 class="text-sm font-black text-slate-700 dark:text-gray-200">
-              Description
-            </h3>
-            <p class="mt-2 text-sm leading-6 text-slate-700 dark:text-gray-300">
-              {selectedCase.description}
-            </p>
-          </section>
-
-          <section class="grid grid-cols-1 gap-5">
-            <div>
+          <div class="space-y-7 px-5 py-6">
+            <section>
               <h3 class="text-sm font-black text-slate-700 dark:text-gray-200">
-                Pre-conditions
+                Description
               </h3>
-              <p class="mt-2 text-sm font-medium text-slate-500">
-                {selectedCase.preconditions || "Not set"}
+              <p
+                class="mt-2 text-sm leading-6 text-slate-700 dark:text-gray-300"
+              >
+                {selectedCase.description}
               </p>
-            </div>
-            <div>
-              <h3 class="text-sm font-black text-slate-700 dark:text-gray-200">
-                Post-conditions
-              </h3>
-              <p class="mt-2 text-sm font-medium text-slate-500">
-                {selectedCase.postconditions || "Not set"}
-              </p>
-            </div>
-          </section>
+            </section>
 
-          <section>
-            <div class="mb-5 flex items-center justify-between">
-              <h3 class="text-sm font-black text-slate-700 dark:text-gray-200">
-                Steps
-              </h3>
-              <div class="flex items-center gap-4">
-                {#if isAuthorized}
-                  {#if !isEditingSidebarSteps}
-                    <button
-                      class="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-500 transition-colors"
-                      on:click={() => (isEditingSidebarSteps = true)}
-                    >
-                      <Edit3 size={14} />
-                      Edit
-                    </button>
-                  {:else}
-                    <div class="flex items-center gap-3">
-                      <div class="property-select min-w-[96px]">
-                        <SearchableSelect
-                          id="sidebar-step-format"
-                          bind:value={sidebarStepFormat}
-                          options={[
-                            { value: "classic", label: "Classic" },
-                            { value: "gherkin", label: "Gherkin" },
-                          ]}
-                          showSearch={false}
-                          minimal={true}
-                        />
-                      </div>
-                      <button
-                        class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-black text-white hover:bg-indigo-500 disabled:opacity-50 dark:bg-indigo-500 dark:hover:bg-indigo-400"
-                        on:click={saveSidebarSteps}
-                        disabled={isSavingSidebarSteps}
-                      >
-                        <Save size={14} />
-                        {isSavingSidebarSteps ? "Saving..." : "Save"}
-                      </button>
-                      <button
-                        class="text-xs font-bold text-gray-500 hover:text-gray-700 transition-colors"
-                        on:click={() => {
-                          isEditingSidebarSteps = false;
-                          // Reset local steps to match selected case
-                          sidebarStepFormat =
-                            selectedCase.step_format || "classic";
-                          sidebarSteps =
-                            sidebarStepFormat === "gherkin"
-                              ? [...(selectedCase.gherkin_steps || [])]
-                              : [
-                                  ...(selectedCase.classic_steps ||
-                                    selectedCase.steps ||
-                                    []),
-                                ];
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  {/if}
-                {/if}
+            <section class="grid grid-cols-1 gap-5">
+              <div>
+                <h3
+                  class="text-sm font-black text-slate-700 dark:text-gray-200"
+                >
+                  Pre-conditions
+                </h3>
+                <p class="mt-2 text-sm font-medium text-slate-500">
+                  {selectedCase.preconditions || "Not set"}
+                </p>
               </div>
-            </div>
+              <div>
+                <h3
+                  class="text-sm font-black text-slate-700 dark:text-gray-200"
+                >
+                  Post-conditions
+                </h3>
+                <p class="mt-2 text-sm font-medium text-slate-500">
+                  {selectedCase.postconditions || "Not set"}
+                </p>
+              </div>
+            </section>
 
-            <TestCaseStepList
-              bind:steps={sidebarSteps}
-              format={sidebarStepFormat}
-              readOnly={!isEditingSidebarSteps}
-            />
-          </section>
-        </div>
+            <section>
+              <div class="mb-5 flex items-center justify-between">
+                <h3
+                  class="text-sm font-black text-slate-700 dark:text-gray-200"
+                >
+                  Steps
+                </h3>
+                <div class="flex items-center gap-4">
+                  {#if isAuthorized}
+                    {#if !isEditingSidebarSteps}
+                      <button
+                        class="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-500 transition-colors"
+                        on:click={() => (isEditingSidebarSteps = true)}
+                      >
+                        <Edit3 size={14} />
+                        Edit
+                      </button>
+                    {:else}
+                      <div class="flex items-center gap-3">
+                        <div class="property-select min-w-[96px]">
+                          <SearchableSelect
+                            id="sidebar-step-format"
+                            bind:value={sidebarStepFormat}
+                            options={[
+                              { value: "classic", label: "Classic" },
+                              { value: "gherkin", label: "Gherkin" },
+                            ]}
+                            showSearch={false}
+                            minimal={true}
+                          />
+                        </div>
+                        <button
+                          class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-black text-white hover:bg-indigo-500 disabled:opacity-50 dark:bg-indigo-500 dark:hover:bg-indigo-400"
+                          on:click={saveSidebarSteps}
+                          disabled={isSavingSidebarSteps}
+                        >
+                          <Save size={14} />
+                          {isSavingSidebarSteps ? "Saving..." : "Save"}
+                        </button>
+                        <button
+                          class="text-xs font-bold text-gray-500 hover:text-gray-700 transition-colors"
+                          on:click={() => {
+                            isEditingSidebarSteps = false;
+                            // Reset local steps to match selected case
+                            sidebarStepFormat =
+                              selectedCase.step_format || "classic";
+                            sidebarSteps =
+                              sidebarStepFormat === "gherkin"
+                                ? [...(selectedCase.gherkin_steps || [])]
+                                : [
+                                    ...(selectedCase.classic_steps ||
+                                      selectedCase.steps ||
+                                      []),
+                                  ];
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    {/if}
+                  {/if}
+                </div>
+              </div>
+
+              <TestCaseStepList
+                bind:steps={sidebarSteps}
+                format={sidebarStepFormat}
+                readOnly={!isEditingSidebarSteps}
+              />
+            </section>
+          </div>
         {:else if sidebarTab === "properties"}
           <div class="space-y-6 px-5 py-6">
             <section>
-              <h3 class="mb-3 text-sm font-black text-slate-700 dark:text-gray-200">
+              <h3
+                class="mb-3 text-sm font-black text-slate-700 dark:text-gray-200"
+              >
+                Priority
+              </h3>
+              <div class="property-select w-full">
+                {#if isAuthorized}
+                  <SearchableSelect
+                    id="sidebar-prop-priority-update"
+                    value={selectedCase.priority}
+                    options={priorityOptions}
+                    showSearch={false}
+                    on:select={(e) => updatePriority(selectedCase, e.detail)}
+                  />
+                {:else}
+                  <div class="opacity-80 pointer-events-none">
+                    <SearchableSelect
+                      id="sidebar-prop-priority-update"
+                      value={selectedCase.priority}
+                      options={priorityOptions}
+                      showSearch={false}
+                      on:select={() => {}}
+                    />
+                  </div>
+                {/if}
+              </div>
+            </section>
+
+            <section>
+              <h3
+                class="mb-3 text-sm font-black text-slate-700 dark:text-gray-200"
+              >
                 Status
               </h3>
               <div class="property-select w-full">
@@ -1803,7 +2125,9 @@
             </section>
 
             <section>
-              <h3 class="mb-3 text-sm font-black text-slate-700 dark:text-gray-200">
+              <h3
+                class="mb-3 text-sm font-black text-slate-700 dark:text-gray-200"
+              >
                 Fix Status
               </h3>
               <div class="property-select w-full">
@@ -1818,7 +2142,9 @@
             </section>
 
             <section>
-              <h3 class="mb-3 text-sm font-black text-slate-700 dark:text-gray-200">
+              <h3
+                class="mb-3 text-sm font-black text-slate-700 dark:text-gray-200"
+              >
                 Assign Developer
               </h3>
               <div class="property-select w-full">
@@ -1831,12 +2157,43 @@
                 />
               </div>
             </section>
+
+            <section>
+              <h3
+                class="mb-3 text-sm font-black text-slate-700 dark:text-gray-200"
+              >
+                Assign Tester
+              </h3>
+              <div class="property-select w-full">
+                {#if isAuthorized}
+                  <SearchableSelect
+                    id="sidebar-prop-assigntester-update"
+                    value={selectedCase.assignee || "unassigned"}
+                    options={assigneeOptions}
+                    showSearch={true}
+                    on:select={(e) => updateAssignTester(selectedCase, e.detail)}
+                  />
+                {:else}
+                  <div class="opacity-80 pointer-events-none">
+                    <SearchableSelect
+                      id="sidebar-prop-assigntester-update"
+                      value={selectedCase.assignee || "unassigned"}
+                      options={assigneeOptions}
+                      showSearch={true}
+                      on:select={() => {}}
+                    />
+                  </div>
+                {/if}
+              </div>
+            </section>
           </div>
         {:else if sidebarTab === "notes"}
           <div class="space-y-6 px-5 py-6">
             <section>
               <div class="flex items-center justify-between mb-2">
-                <h3 class="text-sm font-black text-slate-700 dark:text-gray-200">
+                <h3
+                  class="text-sm font-black text-slate-700 dark:text-gray-200"
+                >
                   Dev Notes
                 </h3>
                 <button
@@ -1849,7 +2206,7 @@
                 </button>
               </div>
               <textarea
-                class="w-full rounded-xl border border-gray-200 bg-slate-50 p-3 text-sm text-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                class="w-full rounded-xl border border-gray-200 bg-slate-50 p-3 text-sm text-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:!bg-transparent dark:text-gray-200"
                 rows="6"
                 placeholder="Add dev notes..."
                 bind:value={devNote}
@@ -1858,7 +2215,9 @@
 
             <section>
               <div class="flex items-center justify-between mb-2">
-                <h3 class="text-sm font-black text-slate-700 dark:text-gray-200">
+                <h3
+                  class="text-sm font-black text-slate-700 dark:text-gray-200"
+                >
                   Tester Notes
                 </h3>
                 {#if isAuthorized}
@@ -1873,9 +2232,11 @@
                 {/if}
               </div>
               <textarea
-                class="w-full rounded-xl border border-gray-200 bg-slate-50 p-3 text-sm text-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 disabled:bg-gray-100/50 dark:disabled:bg-gray-900/50"
+                class="w-full rounded-xl border border-gray-200 bg-slate-50 p-3 text-sm text-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:!bg-transparent dark:text-gray-200 disabled:bg-gray-100/50 dark:disabled:bg-gray-900/50"
                 rows="6"
-                placeholder={isAuthorized ? "Add tester notes..." : "Only QA Testers can add notes here"}
+                placeholder={isAuthorized
+                  ? "Add tester notes..."
+                  : "Only QA Testers can add notes here"}
                 bind:value={testNote}
                 disabled={!isAuthorized}
               ></textarea>

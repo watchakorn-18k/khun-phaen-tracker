@@ -87,6 +87,7 @@ impl TestCaseRepository {
         priority: Option<String>,
         status: Option<String>,
         fixed: Option<String>,
+        assign_dev: Option<String>,
         limit: Option<i64>,
         offset: Option<u64>,
     ) -> mongodb::error::Result<Vec<TestCase>> {
@@ -163,6 +164,13 @@ impl TestCaseRepository {
             if !f.is_empty() {
                 let fixed_vals: Vec<&str> = f.split(',').collect();
                 filter.insert("fixed", doc! { "$in": fixed_vals });
+            }
+        }
+
+        if let Some(ad) = assign_dev {
+            if !ad.is_empty() {
+                let assignees: Vec<&str> = ad.split(',').collect();
+                filter.insert("assign_dev", doc! { "$in": assignees });
             }
         }
 

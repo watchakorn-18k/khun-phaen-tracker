@@ -105,6 +105,7 @@ impl TestCaseService {
         priority: Option<String>,
         status: Option<String>,
         fixed: Option<String>,
+        assign_dev: Option<String>,
         limit: Option<i64>,
         page: Option<u64>,
     ) -> mongodb::error::Result<Vec<TestCase>> {
@@ -112,7 +113,7 @@ impl TestCaseService {
         let page = page.unwrap_or(1);
         let offset = (page - 1) * (limit as u64);
         
-        self.repo.find_by_workspace(workspace_id, suite_id, search, field, priority, status, fixed, Some(limit), Some(offset)).await
+        self.repo.find_by_workspace(workspace_id, suite_id, search, field, priority, status, fixed, assign_dev, Some(limit), Some(offset)).await
     }
 
     pub async fn update_attachments(

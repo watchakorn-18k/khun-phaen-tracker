@@ -447,6 +447,14 @@ async fn main() {
             patch(handlers::test_case_handler::update_test_case_assign_dev),
         )
         .route(
+            "/api/test-cases/:id/priority",
+            patch(handlers::test_case_handler::update_test_case_priority),
+        )
+        .route(
+            "/api/test-cases/:id/assign-tester",
+            patch(handlers::test_case_handler::update_test_case_assign_tester),
+        )
+        .route(
             "/api/test-cases/:id/notes",
             patch(handlers::test_case_handler::update_test_case_notes),
         )

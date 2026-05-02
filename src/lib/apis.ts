@@ -974,7 +974,7 @@ export const api = {
     },
     // Test Cases
     testCases: {
-      list: (wsId: string, params?: { suite_id?: string; limit?: number; page?: number; q?: string; field?: string; priority?: string; status?: string; fixed?: string }): Promise<Response> => {
+      list: (wsId: string, params?: { suite_id?: string; limit?: number; page?: number; q?: string; field?: string; priority?: string; status?: string; fixed?: string; assign_dev?: string }): Promise<Response> => {
         const cleanParams = Object.fromEntries(Object.entries(params || {}).filter(([_, v]) => v !== undefined));
         const query = cleanParams && Object.keys(cleanParams).length > 0 ? "?" + new URLSearchParams(cleanParams as any).toString() : "";
         return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-cases${query}`, {
@@ -1040,6 +1040,22 @@ export const api = {
           headers: api.data._headers(true),
           credentials: "include",
           body: JSON.stringify({ assign_dev }),
+        });
+      },
+      updatePriority: (id: string, priority: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/test-cases/${id}/priority`, {
+          method: "PATCH",
+          headers: api.data._headers(true),
+          credentials: "include",
+          body: JSON.stringify({ priority }),
+        });
+      },
+      updateAssignTester: (id: string, assign_tester: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/test-cases/${id}/assign-tester`, {
+          method: "PATCH",
+          headers: api.data._headers(true),
+          credentials: "include",
+          body: JSON.stringify({ assign_tester }),
         });
       },
       updateNotes: (id: string, payload: { dev_note?: string, test_note?: string }): Promise<Response> => {

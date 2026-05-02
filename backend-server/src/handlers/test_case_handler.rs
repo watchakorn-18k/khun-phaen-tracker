@@ -31,6 +31,7 @@ pub struct TestCaseQuery {
     pub priority: Option<String>,
     pub status: Option<String>,
     pub fixed: Option<String>,
+    pub assign_dev: Option<String>,
 }
 
 /// GET /api/workspaces/:ws_id/test-cases
@@ -56,6 +57,7 @@ pub async fn list_test_cases(
         query.priority,
         query.status,
         query.fixed,
+        query.assign_dev,
         query.limit, 
         query.page
     ).await {
@@ -667,6 +669,96 @@ pub async fn update_test_case_fixed(
 
     match repo.update(&id, &tc.workspace_id, updates).await {
         Ok(true) => (StatusCode::OK, "Fixed status updated").into_response(),
+        Ok(false) => (StatusCode::NOT_FOUND, "Test case not found").into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+#[derive(serde::Deserialize)]
+pub struct UpdateTestCasePriorityRequest {
+    pub priority: String,
+}
+
+/// PATCH /api/test-cases/:id/priority
+pub async fn update_test_case_priority(
+    State(state): State<Arc<AppState>>,
+    jar: CookieJar,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(req): Json<UpdateTestCasePriorityRequest>,
+) -> impl IntoResponse {
+    let claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
+        Some(c) => c,
+        None => return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response(),
+    };
+
+    let user_repo = UserRepository::new(&state.db);
+    let profile_repo = ProfileRepository::new(&state.db);
+
+    if !AuthService::can_mutate_test_cases(&user_repo, &profile_repo, &claims).await {
+        return (StatusCode::FORBIDDEN, "Permission denied").into_response();
+    }
+
+    let repo = TestCaseRepository::new(&state.db);
+
+    let tc = match repo.find_by_id(&id).await {
+        Ok(Some(tc)) => tc,
+        Ok(None) => return (StatusCode::NOT_FOUND, "Test case not found").into_response(),
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+
+    let updates = doc! {
+        "priority": req.priority,
+        "updated_at": Utc::now().to_rfc3339(),
+    };
+
+    match repo.update(&id, &tc.workspace_id, updates).await {
+        Ok(true) => (StatusCode::OK, "Priority updated").into_response(),
+        Ok(false) => (StatusCode::NOT_FOUND, "Test case not found").into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+#[derive(serde::Deserialize)]
+pub struct UpdateTestCaseAssignTesterRequest {
+    pub assign_tester: String,
+}
+
+/// PATCH /api/test-cases/:id/assign-tester
+pub async fn update_test_case_assign_tester(
+    State(state): State<Arc<AppState>>,
+    jar: CookieJar,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(req): Json<UpdateTestCaseAssignTesterRequest>,
+) -> impl IntoResponse {
+    let claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
+        Some(c) => c,
+        None => return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response(),
+    };
+
+    let user_repo = UserRepository::new(&state.db);
+    let profile_repo = ProfileRepository::new(&state.db);
+
+    if !AuthService::can_mutate_test_cases(&user_repo, &profile_repo, &claims).await {
+        return (StatusCode::FORBIDDEN, "Permission denied").into_response();
+    }
+
+    let repo = TestCaseRepository::new(&state.db);
+
+    let tc = match repo.find_by_id(&id).await {
+        Ok(Some(tc)) => tc,
+        Ok(None) => return (StatusCode::NOT_FOUND, "Test case not found").into_response(),
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+
+    let updates = doc! {
+        "assign_tester": req.assign_tester,
+        "updated_at": Utc::now().to_rfc3339(),
+    };
+
+    match repo.update(&id, &tc.workspace_id, updates).await {
+        Ok(true) => (StatusCode::OK, "Assign Tester updated").into_response(),
         Ok(false) => (StatusCode::NOT_FOUND, "Test case not found").into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
