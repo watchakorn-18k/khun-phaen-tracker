@@ -84,6 +84,8 @@ function resolveTaskWorkspaceId(taskOrId?: Partial<Task> | string | number | nul
 function extractId(doc: any): string {
   if (doc._id?.$oid) return doc._id.$oid;
   if (typeof doc._id === "string") return doc._id;
+  if (doc.id?.$oid) return doc.id.$oid;
+  if (typeof doc.id === "string") return doc.id;
   return "";
 }
 
@@ -96,6 +98,17 @@ function docToTask(doc: any): Task {
     doc.due_date ||
     doc.end_date ||
     (!hasExplicitStartDate ? doc.date || undefined : undefined);
+  const assignees: Assignee[] = Array.isArray(doc.assignees)
+    ? doc.assignees
+        .map(docToAssignee)
+        .filter((assignee: Assignee) => assignee.id)
+    : [];
+  const assigneeIds: (string | number)[] = Array.isArray(doc.assignee_ids)
+    ? doc.assignee_ids.map((id: any) => String(id))
+    : assignees
+        .map((assignee: Assignee) => assignee.id)
+        .filter((id: string | number | undefined): id is string | number => id !== undefined);
+
   return {
     id: extractId(doc),
     workspace_id:
@@ -119,10 +132,10 @@ function docToTask(doc: any): Task {
     priority: doc.priority || "none",
     category: doc.category || "อื่นๆ",
     notes: doc.notes || "",
-    assignee_ids: doc.assignee_ids || [],
-    assignees: [],
-    assignee_id: null,
-    assignee: null,
+    assignee_ids: assigneeIds,
+    assignees,
+    assignee_id: assignees[0]?.id ?? null,
+    assignee: assignees[0] ?? null,
     sprint_id: doc.sprint_id || null,
     is_archived: doc.is_archived || false,
     checklist: doc.checklist || undefined,

@@ -288,7 +288,10 @@ impl DataRepository {
             .map(|(workspace_id, assignee_ids)| {
                 Bson::Document(doc! {
                     "workspace_id": workspace_id,
-                    "assignee_ids": { "$in": assignee_ids }
+                    "$or": [
+                        { "assignee_ids": { "$in": assignee_ids } },
+                        { "assignee_id": { "$in": assignee_ids } }
+                    ]
                 })
             })
             .collect();
@@ -826,7 +829,10 @@ impl DataRepository {
                     .count_documents(
                         doc! {
                             "workspace_id": ws_id,
-                            "assignee_ids": { "$in": assignee_ids }
+                            "$or": [
+                                { "assignee_ids": { "$in": assignee_ids } },
+                                { "assignee_id": { "$in": assignee_ids } }
+                            ]
                         },
                         None,
                     )

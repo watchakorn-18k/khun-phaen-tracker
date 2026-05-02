@@ -219,12 +219,14 @@
         "Target",
         "FOCUS",
       );
-      filters.set({ ...restoreFilters([]) });
       if (get(currentView) === "workload") {
         currentView.set("table");
       }
       await loadAssigneeGroups();
+      if (runId !== workspaceInitRun) return;
       initWasmSearch();
+      filters.set({ ...DEFAULT_FILTERS, sprint_id: "all", assignee_id: "all" });
+      await loadData();
       return;
     }
     if (!urlRoom) return goto(`${base}/dashboard`);
