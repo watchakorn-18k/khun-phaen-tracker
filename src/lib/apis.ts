@@ -975,7 +975,8 @@ export const api = {
     // Test Cases
     testCases: {
       list: (wsId: string, params?: { suite_id?: string; limit?: number; page?: number; q?: string; field?: string; priority?: string; status?: string; fixed?: string }): Promise<Response> => {
-        const query = params ? "?" + new URLSearchParams(params as any).toString() : "";
+        const cleanParams = Object.fromEntries(Object.entries(params || {}).filter(([_, v]) => v !== undefined));
+        const query = cleanParams && Object.keys(cleanParams).length > 0 ? "?" + new URLSearchParams(cleanParams as any).toString() : "";
         return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-cases${query}`, {
           headers: api.data._headers(),
           credentials: "include",
