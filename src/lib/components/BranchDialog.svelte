@@ -110,27 +110,23 @@
     });
   }
 
-  function getComputedBranchName(): string {
-    return buildComputedBranchName({
-      gitFlowType,
-      workspaceShortName,
-      taskNumber,
-      translatedTitle,
-      editableTitle,
-      title
-    });
-  }
+  $: computedBranchName = buildComputedBranchName({
+    gitFlowType,
+    workspaceShortName,
+    taskNumber,
+    translatedTitle,
+    editableTitle,
+    title
+  });
 
-  function getCheckoutCommand(): string {
-    return buildCheckoutCommand({
-      gitFlowType,
-      workspaceShortName,
-      taskNumber,
-      translatedTitle,
-      editableTitle,
-      title
-    });
-  }
+  $: checkoutCommand = buildCheckoutCommand({
+    gitFlowType,
+    workspaceShortName,
+    taskNumber,
+    translatedTitle,
+    editableTitle,
+    title
+  });
 
   async function translateTitle(input: string): Promise<{ text: string; translated: boolean }> {
     const cleaned = input.trim();
@@ -224,7 +220,7 @@
       return;
     }
 
-    const branchName = getComputedBranchName();
+    const branchName = computedBranchName;
 
     try {
       await navigator.clipboard.writeText(branchName);
@@ -258,13 +254,13 @@
       return;
     }
 
-    const checkoutCommand = getCheckoutCommand();
+    const checkoutCommandValue = checkoutCommand;
 
     try {
-      await navigator.clipboard.writeText(checkoutCommand);
+      await navigator.clipboard.writeText(checkoutCommandValue);
       copySucceeded = true;
       copiedField = 'command';
-      branchMessage = `คัดลอกแล้ว: ${checkoutCommand}`;
+      branchMessage = `คัดลอกแล้ว: ${checkoutCommandValue}`;
       branchMessageType = 'success';
 
       if (copyFeedbackTimer) clearTimeout(copyFeedbackTimer);
@@ -354,7 +350,7 @@
             <input
               id="branch-name-preview"
               type="text"
-              value={getComputedBranchName()}
+              value={computedBranchName}
               readonly
               class="flex-1 h-11 px-4 bg-white/5 border border-white/10 rounded-xl text-indigo-300 font-mono text-[13px] focus:outline-none"
             />
@@ -382,7 +378,7 @@
             <input
               id="checkout-command-preview"
               type="text"
-              value={getCheckoutCommand()}
+              value={checkoutCommand}
               readonly
               class="flex-1 h-11 px-4 bg-white/5 border border-white/10 rounded-xl text-gray-300 font-mono text-[13px] focus:outline-none"
             />

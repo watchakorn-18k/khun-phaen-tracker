@@ -5,26 +5,40 @@
   import { goto, afterNavigate } from "$app/navigation";
   import { base } from "$app/paths";
   import { _ } from "svelte-i18n";
-  import { 
-    getTaskById, 
-    getTaskComments, 
-    createTaskComment, 
-    updateTask, 
-    getProjectsList, 
+  import {
+    getTaskById,
+    getTaskComments,
+    createTaskComment,
+    deleteTaskComment,
+    updateTask,
+    getProjectsList,
     getAssignees,
     getSprints,
-    deleteTask
+    deleteTask,
   } from "$lib/db";
-  import { api } from "$lib/apis";
-  import type { Task, TaskComment, Assignee, Project, Sprint, ChecklistItem } from "$lib/types";
+  import { api, API_BASE_URL } from "$lib/apis";
+  import type {
+    Task,
+    TaskComment,
+    Assignee,
+    Project,
+    Sprint,
+    ChecklistItem,
+  } from "$lib/types";
   import { get } from "svelte/store";
   import { user } from "$lib/stores/auth";
-  import { currentWorkspaceName, currentWorkspaceShortName, setWorkspaceId, currentWorkspaceId, MY_TASKS_WORKSPACE_ID } from "$lib/stores/workspace";
+  import {
+    currentWorkspaceName,
+    currentWorkspaceShortName,
+    setWorkspaceId,
+    currentWorkspaceId,
+    MY_TASKS_WORKSPACE_ID,
+  } from "$lib/stores/workspace";
   import { modals } from "$lib/stores/uiActions";
-  import { 
-    MoreHorizontal, 
-    PanelRight, 
-    CircleCheck, 
+  import {
+    MoreHorizontal,
+    PanelRight,
+    CircleCheck,
     Pin,
     PinOff,
     Calendar,
@@ -50,7 +64,7 @@
     Ban,
     GitBranch,
     Trash2,
-    AlertTriangle
+    AlertTriangle,
   } from "lucide-svelte";
   import ConfirmModal from "$lib/components/ConfirmModal.svelte";
   import BranchDialog from "$lib/components/BranchDialog.svelte";
@@ -67,11 +81,18 @@
   let task: Task | null = null;
   let loading = true;
   let error = "";
-  
+
   let comments: TaskComment[] = [];
   let commentsLoading = false;
   let commentContent = "";
-  
+  let replyContent: Record<string, string> = {};
+  let collapsedComments: Record<string, boolean> = {};
+  let openCommentMenuId = "";
+  let commentTextareaRef: HTMLTextAreaElement | undefined;
+  let commentFileInputRef: HTMLInputElement | undefined;
+  let commentRows = 3;
+  let attachedFiles: { file: File, preview?: string }[] = [];
+
   let sidebarOpen = true;
   let isEditingTitle = false;
   let editedTitle = "";
@@ -111,19 +132,21 @@
 
   function handleMoreMenuClickOutside(event: MouseEvent) {
     const target = event.target as HTMLElement;
-    if (!target.closest('.more-menu-container')) {
+    if (!target.closest(".more-menu-container")) {
       isMoreMenuOpen = false;
       isDeleteConfirm = false;
     }
   }
 
   async function handleDeleteTask() {
-    if (!task || task.id == null) return;
+    if (!task) return;
+    const tid = task.id;
+    if (tid == null) return;
     try {
-      await deleteTask(task.id);
+      await deleteTask(tid);
       goBack();
     } catch (e) {
-      console.error('Delete task failed', e);
+      console.error("Delete task failed", e);
     }
   }
 
@@ -141,6 +164,17 @@
     }
   });
 
+  onMount(() => {
+    // Hard refresh fallback — afterNavigate may not fire if the page was loaded fresh
+    const tid = $page.params.task_id || "";
+    const wid = $page.params.workspace_id || "";
+    const key = wid && tid ? `${wid}:${tid}` : "";
+    if (key && key !== loadedTaskKey) {
+      loadedTaskKey = key;
+      void loadRouteTask(key, tid, wid);
+    }
+  });
+
   function syncWorkspaceFromTask(sourceTask: Task) {
     if (!workspaceId || workspaceId === MY_TASKS_WORKSPACE_ID) return;
 
@@ -155,36 +189,48 @@
   }
 
   async function handleKeydown(e: KeyboardEvent) {
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target as HTMLElement).isContentEditable) {
+    if (
+      e.target instanceof HTMLInputElement ||
+      e.target instanceof HTMLTextAreaElement ||
+      (e.target as HTMLElement).isContentEditable
+    ) {
       return;
     }
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
       e.preventDefault();
       await goto(`${base}/workspace/${workspaceId}`);
-      modals.update(m => ({...m, commandPalette: true}));
+      modals.update((m) => ({ ...m, commandPalette: true }));
     } else if (e.key.toLowerCase() === "c") {
       if (workspaceId === MY_TASKS_WORKSPACE_ID) return;
       e.preventDefault();
       await goto(`${base}/workspace/${workspaceId}`);
-      modals.update(m => ({...m, form: true}));
+      modals.update((m) => ({ ...m, form: true }));
     }
   }
 
   function updatePinnedState() {
     if (!browser) return;
     try {
-      const pinnedTasks = JSON.parse(localStorage.getItem("pinned-tasks") || "[]");
-      isPinned = !!pinnedTasks.find((t: any) => t === taskId || t.id === taskId);
+      const pinnedTasks = JSON.parse(
+        localStorage.getItem("pinned-tasks") || "[]",
+      );
+      isPinned = !!pinnedTasks.find(
+        (t: any) => t === taskId || t.id === taskId,
+      );
     } catch {
       isPinned = false;
     }
   }
 
-  async function loadRouteTask(routeKey: string, id: string) {
+  async function loadRouteTask(
+    routeKey: string,
+    id: string,
+    wsIdOverride?: string,
+  ) {
     updatePinnedState();
     Promise.all([
-      loadTaskData(routeKey, id),
-      loadMetadata()
+      loadTaskData(routeKey, id, wsIdOverride),
+      loadMetadata(),
     ]).catch(console.error);
   }
 
@@ -200,7 +246,9 @@
       const res = await api.workspaces.getList();
       if (!res.ok) return "";
       const data = await res.json();
-      const workspace = (data.workspaces || []).find((ws: any) => String(ws.id) === String(workspaceId));
+      const workspace = (data.workspaces || []).find(
+        (ws: any) => String(ws.id) === String(workspaceId),
+      );
       workspaceShortNameFallback = workspace?.short_name || "";
       return workspaceShortNameFallback;
     } catch {
@@ -212,38 +260,53 @@
     return {
       id: String(sourceTask.id || taskId),
       title: sourceTask.title || "",
-      short_name: workspaceShortName || sourceTask.workspace_short_name || get(currentWorkspaceShortName) || workspaceShortNameFallback || "",
+      short_name:
+        workspaceShortName ||
+        sourceTask.workspace_short_name ||
+        get(currentWorkspaceShortName) ||
+        workspaceShortNameFallback ||
+        "",
       task_number: sourceTask.task_number || "",
-      workspace_id: workspaceId || sourceTask.workspace_id || ""
+      workspace_id: workspaceId || sourceTask.workspace_id || "",
     };
   }
 
   async function syncPinnedTaskMeta(sourceTask: Task) {
     if (!browser || !sourceTask.id) return;
     const sourceTaskId = String(sourceTask.id);
-    let pinnedTasks: any[] = JSON.parse(localStorage.getItem("pinned-tasks") || "[]");
-    const existingIndex = pinnedTasks.findIndex((t: any) => String(t?.id || t) === sourceTaskId);
+    let pinnedTasks: any[] = JSON.parse(
+      localStorage.getItem("pinned-tasks") || "[]",
+    );
+    const existingIndex = pinnedTasks.findIndex(
+      (t: any) => String(t?.id || t) === sourceTaskId,
+    );
     if (existingIndex === -1) return;
     const workspaceShortName = await resolveWorkspaceShortName(sourceTask);
 
     pinnedTasks[existingIndex] = {
-      ...(typeof pinnedTasks[existingIndex] === "object" ? pinnedTasks[existingIndex] : {}),
+      ...(typeof pinnedTasks[existingIndex] === "object"
+        ? pinnedTasks[existingIndex]
+        : {}),
       ...buildPinnedTaskMeta(sourceTask, workspaceShortName),
     };
     localStorage.setItem("pinned-tasks", JSON.stringify(pinnedTasks));
-    window.dispatchEvent(new CustomEvent('pinnedTasksChanged'));
+    window.dispatchEvent(new CustomEvent("pinnedTasksChanged"));
   }
 
   async function togglePin() {
     if (!task || String(task.id || "") !== String(taskId)) return;
 
     isPinned = !isPinned;
-    let pinnedTasks: any[] = JSON.parse(localStorage.getItem("pinned-tasks") || "[]");
+    let pinnedTasks: any[] = JSON.parse(
+      localStorage.getItem("pinned-tasks") || "[]",
+    );
     const workspaceShortName = await resolveWorkspaceShortName(task);
     const pinnedTaskMeta = buildPinnedTaskMeta(task, workspaceShortName);
-    
+
     if (isPinned) {
-      const existingIndex = pinnedTasks.findIndex((t: any) => String(t?.id || t) === String(pinnedTaskMeta.id));
+      const existingIndex = pinnedTasks.findIndex(
+        (t: any) => String(t?.id || t) === String(pinnedTaskMeta.id),
+      );
       if (existingIndex === -1) {
         // Add to the top
         pinnedTasks.unshift(pinnedTaskMeta);
@@ -253,25 +316,33 @@
         }
       } else {
         pinnedTasks[existingIndex] = {
-          ...(typeof pinnedTasks[existingIndex] === "object" ? pinnedTasks[existingIndex] : {}),
+          ...(typeof pinnedTasks[existingIndex] === "object"
+            ? pinnedTasks[existingIndex]
+            : {}),
           ...pinnedTaskMeta,
         };
       }
     } else {
-      pinnedTasks = pinnedTasks.filter((t: any) => String(t?.id || t) !== String(pinnedTaskMeta.id));
+      pinnedTasks = pinnedTasks.filter(
+        (t: any) => String(t?.id || t) !== String(pinnedTaskMeta.id),
+      );
     }
     localStorage.setItem("pinned-tasks", JSON.stringify(pinnedTasks));
-    window.dispatchEvent(new CustomEvent('pinnedTasksChanged'));
+    window.dispatchEvent(new CustomEvent("pinnedTasksChanged"));
   }
 
-  async function loadTaskData(routeKey = routeTaskKey, id = taskId) {
+  async function loadTaskData(
+    routeKey = routeTaskKey,
+    id = taskId,
+    wsIdOverride?: string,
+  ) {
     loading = true;
     error = "";
     task = null;
     comments = [];
     try {
       if (!id) return;
-      const result = await getTaskById(id, workspaceId);
+      const result = await getTaskById(id, wsIdOverride || workspaceId);
       if (routeKey !== routeTaskKey) return;
       if (result) {
         task = result;
@@ -297,7 +368,7 @@
       const [projList, assList, sprintList] = await Promise.all([
         getProjectsList(),
         getAssignees(true),
-        getSprints()
+        getSprints(),
       ]);
       projects = projList;
       assignees = assList;
@@ -307,11 +378,17 @@
     }
   }
 
-  async function loadComments(commentTaskId = task?.id, routeKey = routeTaskKey) {
+  async function loadComments(
+    commentTaskId = task?.id,
+    routeKey = routeTaskKey,
+  ) {
     if (!commentTaskId) return;
     commentsLoading = true;
     try {
-      const response = await getTaskComments(commentTaskId, { page: 1, limit: 50 });
+      const response = await getTaskComments(commentTaskId, {
+        page: 1,
+        limit: 50,
+      });
       if (routeKey === routeTaskKey) {
         comments = response.comments;
       }
@@ -328,11 +405,11 @@
     if (!task?.id) return;
     try {
       // Explicitly include workspace_id to ensure correct API routing
-      const updated = await updateTask(task.id, { 
-        ...updates, 
-        workspace_id: workspaceId 
+      const updated = await updateTask(task.id, {
+        ...updates,
+        workspace_id: workspaceId,
       });
-      
+
       if (updated) {
         task = { ...task, ...updated };
         showMessage($_("page__update_task_success"), "success");
@@ -353,14 +430,62 @@
     isEditingTitle = false;
   }
 
+  function getCommentImageUrl(fileKey: string): string {
+    return `${API_BASE_URL.replace(/\/api$/, "")}/api/files/${fileKey}`;
+  }
+
   async function handleCommentSubmit() {
-    if (!task?.id || !commentContent.trim()) return;
+    if (!task?.id || (!commentContent.trim() && attachedFiles.length === 0)) return;
     try {
-      await createTaskComment(task.id, { content: commentContent.trim() });
+      const files = attachedFiles.map(af => af.file);
+      await createTaskComment(task.id, { 
+        content: commentContent.trim(),
+        files
+      });
+      
+      // Cleanup previews
+      attachedFiles.forEach(af => {
+        if (af.preview) URL.revokeObjectURL(af.preview);
+      });
+      
       commentContent = "";
+      attachedFiles = [];
       await loadComments();
     } catch (e) {
       showMessage($_("taskForm__comments_error_submit"), "error");
+    }
+  }
+
+  function handlePaste(e: ClipboardEvent) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    const files: File[] = [];
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf("image") !== -1) {
+        const file = items[i].getAsFile();
+        if (file) files.push(file);
+      }
+    }
+
+    if (files.length > 0) {
+      const newFiles = files.map(file => ({
+        file,
+        preview: URL.createObjectURL(file)
+      }));
+      attachedFiles = [...attachedFiles, ...newFiles];
+    }
+  }
+
+  async function handleDeleteComment(commentId: string) {
+    const tid = task?.id;
+    if (!tid || !commentId) return;
+    try {
+      await deleteTaskComment(tid, commentId);
+      comments = comments.filter(c => c.id !== commentId);
+      openCommentMenuId = "";
+    } catch (e) {
+      showMessage($_("page__error"), "error");
     }
   }
 
@@ -370,11 +495,20 @@
     const diffMs = Date.now() - date.getTime();
     const diffMin = Math.floor(diffMs / 60000);
     if (diffMin < 1) return $_("taskForm__comments_time_just_now");
-    if (diffMin < 60) return $_("taskForm__comments_time_min_ago", { values: { count: diffMin } });
+    if (diffMin < 60)
+      return $_("taskForm__comments_time_min_ago", {
+        values: { count: diffMin },
+      });
     const diffHr = Math.floor(diffMin / 60);
-    if (diffHr < 24) return $_("taskForm__comments_time_hour_ago", { values: { count: diffHr } });
+    if (diffHr < 24)
+      return $_("taskForm__comments_time_hour_ago", {
+        values: { count: diffHr },
+      });
     const diffDay = Math.floor(diffHr / 24);
-    if (diffDay < 7) return $_("taskForm__comments_time_day_ago", { values: { count: diffDay } });
+    if (diffDay < 7)
+      return $_("taskForm__comments_time_day_ago", {
+        values: { count: diffDay },
+      });
     return date.toLocaleDateString();
   }
 
@@ -384,29 +518,62 @@
   }
 
   const statusOptions = [
-    { value: "pending", label: $_("taskForm__status_pending"), icon: CircleDashed, iconClass: "text-gray-500" },
-    { value: "todo", label: $_("taskForm__status_todo"), icon: Circle, iconClass: "text-gray-400" },
-    { value: "in-progress", label: $_("taskForm__status_in_progress"), icon: CircleDot, iconClass: "text-yellow-500" },
-    { value: "in-test", label: $_("taskForm__status_in_test"), icon: CircleDot, iconClass: "text-green-500" },
-    { value: "done", label: $_("taskForm__status_done"), icon: CheckCircle2, iconClass: "text-blue-500" }
+    {
+      value: "pending",
+      label: $_("taskForm__status_pending"),
+      icon: CircleDashed,
+      iconClass: "text-gray-500",
+    },
+    {
+      value: "todo",
+      label: $_("taskForm__status_todo"),
+      icon: Circle,
+      iconClass: "text-gray-400",
+    },
+    {
+      value: "in-progress",
+      label: $_("taskForm__status_in_progress"),
+      icon: CircleDot,
+      iconClass: "text-yellow-500",
+    },
+    {
+      value: "in-test",
+      label: $_("taskForm__status_in_test"),
+      icon: CircleDot,
+      iconClass: "text-green-500",
+    },
+    {
+      value: "done",
+      label: $_("taskForm__status_done"),
+      icon: CheckCircle2,
+      iconClass: "text-blue-500",
+    },
   ];
 
   function getStatusLabel(status: string) {
-    return statusOptions.find(o => o.value === status)?.label || status;
+    return statusOptions.find((o) => o.value === status)?.label || status;
   }
 
   function getStatusColor(status: string) {
     switch (status) {
-      case "pending": return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
-      case "todo": return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
-      case "in-progress": return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
-      case "in-test": return "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400";
-      case "done": return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
-      default: return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300";
+      case "pending":
+        return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
+      case "todo":
+        return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+      case "in-progress":
+        return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
+      case "in-test":
+        return "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400";
+      case "done":
+        return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
+      default:
+        return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300";
     }
   }
 
-  function handleChecklistUpdate(event: CustomEvent<{ checklist: ChecklistItem[] }>) {
+  function handleChecklistUpdate(
+    event: CustomEvent<{ checklist: ChecklistItem[] }>,
+  ) {
     void handleUpdateTask({ checklist: event.detail.checklist });
   }
 
@@ -426,27 +593,38 @@
   }
 </script>
 
-<svelte:window on:click={handleMoreMenuClickOutside} on:keydown={handleKeydown} />
+<svelte:window
+  on:click={handleMoreMenuClickOutside}
+  on:keydown={handleKeydown}
+/>
 
-<div class="flex flex-col h-full bg-white dark:bg-[#0b1120] text-slate-900 dark:text-slate-100">
+<div
+  class="flex flex-col h-full bg-white dark:bg-[#0b1120] text-slate-900 dark:text-slate-100"
+>
   <!-- Header -->
-  <header class="flex items-center justify-between px-4 h-14 border-b border-slate-200 dark:border-slate-800 shrink-0 bg-white/80 dark:bg-[#0b1120]/80 backdrop-blur-md sticky top-0 z-10">
+  <header
+    class="flex items-center justify-between px-4 h-14 border-b border-slate-200 dark:border-slate-800 shrink-0 bg-white/80 dark:bg-[#0b1120]/80 backdrop-blur-md sticky top-0 z-10"
+  >
     <div class="flex items-center gap-3 overflow-hidden">
-      <button 
+      <button
         on:click={goBack}
         class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors shrink-0"
         title={$_("sidebar__back")}
       >
         <ArrowLeft size={18} />
       </button>
-      <div class="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 truncate">
-        <span class="truncate hover:text-slate-900 dark:hover:text-white cursor-pointer flex items-center gap-1" 
+      <div
+        class="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 truncate"
+      >
+        <span
+          class="truncate hover:text-slate-900 dark:hover:text-white cursor-pointer flex items-center gap-1"
           on:click={goBack}
-          on:keydown={(e) => e.key === 'Enter' && goBack()}
+          on:keydown={(e) => e.key === "Enter" && goBack()}
           role="link"
           tabindex="0"
         >
-          <Layout size={14} /> {$currentWorkspaceName || 'Workspace'}
+          <Layout size={14} />
+          {$currentWorkspaceName || "Workspace"}
         </span>
         <ChevronRight size={14} class="shrink-0" />
         {#if task}
@@ -458,25 +636,35 @@
     </div>
 
     <div class="flex items-center gap-1 shrink-0">
-      <button 
-        class="p-2 rounded-lg transition-all duration-200 {task?.status === 'done' ? 'text-emerald-500/40 dark:text-emerald-400/30 cursor-default' : 'text-slate-500 dark:text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10'}"
-        on:click={() => task && task.status !== 'done' && handleUpdateTask({ status: 'done' })}
-        disabled={task?.status === 'done'}
-        title={task?.status === 'done' ? $_("taskForm__status_done") : "Mark as done"}
+      <button
+        class="p-2 rounded-lg transition-all duration-200 {task?.status ===
+        'done'
+          ? 'text-emerald-500/40 dark:text-emerald-400/30 cursor-default'
+          : 'text-slate-500 dark:text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10'}"
+        on:click={() =>
+          task &&
+          task.status !== "done" &&
+          handleUpdateTask({ status: "done" })}
+        disabled={task?.status === "done"}
+        title={task?.status === "done"
+          ? $_("taskForm__status_done")
+          : "Mark as done"}
       >
         <CheckCircle2 size={18} />
       </button>
-      <button 
+      <button
         on:click={openBranchDialog}
         class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500 dark:text-slate-400"
         title={$_("taskForm__branch")}
       >
         <GitBranch size={18} />
       </button>
-      <button 
+      <button
         on:click={togglePin}
-        class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors {isPinned ? 'text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10' : 'text-slate-500 dark:text-slate-400'}"
-        title={isPinned ? 'Unpin from sidebar' : 'Pin to sidebar'}
+        class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors {isPinned
+          ? 'text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10'
+          : 'text-slate-500 dark:text-slate-400'}"
+        title={isPinned ? "Unpin from sidebar" : "Pin to sidebar"}
       >
         {#if isPinned}
           <PinOff size={18} />
@@ -485,30 +673,39 @@
         {/if}
       </button>
       <div class="relative more-menu-container">
-        <button 
+        <button
           on:click={toggleMoreMenu}
-          class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors {isMoreMenuOpen ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-white' : 'text-slate-500 dark:text-slate-400'}"
+          class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors {isMoreMenuOpen
+            ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-white'
+            : 'text-slate-500 dark:text-slate-400'}"
         >
           <MoreHorizontal size={18} />
         </button>
 
         {#if isMoreMenuOpen}
-          <div class="absolute right-0 top-full mt-1 w-52 bg-[#1c1c1c] border border-white/10 rounded-xl shadow-2xl z-[99999] overflow-hidden animate-dropdown-in py-1">
-              <button
-                type="button"
-                on:click={() => { isDeleteConfirm = true; isMoreMenuOpen = false; }}
-                class="w-full flex items-center gap-3 px-3 py-2 text-[13px] text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
-              >
-                <Trash2 size={14} />
-                <span>{$_("taskDetail__delete_task")}</span>
-              </button>
+          <div
+            class="absolute right-0 top-full mt-1 w-52 bg-[#1c1c1c] border border-white/10 rounded-xl shadow-2xl z-[99999] overflow-hidden animate-dropdown-in py-1"
+          >
+            <button
+              type="button"
+              on:click={() => {
+                isDeleteConfirm = true;
+                isMoreMenuOpen = false;
+              }}
+              class="w-full flex items-center gap-3 px-3 py-2 text-[13px] text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+            >
+              <Trash2 size={14} />
+              <span>{$_("taskDetail__delete_task")}</span>
+            </button>
           </div>
         {/if}
       </div>
       <div class="w-px h-4 bg-slate-200 dark:bg-slate-800 mx-1"></div>
-      <button 
-        on:click={() => sidebarOpen = !sidebarOpen}
-        class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors {sidebarOpen ? 'text-primary dark:text-indigo-400 bg-slate-100 dark:bg-slate-800' : 'text-slate-500 dark:text-slate-400'}"
+      <button
+        on:click={() => (sidebarOpen = !sidebarOpen)}
+        class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors {sidebarOpen
+          ? 'text-primary dark:text-indigo-400 bg-slate-100 dark:bg-slate-800'
+          : 'text-slate-500 dark:text-slate-400'}"
       >
         <PanelRight size={18} />
       </button>
@@ -518,10 +715,10 @@
   <div class="flex flex-1 overflow-hidden relative">
     <!-- Mobile Sidebar Backdrop -->
     {#if sidebarOpen}
-      <div 
+      <div
         class="lg:hidden absolute inset-0 bg-slate-900/20 backdrop-blur-sm z-20"
-        on:click={() => sidebarOpen = false}
-        on:keydown={(e) => e.key === 'Escape' && (sidebarOpen = false)}
+        on:click={() => (sidebarOpen = false)}
+        on:keydown={(e) => e.key === "Escape" && (sidebarOpen = false)}
         role="button"
         tabindex="0"
         aria-label="Close sidebar"
@@ -529,28 +726,42 @@
     {/if}
 
     <!-- Main Content -->
-    <div class="flex-1 overflow-y-auto custom-scrollbar bg-white dark:bg-[#0b1120]">
+    <div
+      class="flex-1 overflow-y-auto custom-scrollbar bg-white dark:bg-[#0b1120]"
+    >
       {#if loading}
         <div class="max-w-4xl mx-auto p-8 space-y-6 animate-pulse">
-          <div class="h-10 bg-slate-100 dark:bg-slate-800 rounded-lg w-3/4"></div>
+          <div
+            class="h-10 bg-slate-100 dark:bg-slate-800 rounded-lg w-3/4"
+          ></div>
           <div class="space-y-3">
-            <div class="h-4 bg-slate-100 dark:bg-slate-800 rounded w-full"></div>
+            <div
+              class="h-4 bg-slate-100 dark:bg-slate-800 rounded w-full"
+            ></div>
             <div class="h-4 bg-slate-100 dark:bg-slate-800 rounded w-5/6"></div>
             <div class="h-4 bg-slate-100 dark:bg-slate-800 rounded w-4/6"></div>
           </div>
           <div class="pt-8 space-y-4">
             <div class="h-px bg-slate-100 dark:bg-slate-800"></div>
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800"></div>
+              <div
+                class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800"
+              ></div>
               <div class="flex-1 space-y-2">
-                <div class="h-4 bg-slate-100 dark:bg-slate-800 rounded w-1/4"></div>
-                <div class="h-16 bg-slate-100 dark:bg-slate-800 rounded w-full"></div>
+                <div
+                  class="h-4 bg-slate-100 dark:bg-slate-800 rounded w-1/4"
+                ></div>
+                <div
+                  class="h-16 bg-slate-100 dark:bg-slate-800 rounded w-full"
+                ></div>
               </div>
             </div>
           </div>
         </div>
       {:else if error}
-        <div class="flex flex-col items-center justify-center h-full text-slate-500 p-8">
+        <div
+          class="flex flex-col items-center justify-center h-full text-slate-500 p-8"
+        >
           <Folder size={48} class="mb-4 opacity-20" />
           <p>{error}</p>
           <button on:click={goBack} class="mt-4 text-primary hover:underline">
@@ -571,27 +782,43 @@
             {:else}
               <div class="flex items-center gap-2 mb-1">
                 {#if task.task_number}
-                  {@const displayShortName = $currentWorkspaceShortName || task.workspace_short_name || workspaceShortNameFallback}
-                  <span class="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 tracking-wide">
-                    {displayShortName ? `${displayShortName}-${task.task_number}` : `#${task.task_number}`}
+                  {@const displayShortName =
+                    $currentWorkspaceShortName ||
+                    task.workspace_short_name ||
+                    workspaceShortNameFallback}
+                  <span
+                    class="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 tracking-wide"
+                  >
+                    {displayShortName
+                      ? `${displayShortName}-${task.task_number}`
+                      : `#${task.task_number}`}
                   </span>
                 {/if}
               </div>
-              <h1 
-                on:click={() => { isEditingTitle = true; setTimeout(() => titleInputRef?.focus(), 0); }}
-                on:keydown={(e) => e.key === 'Enter' && (isEditingTitle = true)}
+              <div
+                role="button"
                 tabindex="0"
+                on:click={() => {
+                  isEditingTitle = true;
+                  setTimeout(() => titleInputRef?.focus(), 0);
+                }}
+                on:keydown={(e) => e.key === "Enter" && (isEditingTitle = true)}
                 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white leading-tight cursor-text hover:bg-slate-50 dark:hover:bg-slate-900/50 rounded-lg transition-colors -ml-2 px-2 py-1 outline-none"
               >
                 {task.title}
-              </h1>
+              </div>
             {/if}
-            
+
             {#if task.project}
-              <div class="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-                <span class="font-medium">{$_("taskDetail__sub_issue_of")}</span>
+              <div
+                class="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400"
+              >
+                <span class="font-medium">{$_("taskDetail__sub_issue_of")}</span
+                >
                 <Folder size={14} />
-                <span class="hover:text-primary dark:hover:text-indigo-400 cursor-pointer transition-colors">
+                <span
+                  class="hover:text-primary dark:hover:text-indigo-400 cursor-pointer transition-colors"
+                >
                   {task.project}
                 </span>
               </div>
@@ -600,21 +827,23 @@
 
           <!-- Description Section -->
           <div class="space-y-4">
-            <RichTextEditor 
-              value={editedDescription} 
+            <RichTextEditor
+              value={editedDescription}
               onchange={handleDescriptionChange}
               placeholder={$_("taskDetail__no_description")}
             />
 
             {#if isDescriptionDirty}
-              <div class="flex items-center justify-end gap-2 mt-2 animate-fade-in">
-                <button 
+              <div
+                class="flex items-center justify-end gap-2 mt-2 animate-fade-in"
+              >
+                <button
                   on:click={cancelDescription}
                   class="px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
                 >
                   {$_("page__cancel")}
                 </button>
-                <button 
+                <button
                   on:click={saveDescription}
                   class="px-4 py-1.5 text-xs font-bold bg-primary hover:bg-primary-dark text-white rounded-lg shadow-lg shadow-primary/20 transition-all"
                 >
@@ -626,8 +855,8 @@
 
           <!-- Checklist Section -->
           <div class="space-y-4">
-            <ChecklistManager 
-              checklist={task.checklist || []} 
+            <ChecklistManager
+              checklist={task.checklist || []}
               on:update={handleChecklistUpdate}
             />
           </div>
@@ -641,59 +870,272 @@
               <span>{$_("taskDetail__activity")}</span>
             </div>
 
-            <!-- Comment Input -->
-            <div class="flex gap-4 group">
-              <div class="shrink-0">
-                <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold">
-                  {$user?.profile?.first_name?.[0] || $user?.email?.[0]?.toUpperCase() || "?"}
-                </div>
-              </div>
-              <div class="flex-1 space-y-3">
-                <div class="relative">
-                  <textarea 
-                    bind:value={commentContent}
-                    placeholder={$_("taskForm__comments_placeholder")}
-                    class="w-full min-h-[100px] p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all resize-none dark:text-white"
-                  ></textarea>
-                  <div class="absolute bottom-3 right-3 flex items-center gap-2 opacity-0 group-focus-within:opacity-100 transition-opacity">
-                    <button 
-                      on:click={handleCommentSubmit}
-                      disabled={!commentContent.trim()}
-                      class="p-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl transition-all shadow-lg shadow-indigo-500/20"
-                    >
-                      <Send size={18} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Comments List -->
-            <div class="space-y-6 pt-4">
+            <!-- Comments List (above input) -->
+            <div class="space-y-3">
               {#if commentsLoading && comments.length === 0}
-                 <p class="text-sm text-slate-500 animate-pulse">Loading activity...</p>
+                <p
+                  class="text-sm text-slate-500 dark:text-slate-500 animate-pulse"
+                >
+                  Loading activity...
+                </p>
               {:else if comments.length === 0}
-                 <p class="text-sm text-slate-400 italic">No activity yet.</p>
+                <p class="text-sm text-slate-400 dark:text-slate-500 italic">
+                  {$_("taskForm__comments_empty") || "No activity yet."}
+                </p>
               {:else}
-                {#each comments as comment}
-                  <div class="flex gap-4">
-                    <div class="shrink-0">
-                      <div class="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold">
-                        {comment.created_by?.[0]?.toUpperCase() || "?"}
+                {#each comments as comment (comment.id)}
+                  {@const displayName =
+                    comment.created_by?.length > 24
+                      ? comment.created_by?.slice(0, 8) + "…"
+                      : comment.created_by}
+                  {@const initials = (
+                    comment.created_by?.[0] ?? "?"
+                  ).toUpperCase()}
+                  {@const cid = comment.id ?? ""}
+                  <div
+                    class="rounded-xl border border-slate-200 dark:border-white/[0.07] bg-white dark:bg-white/[0.04]"
+                  >
+                    <!-- Header -->
+                    <div class="flex items-center gap-2.5 px-4 py-2.5">
+                      <button
+                        type="button"
+                        aria-label="Toggle Comment"
+                        class="text-slate-400 dark:text-slate-600 hover:text-slate-600 dark:hover:text-slate-400 transition-colors shrink-0"
+                        on:click={() =>
+                          (collapsedComments[cid] = !collapsedComments[cid])}
+                      >
+                        <svg
+                          width="11"
+                          height="11"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.5"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="transition-transform duration-150 {collapsedComments[cid] ? '-rotate-90' : ''}"
+                        >
+                          <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                      </button>
+                      <div
+                        class="w-6 h-6 rounded-full bg-indigo-500/80 flex items-center justify-center text-white text-[11px] font-bold shrink-0 select-none"
+                      >
+                        {initials}
+                      </div>
+                      <span
+                        class="text-sm font-semibold text-slate-700 dark:text-slate-200"
+                        >{displayName}</span
+                      >
+                      <span class="text-xs text-slate-400 dark:text-slate-500"
+                        >{formatRelativeTime(comment.created_at)}</span
+                      >
+                      <div class="ml-auto relative">
+                        <button
+                          type="button"
+                          class="p-1.5 rounded-lg text-slate-400 dark:text-slate-600 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors"
+                          title="More"
+                          on:click={() => openCommentMenuId = openCommentMenuId === cid ? "" : cid}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                        </button>
+                        {#if openCommentMenuId === cid}
+                          <div class="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-[#1c1f2e] border border-slate-200 dark:border-white/[0.08] rounded-xl shadow-xl z-50 overflow-hidden py-1">
+                            <button
+                              type="button"
+                              class="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                              on:click={() => handleDeleteComment(cid)}
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                              <span>Delete comment</span>
+                            </button>
+                          </div>
+                        {/if}
                       </div>
                     </div>
-                    <div class="flex-1 space-y-1">
-                      <div class="flex items-center gap-2 text-sm">
-                        <span class="font-semibold text-slate-900 dark:text-white">{comment.created_by}</span>
-                        <span class="text-slate-500 dark:text-slate-400 text-xs">{formatRelativeTime(comment.created_at)}</span>
+                    <!-- Body -->
+                    {#if !collapsedComments[cid]}
+                      <div
+                        class="px-4 pb-3 text-sm text-slate-700 dark:text-slate-300 leading-relaxed space-y-3"
+                      >
+                        {#if comment.content}
+                          <p class="whitespace-pre-wrap">{comment.content}</p>
+                        {/if}
+                        {#if comment.images && comment.images.length > 0}
+                          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+                            {#each comment.images as img}
+                              <a 
+                                href={getCommentImageUrl(img.file_key)} 
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="aspect-square rounded-lg overflow-hidden border border-slate-200 dark:border-white/10 hover:opacity-90 transition-opacity"
+                              >
+                                <img 
+                                  src={getCommentImageUrl(img.file_key)} 
+                                  alt={img.filename}
+                                  class="w-full h-full object-cover"
+                                />
+                              </a>
+                            {/each}
+                          </div>
+                        {/if}
                       </div>
-                      <div class="bg-slate-50 dark:bg-slate-900/80 rounded-2xl p-4 text-slate-800 dark:text-slate-200 border border-slate-100 dark:border-slate-800/50">
-                        <p class="whitespace-pre-wrap">{comment.content}</p>
-                      </div>
-                    </div>
+                    {/if}
                   </div>
                 {/each}
               {/if}
+            </div>
+
+            <!-- Comment Input (at bottom) -->
+            <div class="flex gap-3 pt-2">
+              <div class="shrink-0">
+                <div
+                  class="w-8 h-8 rounded-full bg-indigo-500/80 flex items-center justify-center text-white text-sm font-bold select-none"
+                >
+                  {(
+                    $user?.profile?.first_name?.[0] ||
+                    $user?.email?.[0] ||
+                    "?"
+                  ).toUpperCase()}
+                </div>
+              </div>
+              <div class="flex-1">
+                <div
+                  class="relative rounded-xl border border-slate-200 dark:border-white/10 bg-transparent focus-within:border-indigo-500/50 focus-within:ring-2 focus-within:ring-indigo-500/10 transition-all overflow-hidden"
+                >
+                  <!-- Hidden file input -->
+                  <input
+                    bind:this={commentFileInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*,.pdf,.doc,.docx,.txt"
+                    class="hidden"
+                    on:change={(e) => {
+                      const files = Array.from((e.currentTarget as HTMLInputElement).files || []);
+                      if (files.length) {
+                        const newFiles = files.map(file => ({
+                          file,
+                          preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined
+                        }));
+                        attachedFiles = [...attachedFiles, ...newFiles];
+                        if (commentFileInputRef) commentFileInputRef.value = "";
+                      }
+                    }}
+                  />
+                  {#if attachedFiles.length > 0}
+                    <div class="px-4 pt-3 flex flex-wrap gap-2">
+                      {#each attachedFiles as af, i}
+                        <div class="group relative flex items-center gap-2 p-1 bg-slate-100 dark:bg-white/[0.05] rounded-lg border border-slate-200 dark:border-white/10 text-[11px] text-slate-600 dark:text-slate-400">
+                          {#if af.preview}
+                            <img src={af.preview} alt="preview" class="w-8 h-8 rounded object-cover border border-white/10" />
+                          {/if}
+                          <span class="truncate max-w-[100px] px-1">{af.file.name}</span>
+                          <button 
+                            type="button"
+                            on:click={() => {
+                              if (af.preview) URL.revokeObjectURL(af.preview);
+                              attachedFiles = attachedFiles.filter((_, idx) => idx !== i);
+                            }}
+                            class="p-1 text-slate-400 hover:text-red-500 transition-colors"
+                          >
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          </button>
+                        </div>
+                      {/each}
+                    </div>
+                  {/if}
+                  <textarea
+                    bind:this={commentTextareaRef}
+                    bind:value={commentContent}
+                    placeholder={$_("taskForm__comments_placeholder")}
+                    rows={commentRows}
+                    class="w-full bg-transparent px-4 pt-3 pb-10 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none resize-none"
+                    on:paste={handlePaste}
+                    on:keydown={(e) => {
+                      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                        e.preventDefault();
+                        handleCommentSubmit();
+                      }
+                    }}
+                  ></textarea>
+                  <div
+                    class="absolute bottom-2 right-2 flex items-center gap-1"
+                  >
+                    <button
+                      type="button"
+                      class="p-1.5 rounded-lg text-slate-400 dark:text-slate-600 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-white/[0.06] transition-colors"
+                      title="Expand"
+                      on:click={() => { commentRows = commentRows < 8 ? 8 : 3; commentTextareaRef?.focus(); }}
+                    >
+                      <svg
+                        width="13"
+                        height="13"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        ><polyline points="15 3 21 3 21 9" /><polyline
+                          points="9 21 3 21 3 15"
+                        /><line x1="21" y1="3" x2="14" y2="10" /><line
+                          x1="3"
+                          y1="21"
+                          x2="10"
+                          y2="14"
+                        /></svg
+                      >
+                    </button>
+                    <button
+                      type="button"
+                      class="p-1.5 rounded-lg text-slate-400 dark:text-slate-600 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-white/[0.06] transition-colors"
+                      title="Attach file"
+                      on:click={() => commentFileInputRef?.click()}
+                    >
+                      <svg
+                        width="13"
+                        height="13"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        ><path
+                          d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"
+                        /></svg
+                      >
+                    </button>
+                    <button
+                      on:click={handleCommentSubmit}
+                      disabled={!commentContent.trim() && attachedFiles.length === 0}
+                      class="p-1.5 rounded-lg transition-colors {(commentContent.trim() || attachedFiles.length > 0)
+                        ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm shadow-indigo-500/30'
+                        : 'text-slate-300 dark:text-slate-700 cursor-not-allowed'}"
+                      title="Send (⌘+Enter)"
+                    >
+                      <svg
+                        width="13"
+                        height="13"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        ><line x1="22" y1="2" x2="11" y2="13" /><polygon
+                          points="22 2 15 22 11 13 2 9 22 2"
+                        /></svg
+                      >
+                    </button>
+                  </div>
+                </div>
+                <p
+                  class="mt-1 text-[11px] text-slate-400 dark:text-slate-600 pl-1"
+                >
+                  ⌘+Enter to send
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -702,211 +1144,334 @@
 
     <!-- Right Sidebar -->
     {#if sidebarOpen}
-      <aside 
-        class="fixed lg:relative inset-y-0 right-0 w-80 border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0b1120] lg:bg-slate-50/50 lg:dark:bg-[#0b1120]/50 backdrop-blur-sm overflow-y-auto custom-scrollbar p-6 space-y-8 shrink-0 z-30 lg:z-auto transition-transform duration-300 {sidebarOpen ? 'translate-x-0' : 'translate-x-full lg:hidden'}"
+      <aside
+        class="fixed lg:relative inset-y-0 right-0 w-80 border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0b1120] lg:bg-slate-50/50 lg:dark:bg-[#0b1120]/50 backdrop-blur-sm overflow-y-auto custom-scrollbar p-6 space-y-8 shrink-0 z-30 lg:z-auto transition-transform duration-300 {sidebarOpen
+          ? 'translate-x-0'
+          : 'translate-x-full lg:hidden'}"
       >
         {#if loading}
           <!-- Sidebar Skeleton -->
           <div class="space-y-8 animate-pulse">
             <div class="space-y-4">
-              <div class="h-3 bg-slate-100 dark:bg-slate-800 rounded w-1/3"></div>
+              <div
+                class="h-3 bg-slate-100 dark:bg-slate-800 rounded w-1/3"
+              ></div>
               <div class="space-y-4">
                 {#each Array(5) as _}
                   <div class="space-y-2">
-                    <div class="h-2 bg-slate-100 dark:bg-slate-800 rounded w-1/4"></div>
-                    <div class="h-10 bg-slate-100 dark:bg-slate-800 rounded-lg w-full"></div>
+                    <div
+                      class="h-2 bg-slate-100 dark:bg-slate-800 rounded w-1/4"
+                    ></div>
+                    <div
+                      class="h-10 bg-slate-100 dark:bg-slate-800 rounded-lg w-full"
+                    ></div>
                   </div>
                 {/each}
               </div>
             </div>
             <hr class="border-slate-100 dark:border-slate-800" />
             <div class="space-y-4">
-              <div class="h-3 bg-slate-100 dark:bg-slate-800 rounded w-1/3"></div>
+              <div
+                class="h-3 bg-slate-100 dark:bg-slate-800 rounded w-1/3"
+              ></div>
               <div class="space-y-3">
                 {#each Array(2) as _}
                   <div class="space-y-2">
-                    <div class="h-2 bg-slate-100 dark:bg-slate-800 rounded w-1/4"></div>
-                    <div class="h-4 bg-slate-100 dark:bg-slate-800 rounded w-1/2"></div>
+                    <div
+                      class="h-2 bg-slate-100 dark:bg-slate-800 rounded w-1/4"
+                    ></div>
+                    <div
+                      class="h-4 bg-slate-100 dark:bg-slate-800 rounded w-1/2"
+                    ></div>
                   </div>
                 {/each}
               </div>
             </div>
           </div>
         {:else if task}
-        <!-- Properties Section -->
-        <div class="space-y-6">
-          <div class="flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.05em] text-slate-400 dark:text-slate-500/70">
-            <span>{$_("taskDetail__properties")}</span>
-            <ChevronDown size={12} class="opacity-50" />
+          <!-- Properties Section -->
+          <div class="space-y-6">
+            <div
+              class="flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.05em] text-slate-400 dark:text-slate-500/70"
+            >
+              <span>{$_("taskDetail__properties")}</span>
+              <ChevronDown size={12} class="opacity-50" />
+            </div>
+
+            <div class="grid grid-cols-[80px_1fr] gap-y-1">
+              <div
+                class="col-span-2 grid grid-cols-subgrid items-center min-h-[32px] -mx-2 px-2 rounded-md hover:bg-slate-500/5 transition-colors group"
+              >
+                <div
+                  class="flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400"
+                >
+                  <Clock
+                    size={14}
+                    class="opacity-70 group-hover:opacity-100 transition-opacity"
+                  />
+                  <span>{$_("taskForm__status_label")}</span>
+                </div>
+                <div
+                  class="flex items-center justify-start min-w-0 property-select"
+                >
+                  <SearchableSelect
+                    value={task.status}
+                    options={statusOptions}
+                    on:select={(e: CustomEvent<any>) =>
+                      handleUpdateTask({ status: e.detail })}
+                    showSearch={false}
+                  />
+                </div>
+              </div>
+
+              <div
+                class="col-span-2 grid grid-cols-subgrid items-center min-h-[32px] -mx-2 px-2 rounded-md hover:bg-slate-500/5 transition-colors group"
+              >
+                <div
+                  class="flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400"
+                >
+                  <AlertTriangle
+                    size={14}
+                    class="opacity-70 group-hover:opacity-100 transition-opacity"
+                  />
+                  <span>Priority</span>
+                </div>
+                <div
+                  class="flex items-center justify-start min-w-0 property-select"
+                >
+                  <PrioritySelector
+                    value={task.priority || "none"}
+                    on:select={(e: CustomEvent<any>) =>
+                      handleUpdateTask({
+                        priority: e.detail as Task["priority"],
+                      })}
+                  />
+                </div>
+              </div>
+
+              <div
+                class="col-span-2 grid grid-cols-subgrid items-center min-h-[32px] -mx-2 px-2 rounded-md hover:bg-slate-500/5 transition-colors group"
+              >
+                <div
+                  class="flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400"
+                >
+                  <User
+                    size={14}
+                    class="opacity-70 group-hover:opacity-100 transition-opacity"
+                  />
+                  <span>{$_("taskForm__assignee_label")}</span>
+                </div>
+                <div
+                  class="flex items-center justify-start min-w-0 property-select"
+                >
+                  <SearchableSelect
+                    value={task.assignee_id || task.assignee_ids?.[0] || "all"}
+                    options={[
+                      { value: "all", label: "Unassigned" },
+                      ...assignees.map((a) => ({
+                        value: a.id || "",
+                        label: a.name,
+                      })),
+                    ]}
+                    on:select={(e: CustomEvent<any>) =>
+                      handleUpdateTask({
+                        assignee_ids: e.detail === "all" ? [] : [e.detail],
+                      })}
+                  />
+                </div>
+              </div>
+
+              <div
+                class="col-span-2 grid grid-cols-subgrid items-center min-h-[32px] -mx-2 px-2 rounded-md hover:bg-slate-500/5 transition-colors group"
+              >
+                <div
+                  class="flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400"
+                >
+                  <Folder
+                    size={14}
+                    class="opacity-70 group-hover:opacity-100 transition-opacity"
+                  />
+                  <span>{$_("taskForm__project_label")}</span>
+                </div>
+                <div
+                  class="flex items-center justify-start min-w-0 property-select"
+                >
+                  <SearchableSelect
+                    value={task.project || ""}
+                    options={[
+                      { value: "", label: "No Project" },
+                      ...projects.map((p) => ({
+                        value: p.name,
+                        label: p.name,
+                      })),
+                    ]}
+                    on:select={(e: CustomEvent<any>) =>
+                      handleUpdateTask({ project: e.detail })}
+                  />
+                </div>
+              </div>
+
+              <div
+                class="col-span-2 grid grid-cols-subgrid items-center min-h-[32px] -mx-2 px-2 rounded-md hover:bg-slate-500/5 transition-colors group"
+              >
+                <div
+                  class="flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400"
+                >
+                  <Tag
+                    size={14}
+                    class="opacity-70 group-hover:opacity-100 transition-opacity"
+                  />
+                  <span>{$_("taskForm__sprint_label")}</span>
+                </div>
+                <div
+                  class="flex items-center justify-start min-w-0 property-select"
+                >
+                  <SearchableSelect
+                    value={task.sprint_id || "all"}
+                    options={[
+                      { value: "all", label: "No Sprint" },
+                      ...sprints.map((s) => ({
+                        value: s.id || "",
+                        label: s.name,
+                      })),
+                    ]}
+                    on:select={(e: CustomEvent<any>) =>
+                      handleUpdateTask({
+                        sprint_id: e.detail === "all" ? null : e.detail,
+                      })}
+                  />
+                </div>
+              </div>
+
+              <div
+                class="col-span-2 grid grid-cols-subgrid items-center min-h-[32px] -mx-2 px-2 rounded-md hover:bg-slate-500/5 transition-colors group"
+              >
+                <div
+                  class="flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400"
+                >
+                  <Calendar
+                    size={14}
+                    class="opacity-70 group-hover:opacity-100 transition-opacity"
+                  />
+                  <span>{$_("taskForm__due_date_label")}</span>
+                </div>
+                <div
+                  class="flex items-center justify-start min-w-0 property-select"
+                >
+                  <CustomDatePicker
+                    value={task.due_date || task.end_date || ""}
+                    placeholder={$_("taskForm__due_date_placeholder")}
+                    on:select={(e: CustomEvent<string>) =>
+                      handleUpdateTask({ due_date: e.detail })}
+                    minimal={true}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
-          
-          <div class="grid grid-cols-[80px_1fr] gap-y-1">
 
-            <div class="col-span-2 grid grid-cols-subgrid items-center min-h-[32px] -mx-2 px-2 rounded-md hover:bg-slate-500/5 transition-colors group">
-              <div class="flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400">
-                <Clock size={14} class="opacity-70 group-hover:opacity-100 transition-opacity" />
-                <span>{$_("taskForm__status_label")}</span>
-              </div>
-              <div class="flex items-center justify-start min-w-0 property-select">
-                <SearchableSelect 
-                  value={task.status}
-                  options={statusOptions}
-                  on:select={(e: CustomEvent<any>) => handleUpdateTask({ status: e.detail })}
-                  showSearch={false}
-                />
-              </div>
+          <div class="h-px bg-slate-200 dark:bg-slate-800/50 mx-2"></div>
+
+          <!-- Details Section -->
+          <div class="space-y-6">
+            <div
+              class="flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.05em] text-slate-400 dark:text-slate-500/70"
+            >
+              <span>{$_("taskDetail__details")}</span>
+              <ChevronDown size={12} class="opacity-50" />
             </div>
 
-            <div class="col-span-2 grid grid-cols-subgrid items-center min-h-[32px] -mx-2 px-2 rounded-md hover:bg-slate-500/5 transition-colors group">
-              <div class="flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400">
-                <AlertTriangle size={14} class="opacity-70 group-hover:opacity-100 transition-opacity" />
-                <span>Priority</span>
+            <div class="grid grid-cols-[80px_1fr] gap-y-1">
+              <div
+                class="col-span-2 grid grid-cols-subgrid items-center min-h-[32px] -mx-2 px-2 rounded-md group transition-colors"
+              >
+                <div
+                  class="flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400"
+                >
+                  <div class="w-3.5" aria-hidden="true"></div>
+                  <span>{$_("taskDetail__created_at")}</span>
+                </div>
+                <span
+                  class="text-[13px] text-slate-600 dark:text-slate-400 px-2"
+                  >{task.created_at
+                    ? new Date(task.created_at).toLocaleDateString()
+                    : "-"}</span
+                >
               </div>
-              <div class="flex items-center justify-start min-w-0 property-select">
-                <PrioritySelector 
-                  value={task.priority || "none"}
-                  on:select={(e: CustomEvent<any>) => handleUpdateTask({ priority: e.detail as Task["priority"] })}
-                />
-              </div>
-            </div>
 
-            <div class="col-span-2 grid grid-cols-subgrid items-center min-h-[32px] -mx-2 px-2 rounded-md hover:bg-slate-500/5 transition-colors group">
-              <div class="flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400">
-                <User size={14} class="opacity-70 group-hover:opacity-100 transition-opacity" />
-                <span>{$_("taskForm__assignee_label")}</span>
-              </div>
-              <div class="flex items-center justify-start min-w-0 property-select">
-                <SearchableSelect 
-                  value={task.assignee_id || task.assignee_ids?.[0] || 'all'}
-                  options={[
-                    { value: 'all', label: 'Unassigned' },
-                    ...assignees.map(a => ({ value: a.id || '', label: a.name }))
-                  ]}
-                  on:select={(e: CustomEvent<any>) => handleUpdateTask({ assignee_ids: e.detail === 'all' ? [] : [e.detail] })}
-                />
-              </div>
-            </div>
-
-            <div class="col-span-2 grid grid-cols-subgrid items-center min-h-[32px] -mx-2 px-2 rounded-md hover:bg-slate-500/5 transition-colors group">
-              <div class="flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400">
-                <Folder size={14} class="opacity-70 group-hover:opacity-100 transition-opacity" />
-                <span>{$_("taskForm__project_label")}</span>
-              </div>
-              <div class="flex items-center justify-start min-w-0 property-select">
-                <SearchableSelect 
-                  value={task.project || ''}
-                  options={[
-                    { value: '', label: 'No Project' },
-                    ...projects.map(p => ({ value: p.name, label: p.name }))
-                  ]}
-                  on:select={(e: CustomEvent<any>) => handleUpdateTask({ project: e.detail })}
-                />
-              </div>
-            </div>
-
-            <div class="col-span-2 grid grid-cols-subgrid items-center min-h-[32px] -mx-2 px-2 rounded-md hover:bg-slate-500/5 transition-colors group">
-              <div class="flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400">
-                <Tag size={14} class="opacity-70 group-hover:opacity-100 transition-opacity" />
-                <span>{$_("taskForm__sprint_label")}</span>
-              </div>
-              <div class="flex items-center justify-start min-w-0 property-select">
-                <SearchableSelect 
-                  value={task.sprint_id || 'all'}
-                  options={[
-                    { value: 'all', label: 'No Sprint' },
-                    ...sprints.map(s => ({ value: s.id || '', label: s.name }))
-                  ]}
-                  on:select={(e: CustomEvent<any>) => handleUpdateTask({ sprint_id: e.detail === 'all' ? null : e.detail })}
-                />
-              </div>
-            </div>
-
-            <div class="col-span-2 grid grid-cols-subgrid items-center min-h-[32px] -mx-2 px-2 rounded-md hover:bg-slate-500/5 transition-colors group">
-              <div class="flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400">
-                <Calendar size={14} class="opacity-70 group-hover:opacity-100 transition-opacity" />
-                <span>{$_("taskForm__due_date_label")}</span>
-              </div>
-              <div class="flex items-center justify-start min-w-0 property-select">
-                <CustomDatePicker
-                  value={task.due_date || task.end_date || ""}
-                  placeholder={$_("taskForm__due_date_placeholder")}
-                  on:select={(e: CustomEvent<string>) => handleUpdateTask({ due_date: e.detail })}
-                  minimal={true}
-                />
-              </div>
+              {#if task.updated_at}
+                <div
+                  class="col-span-2 grid grid-cols-subgrid items-center min-h-[32px] -mx-2 px-2 rounded-md group transition-colors"
+                >
+                  <div
+                    class="flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400"
+                  >
+                    <div class="w-3.5" aria-hidden="true"></div>
+                    <span>{$_("taskDetail__updated_at")}</span>
+                  </div>
+                  <span
+                    class="text-[13px] text-slate-600 dark:text-slate-400 px-2"
+                    >{new Date(task.updated_at).toLocaleDateString()}</span
+                  >
+                </div>
+              {/if}
             </div>
           </div>
-        </div>
+        {/if}
+      </aside>
+    {/if}
+  </div>
 
-        <div class="h-px bg-slate-200 dark:bg-slate-800/50 mx-2"></div>
-
-        <!-- Details Section -->
-        <div class="space-y-6">
-          <div class="flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.05em] text-slate-400 dark:text-slate-500/70">
-            <span>{$_("taskDetail__details")}</span>
-            <ChevronDown size={12} class="opacity-50" />
-          </div>
-          
-          <div class="grid grid-cols-[80px_1fr] gap-y-1">
-            <div class="col-span-2 grid grid-cols-subgrid items-center min-h-[32px] -mx-2 px-2 rounded-md group transition-colors">
-               <div class="flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400">
-                 <div class="w-3.5" aria-hidden></div>
-                 <span>{$_("taskDetail__created_at")}</span>
-               </div>
-               <span class="text-[13px] text-slate-600 dark:text-slate-400 px-2">{task.created_at ? new Date(task.created_at).toLocaleDateString() : '-'}</span>
-            </div>
-
-            {#if task.updated_at}
-              <div class="col-span-2 grid grid-cols-subgrid items-center min-h-[32px] -mx-2 px-2 rounded-md group transition-colors">
-                 <div class="flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400">
-                   <div class="w-3.5" aria-hidden></div>
-                   <span>{$_("taskDetail__updated_at")}</span>
-                 </div>
-                 <span class="text-[13px] text-slate-600 dark:text-slate-400 px-2">{new Date(task.updated_at).toLocaleDateString()}</span>
-              </div>
-            {/if}
-          </div>
-        </div>
-      {/if}
-    </aside>
+  {#if isBranchDialogOpen && task}
+    <BranchDialog
+      show={isBranchDialogOpen}
+      title={task.title}
+      workspaceShortName={task.workspace_short_name || ""}
+      taskNumber={task.task_number || null}
+      on:close={closeBranchDialog}
+    />
   {/if}
-</div>
 
-{#if isBranchDialogOpen && task}
-  <BranchDialog 
-    show={isBranchDialogOpen}
-    title={task.title}
-    workspaceShortName={task.workspace_short_name || ''}
-    taskNumber={task.task_number || null}
-    on:close={closeBranchDialog}
+  <ConfirmModal
+    show={isDeleteConfirm}
+    title={$_("taskDetail__delete_task")}
+    message={$_("taskDetail__delete_confirm")}
+    confirmText={$_("taskDetail__delete_confirm_yes")}
+    cancelText={$_("page__cancel")}
+    type="danger"
+    onConfirm={handleDeleteTask}
+    onClose={() => (isDeleteConfirm = false)}
   />
-{/if}
-
-<ConfirmModal 
-  show={isDeleteConfirm} 
-  title={$_("taskDetail__delete_task")} 
-  message={$_("taskDetail__delete_confirm")}
-  confirmText={$_("taskDetail__delete_confirm_yes")}
-  cancelText={$_("page__cancel")}
-  type="danger"
-  onConfirm={handleDeleteTask}
-  onClose={() => isDeleteConfirm = false}
-/>
 </div>
 
 <style>
-  @reference "../../../../../app.css";
-
   :global(.property-select .property-trigger-btn) {
-    @apply !bg-transparent !border !border-solid !border-white/10 !text-gray-400 !rounded-full !h-8 !px-3 !text-[13px] hover:!bg-white/5 hover:!border-white/20 !shadow-none !ring-0 !transition-all;
+    background-color: transparent !important;
+    border-width: 1px !important;
+    border-style: solid !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: #9ca3af !important;
+    border-radius: 9999px !important;
+    height: 2rem !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    font-size: 13px !important;
+    box-shadow: none !important;
+    transition: all 0.2s !important;
+  }
+
+  :global(.property-select .property-trigger-btn:hover) {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
   }
 
   :global(.property-select .property-trigger-btn span) {
-    @apply !text-[13px];
+    color: #d1d5db !important;
+    font-size: 13px !important;
   }
 
   :global(.property-select .property-trigger-btn svg) {
-    @apply !text-slate-400;
+    color: #94a3b8 !important;
   }
 
   :global(.custom-scrollbar::-webkit-scrollbar) {
@@ -922,7 +1487,7 @@
   :global(.custom-scrollbar::-webkit-scrollbar-thumb:hover) {
     background: rgba(148, 163, 184, 0.2);
   }
-  
+
   textarea {
     scrollbar-width: none;
   }
@@ -931,10 +1496,16 @@
   }
 
   @keyframes fade-in {
-    from { opacity: 0; transform: translateY(5px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(5px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
-  
+
   .animate-fade-in {
     animation: fade-in 0.3s ease-out forwards;
   }

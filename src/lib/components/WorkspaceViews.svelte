@@ -34,7 +34,6 @@
     <div class="animate-fade-in">
       <KanbanBoard
         {tasks}
-        {sprints}
         currentPage={$currentPage}
         {totalPages}
         {totalTasks}

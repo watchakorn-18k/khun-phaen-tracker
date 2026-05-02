@@ -14,7 +14,7 @@ describe('branch-name utils', () => {
     ).toBe('feature/PPOS-49-make-the-app-offline');
   });
 
-  it('falls back to task number when source text cannot be slugified', () => {
+  it('falls back to task number without duplication when source text cannot be slugified', () => {
     expect(
       getComputedBranchName({
         gitFlowType: 'feature',
@@ -22,7 +22,18 @@ describe('branch-name utils', () => {
         taskNumber: 49,
         title: 'ทำแอปเป็นระบบ ออฟไลน์'
       })
-    ).toBe('feature/PPOS-49-task-49');
+    ).toBe('feature/PPOS-49');
+  });
+
+  it('includes task number in prefix even when workspaceShortName is empty', () => {
+    expect(
+      getComputedBranchName({
+        gitFlowType: 'feature',
+        workspaceShortName: '',
+        taskNumber: 49,
+        translatedTitle: 'Make the app offline'
+      })
+    ).toBe('feature/task-49-make-the-app-offline');
   });
 
   it('builds checkout command from computed branch name', () => {

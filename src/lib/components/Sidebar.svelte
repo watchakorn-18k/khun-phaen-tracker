@@ -311,6 +311,28 @@
               {$_("sidebar__workspaces_switcher")}
             </p>
             <div class="px-2 pb-1">
+              <a
+                href="{base}/workspace/{MY_TASKS_WORKSPACE_ID}"
+                on:click={() =>
+                  prepareWorkspaceSwitch({
+                    id: MY_TASKS_WORKSPACE_ID,
+                    name: $_("sidebar__focus_hub"),
+                    color: "#6366f1",
+                    icon: "Target",
+                  })}
+                class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all text-left"
+              >
+                <div
+                  class="w-5 h-5 rounded flex items-center justify-center text-white text-[10px] font-bold shrink-0"
+                  style="background-color: #6366f1"
+                >
+                  <Target size={12} />
+                </div>
+                <span class="flex-1 truncate font-medium">{$_("sidebar__focus_hub")}</span>
+                {#if workspaceId === MY_TASKS_WORKSPACE_ID || isMyTasksWorkspace}
+                  <Check size={14} class="text-indigo-500 shrink-0" />
+                {/if}
+              </a>
               {#each workspaceList as ws}
                 <a
                   href={workspaceUrl(ws)}
@@ -689,18 +711,3 @@
   </div>
 </aside>
 
-<style>
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(156, 163, 175, 0.2);
-    border-radius: 10px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(156, 163, 175, 0.4);
-  }
-</style>

@@ -77,11 +77,15 @@
   class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
   transition:fade
   on:mousedown|self={handleClose}
+  role="presentation"
 >
   <div
     class="glass-card w-full max-w-[340px] overflow-hidden shadow-2xl flex flex-col relative"
     transition:scale={{ duration: 250, start: 0.9, opacity: 0 }}
     on:mousedown|stopPropagation
+    role="dialog"
+    aria-modal="true"
+    tabindex="-1"
   >
     <!-- Background Decoration -->
     <div class="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
@@ -131,7 +135,13 @@
     <!-- Main Content -->
     <div class="p-5 pt-2 space-y-6">
       <!-- Time Display -->
-      <div class="relative group cursor-pointer" on:click={toggleTimer}>
+      <div 
+         class="relative group cursor-pointer" 
+         on:click={toggleTimer}
+         role="button"
+         tabindex="0"
+         on:keydown={(e) => e.key === 'Enter' && toggleTimer()}
+      >
          <div class="text-center py-6 transition-transform group-active:scale-95">
             <div class="text-5xl font-mono font-black text-slate-800 dark:text-white tabular-nums tracking-tighter">
               {$formattedTime}

@@ -17,7 +17,6 @@
   }>();
 
   export let tasks: Task[] = [];
-  export let sprints: Sprint[] = [];
   export let currentPage: number = 1;
   export let totalPages: number = 1;
   export let totalTasks: number = 0;

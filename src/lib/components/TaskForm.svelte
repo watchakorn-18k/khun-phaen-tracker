@@ -1944,8 +1944,6 @@
 {/if}
 
 <style>
-  @reference "../../app.css";
-
   @keyframes modal-in {
     from {
       opacity: 0;
@@ -1982,25 +1980,33 @@
     background: #9ca3af;
   }
 
-  .property-btn {
-    @apply flex items-center gap-2 px-2.5 py-1.5 rounded-full border border-white/5 bg-white/5 text-[13px] text-gray-300 hover:bg-white/10 hover:border-white/10 transition-all;
-  }
-
-  .property-btn-icon {
-    @apply flex items-center justify-center w-8 h-8 rounded-full border border-white/5 bg-white/5 text-gray-300 hover:bg-white/10 hover:border-white/10 transition-all;
-  }
-
   /* Style overrides for SearchableSelect and CustomDatePicker when used in Property Row */
   :global(.property-select .property-trigger-btn) {
-    @apply !bg-transparent !border !border-solid !border-white/10 !text-gray-400 !rounded-full !h-8 !px-3 !text-[13px] hover:!bg-white/5 hover:!border-white/20 !shadow-none !ring-0 !transition-all;
+    background-color: transparent !important;
+    border-width: 1px !important;
+    border-style: solid !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: #9ca3af !important;
+    border-radius: 9999px !important;
+    height: 2rem !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    font-size: 13px !important;
+    box-shadow: none !important;
+    transition: all 0.2s !important;
+  }
+
+  :global(.property-select .property-trigger-btn:hover) {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
   }
 
   :global(.property-select .property-trigger-btn span) {
-    @apply !text-gray-300;
+    color: #d1d5db !important;
   }
 
   :global(.property-select .property-trigger-btn svg) {
-    @apply !text-gray-500;
+    color: #6b7280 !important;
   }
 
   /* Dark theme input and textarea focus */

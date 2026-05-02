@@ -192,6 +192,8 @@
 	class="bubble-menu-container"
 	style:visibility={visible ? 'visible' : 'hidden'}
 	onmousedown={(e) => e.preventDefault()}
+	role="toolbar"
+	tabindex="-1"
 >
 	{#if mode === 'link-edit'}
 		<div class="link-edit-bar">

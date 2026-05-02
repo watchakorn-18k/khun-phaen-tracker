@@ -27,6 +27,7 @@ export function getWorkItemPrefix(workspaceShortName = '', taskNumber: number | 
   const ws = workspaceShortName.trim().toUpperCase().replace(/\s+/g, '').slice(0, 4);
   if (ws && taskNumber) return `${ws}-${taskNumber}`;
   if (ws) return ws;
+  if (taskNumber) return `task-${taskNumber}`;
   return '';
 }
 
@@ -49,7 +50,11 @@ export function getBranchSlug(options: Pick<BranchNameOptions, 'translatedTitle'
 export function getComputedBranchName(options: BranchNameOptions): string {
   const workItem = getWorkItemPrefix(options.workspaceShortName, options.taskNumber ?? null);
   const slug = getBranchSlug(options);
-  return workItem ? `${options.gitFlowType}/${workItem}-${slug}` : `${options.gitFlowType}/${slug}`;
+
+  if (!workItem) return `${options.gitFlowType}/${slug}`;
+  if (slug === `task-${options.taskNumber}`) return `${options.gitFlowType}/${workItem}`;
+
+  return `${options.gitFlowType}/${workItem}-${slug}`;
 }
 
 export function getCheckoutCommand(options: BranchNameOptions): string {

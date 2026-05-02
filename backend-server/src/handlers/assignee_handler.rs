@@ -7,7 +7,6 @@ use axum_extra::extract::cookie::CookieJar;
 use futures::StreamExt;
 use mongodb::bson::{doc, oid::ObjectId, Document};
 
-use crate::handlers::auth_handler::extract_user_id;
 use crate::handlers::common::verify_workspace_access;
 use crate::models::data::*;
 use crate::repositories::data_repo::DataRepository;
