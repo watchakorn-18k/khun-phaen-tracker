@@ -64,6 +64,17 @@
     SignalLow,
     Ban,
     GitBranch,
+    Bot,
+    Bug,
+    Sparkles,
+    ScanSearch,
+    Layers,
+    Wrench,
+    Zap,
+    FlaskConical,
+    BookOpen,
+    Copy,
+    Check,
     Trash2,
     AlertTriangle,
     FileText,
@@ -127,6 +138,64 @@
 
   let isMoreMenuOpen = false;
   let isDeleteConfirm = false;
+  let isChatGPTMenuOpen = false;
+  let isChatGPTModalOpen = false;
+  let isProviderMenuOpen = false;
+  let chatGPTPromptDraft = "";
+  let chatGPTPromptLabel = "";
+  let chatGPTLang: "th" | "en" = "th";
+  let chatGPTSelectedMode = "";
+  let isCopied = false;
+
+  async function copyPrompt() {
+    await navigator.clipboard.writeText(chatGPTPromptDraft);
+    isCopied = true;
+    setTimeout(() => (isCopied = false), 2000);
+  }
+
+  const aiProviders = [
+    { id: "chatgpt",   name: "ChatGPT",    supportsQuery: true,  buildUrl: (p: string) => `https://chatgpt.com/?q=${p}` },
+    { id: "claude",    name: "Claude",     supportsQuery: true,  buildUrl: (p: string) => `https://claude.ai/new?q=${p}` },
+    { id: "perplexity",name: "Perplexity", supportsQuery: true,  buildUrl: (p: string) => `https://www.perplexity.ai/search?q=${p}` },
+    { id: "grok",      name: "Grok",       supportsQuery: true,  buildUrl: (p: string) => `https://grok.com/?q=${p}` },
+    { id: "duckduckgo",name: "Duck.ai",    supportsQuery: true,  buildUrl: (p: string) => `https://duckduckgo.com/?q=${p}&ia=chat` },
+    { id: "zai",       name: "Z.ai",       supportsQuery: true,  buildUrl: (p: string) => `https://chat.z.ai/?q=${p}` },
+    { id: "blackbox",  name: "Blackbox",   supportsQuery: true,  buildUrl: (p: string) => `https://app.blackbox.ai/?q=${p}` },
+    { id: "copilot",   name: "Copilot",    supportsQuery: false, buildUrl: () => `https://copilot.microsoft.com/` },
+    { id: "kimi",      name: "Kimi",       supportsQuery: false, buildUrl: () => `https://www.kimi.com/` },
+    { id: "metaai",    name: "Meta AI",    supportsQuery: false, buildUrl: () => `https://www.meta.ai/` },
+    { id: "gemini",    name: "Gemini",     supportsQuery: false, buildUrl: () => `https://gemini.google.com/app` },
+    { id: "deepseek",  name: "DeepSeek",   supportsQuery: false, buildUrl: () => `https://chat.deepseek.com/` },
+    { id: "qwen",      name: "Qwen",       supportsQuery: false, buildUrl: () => `https://chat.qwen.ai/` },
+    { id: "pi",        name: "Pi",         supportsQuery: false, buildUrl: () => `https://pi.ai/talk` },
+  ];
+
+  const PROVIDER_STORAGE_KEY = "preferred-ai-chat";
+
+  function loadPreferredProvider() {
+    if (!browser) return aiProviders[0];
+    const saved = localStorage.getItem(PROVIDER_STORAGE_KEY);
+    return aiProviders.find(p => p.id === saved) ?? aiProviders[0];
+  }
+
+  let selectedProvider = loadPreferredProvider();
+
+  function selectProvider(provider: typeof aiProviders[number]) {
+    selectedProvider = provider;
+    isProviderMenuOpen = false;
+    if (browser) localStorage.setItem(PROVIDER_STORAGE_KEY, provider.id);
+  }
+
+  const chatGPTModes = [
+    { id: "bug",      icon: Bug,          label: "แก้บั๊ค",           desc: "วิเคราะห์และหาแนวทางแก้ไขบั๊ค" },
+    { id: "feature",  icon: Sparkles,     label: "เพิ่มฟีเจอร์ใหม่",   desc: "ออกแบบและวางแผนการพัฒนาฟีเจอร์" },
+    { id: "analyze",  icon: ScanSearch,   label: "วิเคราะห์",           desc: "วิเคราะห์ปัญหาและความต้องการเชิงลึก" },
+    { id: "design",   icon: Layers,       label: "ออกแบบระบบ",          desc: "ออกแบบ architecture และ flow" },
+    { id: "refactor", icon: Wrench,       label: "Refactor โค้ด",       desc: "ปรับโครงสร้างโค้ดให้ดีขึ้น" },
+    { id: "optimize", icon: Zap,          label: "ปรับประสิทธิภาพ",     desc: "หาจุดที่ช้าและแนวทางแก้ไข" },
+    { id: "test",     icon: FlaskConical, label: "เขียน Unit Test",     desc: "วางแผนและสร้าง test cases" },
+    { id: "docs",     icon: BookOpen,     label: "เขียน Documentation", desc: "สร้างเอกสารอธิบายการทำงาน" },
+  ];
   let mounted = false;
   let loadedTaskKey = "";
   let workspaceShortNameFallback = "";
@@ -145,6 +214,12 @@
     if (!target.closest(".more-menu-container")) {
       isMoreMenuOpen = false;
       isDeleteConfirm = false;
+    }
+    if (!target.closest(".chatgpt-menu-container")) {
+      isChatGPTMenuOpen = false;
+    }
+    if (!target.closest(".provider-menu-container")) {
+      isProviderMenuOpen = false;
     }
   }
 
@@ -597,6 +672,68 @@
       editedDescription = task.notes || "";
     }
   }
+
+  function buildChatGPTPrompt(mode: string, lang: "th" | "en"): string {
+    if (!task) return "";
+    const title = task.title || "";
+    const description = task.notes
+      ? task.notes.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").trim()
+      : "";
+
+    const th: Record<string, string> = {
+      bug:      `ฉันมีบั๊คที่ต้องการแก้ไข กรุณาทำสิ่งต่อไปนี้:\n1. วิเคราะห์สาเหตุที่เป็นไปได้ของบั๊ค\n2. เสนอแนวทางแก้ไขพร้อมข้อดีข้อเสียของแต่ละแนวทาง\n3. สร้าง prompt สำหรับ AI coding agent (เช่น Claude, Cursor) เพื่อให้ agent แก้บั๊คนี้ได้เลย โดยระบุบริบท, สิ่งที่คาดหวัง และขั้นตอนให้ครบถ้วน`,
+      feature:  `ฉันต้องการเพิ่มฟีเจอร์ใหม่ กรุณาทำสิ่งต่อไปนี้:\n1. วิเคราะห์ความต้องการและช่วยออกแบบฟีเจอร์นี้ เช่น UI/UX flow, โครงสร้างข้อมูล, edge cases\n2. แนะนำแนวทาง implementation ที่เหมาะสม\n3. สร้าง prompt สำหรับ AI coding agent เพื่อให้ agent พัฒนาฟีเจอร์นี้ได้เลย`,
+      analyze:  `ฉันต้องการวิเคราะห์งานนี้อย่างละเอียด กรุณาทำสิ่งต่อไปนี้:\n1. วิเคราะห์ปัญหาและความต้องการเชิงลึก ระบุ assumptions, constraints และ risks\n2. เสนอแนวทางแก้ไขพร้อมเปรียบเทียบตัวเลือกต่างๆ\n3. สร้าง prompt สำหรับ AI coding agent เพื่อให้ agent ดำเนินการต่อได้อย่างถูกต้อง`,
+      design:   `ฉันต้องการออกแบบระบบสำหรับงานนี้ กรุณาทำสิ่งต่อไปนี้:\n1. ออกแบบ architecture, data flow และโครงสร้างระบบที่เหมาะสม\n2. แนะนำ technology stack และ patterns ที่ควรใช้\n3. สร้าง prompt สำหรับ AI coding agent เพื่อให้ agent implement ตาม design นี้ได้เลย`,
+      refactor: `ฉันต้องการ refactor โค้ดสำหรับงานนี้ กรุณาทำสิ่งต่อไปนี้:\n1. วิเคราะห์ปัญหาของโค้ดเดิม เช่น code smell, ความซับซ้อน หรือ maintainability\n2. เสนอแนวทาง refactor พร้อมหลักการที่ใช้\n3. สร้าง prompt สำหรับ AI coding agent เพื่อให้ agent refactor โค้ดนี้ได้อย่างปลอดภัย`,
+      optimize: `ฉันต้องการปรับปรุงประสิทธิภาพของงานนี้ กรุณาทำสิ่งต่อไปนี้:\n1. วิเคราะห์จุดที่น่าจะเป็น bottleneck และแนวทางแก้ไข\n2. เสนอ optimization strategies พร้อม trade-offs\n3. สร้าง prompt สำหรับ AI coding agent เพื่อให้ agent ทำ optimization นี้ได้เลย`,
+      test:     `ฉันต้องการเขียน unit test สำหรับงานนี้ กรุณาทำสิ่งต่อไปนี้:\n1. วิเคราะห์และระบุ test cases สำคัญ ทั้ง happy path, edge cases และ error cases\n2. แนะนำ testing strategy และ tools ที่เหมาะสม\n3. สร้าง prompt สำหรับ AI coding agent เพื่อให้ agent เขียน test ได้ครอบคลุม`,
+      docs:     `ฉันต้องการเขียน documentation สำหรับงานนี้ กรุณาทำสิ่งต่อไปนี้:\n1. วิเคราะห์ว่าควรมีเอกสารส่วนไหนบ้าง เช่น README, API docs, usage examples\n2. เสนอโครงสร้างและเนื้อหาของเอกสารที่เหมาะสม\n3. สร้าง prompt สำหรับ AI coding agent เพื่อให้ agent เขียน documentation ได้ครบถ้วน`,
+    };
+
+    const en: Record<string, string> = {
+      bug:      `I have a bug that needs to be fixed. Please do the following:\n1. Analyze possible root causes of the bug\n2. Propose solutions with pros and cons for each approach\n3. Create a prompt for an AI coding agent (e.g. Claude, Cursor) to fix this bug directly, including context, expected outcome, and step-by-step instructions`,
+      feature:  `I need to implement a new feature. Please do the following:\n1. Analyze the requirements and help design the feature — UI/UX flow, data structure, edge cases\n2. Recommend a suitable implementation approach\n3. Create a prompt for an AI coding agent to develop this feature directly`,
+      analyze:  `I need a deep analysis of this task. Please do the following:\n1. Analyze the problem and requirements in depth — identify assumptions, constraints, and risks\n2. Propose solutions and compare the available options\n3. Create a prompt for an AI coding agent to proceed correctly`,
+      design:   `I need to design a system for this task. Please do the following:\n1. Design the architecture, data flow, and system structure\n2. Recommend a suitable technology stack and patterns\n3. Create a prompt for an AI coding agent to implement according to this design`,
+      refactor: `I need to refactor code for this task. Please do the following:\n1. Analyze issues in the existing code — code smells, complexity, maintainability\n2. Propose a refactoring approach with the principles used\n3. Create a prompt for an AI coding agent to safely refactor this code`,
+      optimize: `I need to improve the performance of this task. Please do the following:\n1. Identify likely bottlenecks and how to address them\n2. Propose optimization strategies with trade-offs\n3. Create a prompt for an AI coding agent to perform this optimization`,
+      test:     `I need to write unit tests for this task. Please do the following:\n1. Identify important test cases — happy path, edge cases, and error cases\n2. Recommend a testing strategy and suitable tools\n3. Create a prompt for an AI coding agent to write comprehensive tests`,
+      docs:     `I need to write documentation for this task. Please do the following:\n1. Identify what documentation is needed — README, API docs, usage examples\n2. Propose a structure and content outline\n3. Create a prompt for an AI coding agent to write complete documentation`,
+    };
+
+    const map = lang === "en" ? en : th;
+    const intro = map[mode] ?? map.analyze;
+    const taskSection = lang === "en"
+      ? (description ? `Task: ${title}\nDescription: ${description}` : `Task: ${title}`)
+      : (description ? `ชื่องาน: ${title}\nรายละเอียด: ${description}` : `ชื่องาน: ${title}`);
+    const closing = lang === "en" ? "Start now." : "เริ่มได้เลย";
+    return `${intro}\n\n${taskSection}\n\n${closing}`;
+  }
+
+  function openInChatGPT(mode: string) {
+    if (!task) return;
+    isChatGPTMenuOpen = false;
+    chatGPTSelectedMode = mode;
+    chatGPTPromptLabel = chatGPTModes.find(m => m.id === mode)?.label ?? "";
+    chatGPTPromptDraft = buildChatGPTPrompt(mode, chatGPTLang);
+    isChatGPTModalOpen = true;
+  }
+
+  function switchLang(lang: "th" | "en") {
+    chatGPTLang = lang;
+    chatGPTPromptDraft = buildChatGPTPrompt(chatGPTSelectedMode, lang);
+  }
+
+  async function sendToChatGPT() {
+    if (!selectedProvider.supportsQuery) {
+      await navigator.clipboard.writeText(chatGPTPromptDraft);
+      showMessage(`คัดลอก prompt แล้ว กำลังเปิด ${selectedProvider.name}...`, "success");
+    }
+    const url = selectedProvider.buildUrl(encodeURIComponent(chatGPTPromptDraft));
+    window.open(url, "_blank", "noopener,noreferrer");
+    isChatGPTModalOpen = false;
+  }
 </script>
 
 <svelte:window
@@ -660,6 +797,37 @@
       >
         <GitBranch size={18} />
       </button>
+      {#if task}
+        <div class="relative chatgpt-menu-container">
+          <button
+            on:click={() => (isChatGPTMenuOpen = !isChatGPTMenuOpen)}
+            class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors {isChatGPTMenuOpen ? 'bg-emerald-500/10 text-emerald-500' : 'text-slate-500 dark:text-slate-400'}"
+            title="ถาม ChatGPT"
+          >
+            <Bot size={18} />
+          </button>
+          {#if isChatGPTMenuOpen}
+            <div class="absolute right-0 top-full mt-1 w-56 bg-[#1c1c1c] border border-white/10 rounded-xl shadow-2xl z-99999 overflow-hidden animate-dropdown-in py-1">
+              <div class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500">ถาม AI เกี่ยวกับ...</div>
+              {#each chatGPTModes as mode}
+                <button
+                  type="button"
+                  on:click={() => openInChatGPT(mode.id)}
+                  class="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-white/6 transition-colors group"
+                >
+                  <span class="text-slate-400 group-hover:text-slate-200 transition-colors shrink-0">
+                    <svelte:component this={mode.icon} size={14} />
+                  </span>
+                  <span class="flex flex-col min-w-0">
+                    <span class="text-[13px] text-slate-200">{mode.label}</span>
+                    <span class="text-[11px] text-slate-500 mt-0.5">{mode.desc}</span>
+                  </span>
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      {/if}
       <button
         on:click={togglePin}
         class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors {isPinned
@@ -1448,6 +1616,132 @@
     onClose={() => (isDeleteConfirm = false)}
   />
 </div>
+
+{#if isChatGPTModalOpen}
+  <div
+    class="fixed inset-0 z-99999 flex items-center justify-center p-4"
+    role="dialog"
+    aria-modal="true"
+  >
+    <div
+      class="absolute inset-0 bg-black/60 backdrop-blur-sm"
+      on:click={() => (isChatGPTModalOpen = false)}
+      on:keydown={(e) => e.key === "Escape" && (isChatGPTModalOpen = false)}
+      role="button"
+      tabindex="-1"
+      aria-label="Close"
+    ></div>
+
+    <div class="relative w-full max-w-2xl bg-[#1c1c1c] border border-white/10 rounded-xl shadow-2xl flex flex-col max-h-[80vh]">
+      <!-- Header -->
+      <div class="flex items-center justify-between px-3 py-2 border-b border-white/10 shrink-0">
+        <div class="flex items-center gap-2">
+          <Bot size={14} class="text-slate-400" />
+          <span class="text-[13px] font-semibold text-slate-200">ถาม AI — {chatGPTPromptLabel}</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <button
+            type="button"
+            on:click={copyPrompt}
+            class="p-1.5 rounded-lg transition-colors {isCopied ? 'text-emerald-400' : 'text-slate-500 hover:text-slate-300 hover:bg-white/6'}"
+            aria-label="คัดลอก prompt"
+            title="คัดลอก prompt"
+          >
+            {#if isCopied}
+              <Check size={13} />
+            {:else}
+              <Copy size={13} />
+            {/if}
+          </button>
+          <button
+            on:click={() => (isChatGPTModalOpen = false)}
+            class="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-white/6 transition-colors"
+            aria-label="ปิด"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="flex flex-col gap-1.5 px-3 py-3 flex-1 overflow-hidden">
+        <div class="flex items-center justify-between">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500">แก้ไข prompt ก่อนส่งได้เลย</p>
+          <div class="flex items-center gap-1 bg-white/5 rounded-lg p-0.5">
+            <button
+              type="button"
+              on:click={() => switchLang("th")}
+              class="px-2.5 py-1 text-[11px] font-semibold rounded-md transition-colors {chatGPTLang === 'th' ? 'bg-white/15 text-slate-200' : 'text-slate-500 hover:text-slate-300'}"
+            >TH</button>
+            <button
+              type="button"
+              on:click={() => switchLang("en")}
+              class="px-2.5 py-1 text-[11px] font-semibold rounded-md transition-colors {chatGPTLang === 'en' ? 'bg-white/15 text-slate-200' : 'text-slate-500 hover:text-slate-300'}"
+            >EN</button>
+          </div>
+        </div>
+        <textarea
+          bind:value={chatGPTPromptDraft}
+          class="flex-1 min-h-70 w-full !bg-transparent border border-slate-700 rounded-lg px-3 py-2.5 text-[13px] text-slate-300 placeholder:text-slate-600 outline-none resize-none focus:border-slate-500 transition-all custom-scrollbar"
+          spellcheck="false"
+        ></textarea>
+      </div>
+
+      <!-- Footer -->
+      <div class="flex items-center justify-between px-3 py-2.5 border-t border-white/10 shrink-0">
+        <!-- Provider selector -->
+        <div class="relative provider-menu-container">
+          <button
+            type="button"
+            on:click={() => (isProviderMenuOpen = !isProviderMenuOpen)}
+            class="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] text-slate-400 hover:text-slate-200 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-colors"
+          >
+            <Bot size={12} />
+            <span>{selectedProvider.name}</span>
+            <ChevronDown size={11} class="opacity-60" />
+          </button>
+          {#if isProviderMenuOpen}
+            <div class="absolute left-0 bottom-full mb-1 w-44 bg-[#1c1c1c] border border-white/10 rounded-xl shadow-2xl z-99999 overflow-hidden py-1">
+              <div class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500">เลือก AI</div>
+              {#each aiProviders as provider, i}
+                {#if i > 0 && !aiProviders[i - 1].supportsQuery === false && !provider.supportsQuery}
+                  <div class="mx-3 my-1 border-t border-white/10"></div>
+                  <div class="px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-600">auto-copy</div>
+                {/if}
+                <button
+                  type="button"
+                  on:click={() => selectProvider(provider)}
+                  class="w-full flex items-center justify-between px-3 py-2 text-[13px] hover:bg-white/6 transition-colors {selectedProvider.id === provider.id ? 'text-slate-200' : 'text-slate-400'}"
+                >
+                  <span>{provider.name}</span>
+                  {#if selectedProvider.id === provider.id}
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  {/if}
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button
+            on:click={() => (isChatGPTModalOpen = false)}
+            class="px-3 py-1.5 text-[13px] text-slate-400 hover:text-slate-200 transition-colors"
+          >
+            ยกเลิก
+          </button>
+          <button
+            on:click={sendToChatGPT}
+            class="flex items-center gap-2 px-3 py-1.5 text-[13px] font-semibold bg-white/10 hover:bg-white/15 text-slate-200 rounded-lg transition-colors border border-white/10"
+          >
+            <Bot size={13} />
+            เปิด {selectedProvider.name}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <style>
   :global(.property-select .property-trigger-btn) {
