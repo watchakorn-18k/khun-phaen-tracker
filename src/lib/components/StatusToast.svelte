@@ -3,7 +3,7 @@
   import { _ } from "svelte-i18n";
 
   export let message = "";
-  export let type: "success" | "error" = "success";
+  export let type: "success" | "error" | "info" = "success";
   export let duration = 3000;
 
   let timeout: ReturnType<typeof setTimeout>;
@@ -25,7 +25,9 @@
     <div
       class="{type === 'success'
         ? 'bg-success'
-        : 'bg-danger'} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2"
+        : type === 'error'
+          ? 'bg-danger'
+          : 'bg-indigo-600'} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2"
     >
       {#if type === "success"}
         <svg
@@ -36,7 +38,7 @@
           stroke="currentColor"
           stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg
         >
-      {:else}
+      {:else if type === "error"}
         <svg
           width="20"
           height="20"
@@ -50,6 +52,21 @@
             x2="12"
             y2="12"
           ></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg
+        >
+      {:else}
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          ><circle cx="12" cy="12" r="10"></circle><line
+            x1="12"
+            y1="16"
+            x2="12.01"
+            y2="16"
+          ></line><line x1="12" y1="8" x2="12" y2="12"></line></svg
         >
       {/if}
       {message}

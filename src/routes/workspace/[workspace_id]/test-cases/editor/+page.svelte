@@ -7,6 +7,7 @@
   import { currentWorkspaceName } from "$lib/stores/workspace";
   import { getAssignees } from "$lib/db";
   import { api } from "$lib/apis";
+  import { user } from "$lib/stores/auth";
   import { createUIActions } from "$lib/stores/uiActions";
   import type { Assignee } from "$lib/types";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
@@ -40,18 +41,21 @@
     Clock,
     FileText,
   } from "lucide-svelte";
+  import TestCaseStepList from "$lib/components/TestCaseStepList.svelte";
 
-  type Status = "draft" | "actual" | "failed" | "blocked" | "deprecated";
+  type Status = "draft" | "actual" | "failed" | "blocked" | "deprecated" | "pass";
   type StepFormat = "gherkin" | "classic";
   type GherkinKeyword = "given" | "when" | "then" | "and";
   type GherkinStep = { keyword: GherkinKeyword; text: string };
   type ClassicStep = { action: string; data: string; expected: string };
 
   let suiteOptions: any[] = [];
+  $: canSeeStatus = $user?.role === "admin" || $user?.profile?.position === "QA Tester";
 
   const statusOptions = [
     { value: "draft", label: "Draft", icon: CircleDashed, iconClass: "text-gray-400" },
-    { value: "actual", label: "Actual", icon: CheckCircle2, iconClass: "text-green-400" },
+    { value: "actual", label: "Actual", icon: ListChecks, iconClass: "text-blue-400" },
+    { value: "pass", label: "Pass", icon: CheckCircle2, iconClass: "text-green-400" },
     { value: "failed", label: "Failed", icon: XCircle, iconClass: "text-rose-400" },
     { value: "blocked", label: "Blocked", icon: Ban, iconClass: "text-gray-500" },
     { value: "deprecated", label: "Deprecated", icon: History, iconClass: "text-gray-600" },
@@ -84,12 +88,6 @@
     { value: "classic", label: "Classic" },
   ];
 
-  const gherkinKeywordOptions = [
-    { value: "given", label: "Given" },
-    { value: "when", label: "When" },
-    { value: "then", label: "Then" },
-    { value: "and", label: "And" },
-  ];
 
   const mockCases: Record<string, {
     name: string;
@@ -313,65 +311,6 @@
     goto(`${base}/workspace/${workspaceId}/test-cases${query ? `?${query}` : ""}`);
   }
 
-  function addGherkinStep() {
-    const next: GherkinKeyword = gherkinSteps.length % 3 === 0 ? "given" : gherkinSteps.length % 3 === 1 ? "when" : "then";
-    gherkinSteps = [...gherkinSteps, { keyword: next, text: "" }];
-  }
-
-  function removeGherkinStep(index: number) {
-    gherkinSteps = gherkinSteps.filter((_, stepIndex) => stepIndex !== index);
-  }
-
-  function convertToRaw() {
-    gherkinRaw = gherkinSteps
-      .filter((s) => s.text.trim() || s.keyword)
-      .map((s) => `${s.keyword.charAt(0).toUpperCase() + s.keyword.slice(1)} ${s.text}`)
-      .join("\n");
-  }
-
-  function convertToSteps() {
-    const lines = gherkinRaw.split("\n").filter((line) => line.trim() !== "");
-    const parsed = lines.map((line) => {
-      const trimmed = line.trim();
-      const firstSpace = trimmed.indexOf(" ");
-      if (firstSpace !== -1) {
-        const firstWord = trimmed.substring(0, firstSpace).toLowerCase();
-        if (["given", "when", "then", "and"].includes(firstWord)) {
-          return { keyword: firstWord as GherkinKeyword, text: trimmed.substring(firstSpace + 1) };
-        }
-      }
-      return { keyword: "given" as GherkinKeyword, text: trimmed };
-    });
-    
-    if (parsed.length > 0) {
-      gherkinSteps = parsed;
-    } else {
-      gherkinSteps = [{ keyword: "given", text: "" }];
-    }
-  }
-
-  function highlightGherkin(text: string) {
-    if (!text) return "";
-    return text
-      .split("\n")
-      .map((line) => {
-        const match = line.match(/^(\s*)(Given|When|Then|And)\b(.*)/i);
-        if (match) {
-          const rest = match[3].replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-          return `${match[1]}<span class="text-sky-400 font-bold">${match[2]}</span><span class="text-gray-200">${rest}</span>`;
-        }
-        return `<span class="text-gray-200">${line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</span>`;
-      })
-      .join("<br>");
-  }
-
-  function addClassicStep() {
-    classicSteps = [...classicSteps, { action: "", data: "", expected: "" }];
-  }
-
-  function removeClassicStep(index: number) {
-    classicSteps = classicSteps.filter((_, stepIndex) => stepIndex !== index);
-  }
 
   async function handleSubmit() {
     if (!name.trim()) return;
@@ -537,15 +476,17 @@
         </div>
 
         <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
-          <label class="space-y-2">
-            <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
-              <ClipboardCheck size={14} />
-              Status
-            </span>
-            <div class="property-select">
-              <SearchableSelect id="editor-status" bind:value={status} options={statusOptions} showSearch={false} minimal={true} />
-            </div>
-          </label>
+          {#if canSeeStatus}
+            <label class="space-y-2">
+              <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
+                <ClipboardCheck size={14} />
+                Status
+              </span>
+              <div class="property-select">
+                <SearchableSelect id="editor-status" bind:value={status} options={statusOptions} showSearch={false} minimal={true} />
+              </div>
+            </label>
+          {/if}
 
           <label class="space-y-2">
             <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
@@ -757,89 +698,31 @@
           <div class="flex items-center gap-2">
             <h2 class="text-base font-black text-gray-100">Test Case Steps</h2>
             <div class="property-select min-w-[104px]">
-              <SearchableSelect id="editor-step-format" bind:value={stepFormat} options={stepFormatOptions} showSearch={false} minimal={true} />
+              <SearchableSelect
+                id="editor-step-format"
+                bind:value={stepFormat}
+                options={stepFormatOptions}
+                showSearch={false}
+                minimal={true}
+              />
             </div>
           </div>
-          {#if stepFormat === "gherkin"}
-            <div class="flex items-center gap-4 text-xs font-black">
-              <button 
-                type="button"
-                class="transition-colors hover:text-gray-300 {gherkinView === 'raw' ? 'text-indigo-400' : 'text-gray-500'}"
-                on:click={() => { gherkinView = 'raw'; convertToRaw(); }}
-              >
-                Raw
-              </button>
-              <button 
-                type="button"
-                class="transition-colors hover:text-gray-300 {gherkinView === 'steps' ? 'text-indigo-400' : 'text-gray-500'}"
-                on:click={() => { gherkinView = 'steps'; convertToSteps(); }}
-              >
-                Steps
-              </button>
-            </div>
-          {/if}
         </div>
 
         {#if stepFormat === "classic"}
-          <div class="space-y-4">
-            {#each classicSteps as step, index}
-              <div class="grid items-start gap-3" style="grid-template-columns: 28px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 72px;">
-                <div class="pt-2 text-center text-sm font-black text-gray-400">{index + 1}</div>
-                <textarea rows="1" bind:value={step.action} use:autoGrow class="min-h-[38px] w-full overflow-hidden resize-none rounded-lg border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-5 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20" placeholder="Action"></textarea>
-                <textarea rows="1" bind:value={step.data} use:autoGrow class="min-h-[38px] w-full overflow-hidden resize-none rounded-lg border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-5 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20" placeholder="Data"></textarea>
-                <textarea rows="1" bind:value={step.expected} use:autoGrow class="min-h-[38px] w-full overflow-hidden resize-none rounded-lg border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-5 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20" placeholder="Expected result"></textarea>
-                <div class="flex items-center gap-2 pt-1">
-                  <button type="button" class="grid h-8 w-8 place-items-center rounded-md text-gray-500 hover:text-rose-400" title="Delete step" on:click={() => removeClassicStep(index)}>
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-              </div>
-            {/each}
-          </div>
-          <div class="mt-5 flex flex-wrap items-center gap-3">
-            <button type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-sm font-black text-gray-200 hover:border-white/20" on:click={addClassicStep}>
-              <Plus size={15} />
-              New step
-            </button>
-          </div>
+          <TestCaseStepList
+            bind:steps={classicSteps}
+            format="classic"
+            readOnly={false}
+          />
         {:else}
-          {#if gherkinView === 'raw'}
-            <div class="relative min-h-40 w-full rounded-xl border border-white/10 bg-[#151e2e] text-sm font-medium leading-6 font-mono shadow-inner">
-              <!-- Syntax highlighting overlay -->
-              <div class="absolute inset-0 px-4 py-3 whitespace-pre-wrap break-words pointer-events-none" aria-hidden="true">
-                <!-- Add a dummy zero-width space if empty to maintain height, or rely on min-h-40 -->
-                {@html highlightGherkin(gherkinRaw) || ' '}
-              </div>
-              <!-- Invisible textarea for editing -->
-              <textarea
-                bind:value={gherkinRaw}
-                use:autoGrow
-                rows="1"
-                class="relative w-full h-full min-h-[38px] resize-none bg-transparent text-transparent caret-white px-4 py-3 outline-none border-none m-0 focus:ring-0"
-                spellcheck="false"
-                placeholder="Given preconditions...&#10;When actions...&#10;Then expected results..."
-              ></textarea>
-            </div>
-          {:else}
-            <div class="space-y-3">
-              {#each gherkinSteps as step, index}
-                <div class="grid items-center gap-3" style="grid-template-columns: 28px 110px minmax(0, 1fr) 32px;">
-                  <div class="text-center text-sm font-black text-gray-400">{index + 1}</div>
-                  <div class="property-select">
-                    <SearchableSelect id={`editor-step-keyword-${index}`} bind:value={step.keyword} options={gherkinKeywordOptions} showSearch={false} minimal={true} />
-                  </div>
-                  <input bind:value={step.text} class="h-10 min-w-0 rounded-lg border border-white/10 !bg-transparent px-3 text-sm font-medium text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20" placeholder="Write step..." />
-                  <button type="button" class="grid h-8 w-8 place-items-center rounded-md text-gray-500 hover:text-rose-400" title="Delete step" on:click={() => removeGherkinStep(index)}>
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-              {/each}
-            </div>
-            <button type="button" class="mt-5 inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm font-black text-indigo-400 hover:text-indigo-300" on:click={addGherkinStep}>
-              <Plus size={15} />
-              Add step
-            </button>
-          {/if}
+          <TestCaseStepList
+            bind:steps={gherkinSteps}
+            format="gherkin"
+            readOnly={false}
+            bind:gherkinView
+            bind:gherkinRaw
+          />
         {/if}
       </section>
     </main>

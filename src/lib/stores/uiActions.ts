@@ -1,6 +1,6 @@
 import { writable } from "svelte/store";
 
-export type ToastType = "success" | "error";
+export type ToastType = "success" | "error" | "info";
 export type ToastState = {
   message: string;
   type: ToastType;

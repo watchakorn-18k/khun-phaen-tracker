@@ -1316,5 +1316,9 @@
 	"testCases__title_placeholder": "Test case title",
 	"testCases__created_success": "Test case created",
 	"testCases__created_error": "Failed to create test case",
-	"testCases__empty_suite": "No test cases in this suite"
+	"testCases__empty_suite": "No test cases in this suite",
+	"testCases__add_step": "Add step",
+	"testCases__import": "Import CSV",
+	"testCases__export": "Export CSV",
+	"testCases__download_template": "Download Template"
 }

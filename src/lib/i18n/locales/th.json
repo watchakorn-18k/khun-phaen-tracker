@@ -1328,5 +1328,9 @@
 	"testCases__title_placeholder": "ชื่อ Test case",
 	"testCases__created_success": "สร้าง Test case สำเร็จ",
 	"testCases__created_error": "สร้าง Test case ไม่สำเร็จ",
-	"testCases__empty_suite": "ยังไม่มี test case ในชุดนี้"
+	"testCases__empty_suite": "ยังไม่มี test case ในชุดนี้",
+	"testCases__add_step": "เพิ่มขั้นตอน",
+	"testCases__import": "นำเข้า (Import)",
+	"testCases__export": "ส่งออก (Export)",
+	"testCases__download_template": "ดาวน์โหลดเทมเพลต"
 }

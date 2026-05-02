@@ -64,11 +64,14 @@ impl TestSuiteRepository {
     }
 
     pub async fn update(&self, id: &str, updates: mongodb::bson::Document) -> mongodb::error::Result<bool> {
+        let filter = Self::build_id_filter(id);
+        tracing::debug!("Updating suite {} with filter: {:?}", id, filter);
         let res = self.collection.update_one(
-            doc! { "_id": Self::build_id_filter(id) },
+            doc! { "_id": filter },
             doc! { "$set": updates },
             None
         ).await?;
+        tracing::debug!("Update result for {}: matched={}, modified={}", id, res.matched_count, res.modified_count);
         Ok(res.matched_count > 0)
     }
 

@@ -22,11 +22,13 @@
         RefreshCcw,
         KeyRound,
         Link as LinkIcon,
-        Edit2
+        Edit2,
+        Monitor, Server, Database, Smartphone, Palette, Layers
     } from 'lucide-svelte';
     import { base } from '$app/paths';
     import { api } from '$lib/apis';
     import { user } from '$lib/stores/auth';
+    import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 
     let users: any[] = [];
     let loading = true;
@@ -38,6 +40,16 @@
     let addLoading = false;
     let addError = '';
     let setupLink = '';
+
+    const positionOptions: Array<{ value: string; label: string; icon: any }> = [
+        { value: 'Full Stack Developer', label: 'Full Stack Developer', icon: Layers },
+        { value: 'Frontend Developer', label: 'Frontend Developer', icon: Monitor },
+        { value: 'Backend Developer', label: 'Backend Developer', icon: Server },
+        { value: 'QA Tester', label: 'QA Tester', icon: CheckCircle2 },
+        { value: 'Data Scientist', label: 'Data Scientist', icon: Database },
+        { value: 'UX/UI Designer', label: 'UX/UI Designer', icon: Palette },
+        { value: 'Mobile Developer', label: 'Mobile Developer', icon: Smartphone },
+    ];
     let registrationMode: 'invite' | 'password' = 'invite';
     let formData = {
         email: '',
@@ -520,7 +532,7 @@
                 </div>
 
                 <!-- Modal Body -->
-                <div class="p-6 max-h-[70vh] overflow-y-auto">
+                <div class="p-6 max-h-[85vh] overflow-y-auto">
                     <form on:submit|preventDefault={handleInvite} class="space-y-4">
                         <!-- Role Selection -->
                         <div class="grid grid-cols-2 gap-3 mb-2">
@@ -652,14 +664,16 @@
                             <div>
                                 <label for="position" class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">{$_('users__form_position')}</label>
                                 <div class="relative">
-                                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
+                                    <div class="absolute inset-y-0 left-0 pl-4 z-10 flex items-center pointer-events-none text-gray-400">
                                         <Briefcase size={16} />
                                     </div>
-                                    <input
+                                    <SearchableSelect
                                         id="position"
                                         bind:value={formData.position}
+                                        options={positionOptions}
                                         placeholder="Developer"
-                                        class="w-full pl-11 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                        showSearch={false}
+                                        customClass="pl-11"
                                     />
                                 </div>
                             </div>

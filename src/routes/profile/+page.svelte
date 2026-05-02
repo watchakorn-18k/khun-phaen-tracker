@@ -4,10 +4,14 @@
   import { base } from '$app/paths';
   import { browser } from '$app/environment';
   import { _ } from 'svelte-i18n';
-  import { User, Lock, Mail, Save, Fingerprint, AtSign, UserCircle2, ShieldCheck } from 'lucide-svelte';
+  import { 
+    User, Lock, Mail, Save, Fingerprint, AtSign, UserCircle2, ShieldCheck,
+    Monitor, Server, Database, Smartphone, Palette, CheckCircle2, Layers
+  } from 'lucide-svelte';
   import { api } from '$lib/apis';
   import { user, authLoading } from '$lib/stores/auth';
   import Sidebar from '$lib/components/Sidebar.svelte';
+  import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 
   let loading = false;
   let saveSuccess = false;
@@ -20,6 +24,16 @@
   let discordId = '';
   let password = '';
   let confirmPassword = '';
+
+  const positionOptions: Array<{ value: string; label: string; icon: any }> = [
+    { value: 'Full Stack Developer', label: 'Full Stack Developer', icon: Layers },
+    { value: 'Frontend Developer', label: 'Frontend Developer', icon: Monitor },
+    { value: 'Backend Developer', label: 'Backend Developer', icon: Server },
+    { value: 'QA Tester', label: 'QA Tester', icon: CheckCircle2 },
+    { value: 'Data Scientist', label: 'Data Scientist', icon: Database },
+    { value: 'UX/UI Designer', label: 'UX/UI Designer', icon: Palette },
+    { value: 'Mobile Developer', label: 'Mobile Developer', icon: Smartphone },
+  ];
 
   $: if (browser && !$authLoading && !$user) {
     goto(`${base}/login`);
@@ -255,10 +269,15 @@
                     {$_('users__form_position')}
                   </label>
                   <div class="relative group">
-                    <div class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-500 transition-colors"><Fingerprint size={16} /></div>
-                    <input type="text" id="position" bind:value={position}
-                      class="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm"
-                      placeholder={$_('profileModal__position_placeholder')} />
+                    <div class="absolute left-3 top-1/2 -translate-y-1/2 z-10 text-gray-400 group-focus-within:text-indigo-500 transition-colors pointer-events-none"><Fingerprint size={16} /></div>
+                    <SearchableSelect
+                      id="position"
+                      bind:value={position}
+                      options={positionOptions}
+                      placeholder={$_('profileModal__position_placeholder')}
+                      showSearch={false}
+                      customClass="pl-10"
+                    />
                   </div>
                 </div>
               </div>

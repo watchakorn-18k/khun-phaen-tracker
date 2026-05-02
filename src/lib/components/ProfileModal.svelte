@@ -1,9 +1,13 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import { X, User, Lock, Mail, Save, Fingerprint, AtSign } from 'lucide-svelte';
+	import { 
+        X, User, Lock, Mail, Save, Fingerprint, AtSign,
+        Monitor, Server, Database, Smartphone, Palette, CheckCircle2, Layers 
+    } from 'lucide-svelte';
 	import { _ } from 'svelte-i18n';
 	import { api } from '$lib/apis';
 	import { user } from '$lib/stores/auth';
+    import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 
 	const dispatch = createEventDispatcher<{
 		close: void;
@@ -23,6 +27,16 @@
 	let discordId = $user?.discord_id || '';
 	let password = '';
 	let confirmPassword = '';
+
+    const positionOptions: Array<{ value: string; label: string; icon: any }> = [
+        { value: 'Full Stack Developer', label: 'Full Stack Developer', icon: Layers },
+        { value: 'Frontend Developer', label: 'Frontend Developer', icon: Monitor },
+        { value: 'Backend Developer', label: 'Backend Developer', icon: Server },
+        { value: 'QA Tester', label: 'QA Tester', icon: CheckCircle2 },
+        { value: 'Data Scientist', label: 'Data Scientist', icon: Database },
+        { value: 'UX/UI Designer', label: 'UX/UI Designer', icon: Palette },
+        { value: 'Mobile Developer', label: 'Mobile Developer', icon: Smartphone },
+    ];
 
 	async function handleSubmit() {
 		if (password && password !== confirmPassword) {
@@ -91,7 +105,7 @@
 		on:click|self={() => dispatch('close')}
 	>
 		<div
-			class="bg-white dark:bg-gray-900 w-full max-w-xl rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col"
+			class="bg-white dark:bg-gray-900 w-full max-w-xl max-h-[90vh] rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col"
 		>
 			<div class="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
 				<div>
@@ -201,15 +215,16 @@
 									{$_('users__form_position')}
 								</label>
                                 <div class="relative group">
-                                    <div class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-500 transition-colors">
+                                    <div class="absolute left-3 top-1/2 -translate-y-1/2 z-10 text-gray-400 group-focus-within:text-indigo-500 transition-colors pointer-events-none">
                                         <Fingerprint size={16} />
                                     </div>
-                                    <input
-                                        type="text"
+                                    <SearchableSelect
                                         id="position"
                                         bind:value={position}
-                                        class="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm"
+                                        options={positionOptions}
                                         placeholder={$_('profileModal__position_placeholder')}
+                                        showSearch={false}
+                                        customClass="pl-10"
                                     />
                                 </div>
 							</div>

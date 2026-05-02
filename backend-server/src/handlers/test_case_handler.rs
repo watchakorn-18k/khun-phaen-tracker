@@ -147,15 +147,20 @@ pub async fn update_suite(
     let case_repo = TestCaseRepository::new(&state.db);
     let service = TestSuiteService::new(repo, case_repo);
 
-    match service.update_suite(&id, req.title).await {
+    match service.update_suite(&id, req.title.clone()).await {
         Ok(success) => {
             if success {
+                tracing::info!("Successfully updated suite: {}", id);
                 StatusCode::OK.into_response()
             } else {
+                tracing::warn!("Suite not found for update: {}", id);
                 (StatusCode::NOT_FOUND, "Suite not found").into_response()
             }
         }
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => {
+            tracing::error!("Failed to update suite {}: {:?}", id, e);
+            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response()
+        }
     }
 }
 
@@ -402,4 +407,117 @@ pub async fn upload_test_case_attachment(
             "attachments": attached_files
         })),
     )
+}
+
+#[derive(serde::Deserialize)]
+pub struct UpdateTestCaseStepsRequest {
+    pub step_format: String,
+    pub classic_steps: Option<Vec<crate::models::test_case::ClassicStep>>,
+    pub gherkin_steps: Option<Vec<crate::models::test_case::GherkinStep>>,
+}
+
+/// PATCH /api/test-cases/:id/steps
+pub async fn update_test_case_steps(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    Json(req): Json<UpdateTestCaseStepsRequest>,
+) -> impl IntoResponse {
+    let repo = TestCaseRepository::new(&state.db);
+
+    let tc = match repo.find_by_id(&id).await {
+        Ok(Some(tc)) => tc,
+        Ok(None) => return (StatusCode::NOT_FOUND, "Test case not found").into_response(),
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+
+    let mut updates = doc! {
+        "step_format": &req.step_format,
+        "updated_at": Utc::now().to_rfc3339(),
+    };
+
+    if req.step_format == "classic" {
+        if let Some(steps) = req.classic_steps {
+            if let Ok(bson) = mongodb::bson::to_bson(&steps) {
+                updates.insert("classic_steps", bson);
+                // Clear gherkin steps when switching to classic
+                updates.insert("gherkin_steps", mongodb::bson::Bson::Null);
+            }
+        }
+    } else if req.step_format == "gherkin" {
+        if let Some(steps) = req.gherkin_steps {
+            if let Ok(bson) = mongodb::bson::to_bson(&steps) {
+                updates.insert("gherkin_steps", bson);
+                // Clear classic steps when switching to gherkin
+                updates.insert("classic_steps", mongodb::bson::Bson::Null);
+            }
+        }
+    }
+
+    match repo.update(&id, &tc.workspace_id, updates).await {
+        Ok(true) => (StatusCode::OK, "Steps updated").into_response(),
+        Ok(false) => (StatusCode::NOT_FOUND, "Test case not found").into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+#[derive(serde::Deserialize)]
+pub struct UpdateTestCaseStatusRequest {
+    pub status: String,
+}
+
+/// PATCH /api/test-cases/:id/status
+pub async fn update_test_case_status(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    Json(req): Json<UpdateTestCaseStatusRequest>,
+) -> impl IntoResponse {
+    let repo = TestCaseRepository::new(&state.db);
+
+    let tc = match repo.find_by_id(&id).await {
+        Ok(Some(tc)) => tc,
+        Ok(None) => return (StatusCode::NOT_FOUND, "Test case not found").into_response(),
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+
+    let updates = doc! {
+        "status": req.status,
+        "updated_at": Utc::now().to_rfc3339(),
+    };
+
+    match repo.update(&id, &tc.workspace_id, updates).await {
+        Ok(true) => (StatusCode::OK, "Status updated").into_response(),
+        Ok(false) => (StatusCode::NOT_FOUND, "Test case not found").into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+#[derive(serde::Deserialize)]
+pub struct UpdateTestCaseFixedRequest {
+    pub fixed: String,
+}
+
+/// PATCH /api/test-cases/:id/fixed
+pub async fn update_test_case_fixed(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    Json(req): Json<UpdateTestCaseFixedRequest>,
+) -> impl IntoResponse {
+    let repo = TestCaseRepository::new(&state.db);
+
+    let tc = match repo.find_by_id(&id).await {
+        Ok(Some(tc)) => tc,
+        Ok(None) => return (StatusCode::NOT_FOUND, "Test case not found").into_response(),
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+
+    let updates = doc! {
+        "fixed": req.fixed,
+        "updated_at": Utc::now().to_rfc3339(),
+    };
+
+    match repo.update(&id, &tc.workspace_id, updates).await {
+        Ok(true) => (StatusCode::OK, "Fixed status updated").into_response(),
+        Ok(false) => (StatusCode::NOT_FOUND, "Test case not found").into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
 }

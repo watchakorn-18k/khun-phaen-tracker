@@ -412,16 +412,14 @@ async fn main() {
         )
         .route(
             "/api/test-suites/:id",
-            patch(handlers::test_case_handler::update_suite),
-        )
-        .route(
-            "/api/test-suites/:id",
-            delete(handlers::test_case_handler::delete_suite),
+            patch(handlers::test_case_handler::update_suite)
+                .delete(handlers::test_case_handler::delete_suite),
         )
         // Test case routes
         .route(
             "/api/workspaces/:ws_id/test-cases",
-            get(handlers::test_case_handler::list_test_cases),
+            get(handlers::test_case_handler::list_test_cases)
+                .post(handlers::test_case_handler::create_test_case),
         )
         .route(
             "/api/workspaces/:ws_id/test-cases/next-number",
@@ -429,15 +427,20 @@ async fn main() {
         )
         .route(
             "/api/test-cases/:id",
-            get(handlers::test_case_handler::get_test_case),
+            get(handlers::test_case_handler::get_test_case)
+                .patch(handlers::test_case_handler::update_test_case),
         )
         .route(
-            "/api/test-cases/:id",
-            patch(handlers::test_case_handler::update_test_case),
+            "/api/test-cases/:id/steps",
+            patch(handlers::test_case_handler::update_test_case_steps),
         )
         .route(
-            "/api/workspaces/:ws_id/test-cases",
-            post(handlers::test_case_handler::create_test_case),
+            "/api/test-cases/:id/status",
+            patch(handlers::test_case_handler::update_test_case_status),
+        )
+        .route(
+            "/api/test-cases/:id/fixed",
+            patch(handlers::test_case_handler::update_test_case_fixed),
         )
         .route(
             "/api/workspaces/:ws_id/test-cases/:test_case_id/attachments",

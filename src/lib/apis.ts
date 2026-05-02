@@ -1009,6 +1009,30 @@ export const api = {
           body: JSON.stringify(testCase),
         });
       },
+      updateSteps: (id: string, payload: { step_format: string, classic_steps?: any[], gherkin_steps?: any[] }): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/test-cases/${id}/steps`, {
+          method: "PATCH",
+          headers: api.data._headers(true),
+          credentials: "include",
+          body: JSON.stringify(payload),
+        });
+      },
+      updateStatus: (id: string, status: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/test-cases/${id}/status`, {
+          method: "PATCH",
+          headers: api.data._headers(true),
+          credentials: "include",
+          body: JSON.stringify({ status }),
+        });
+      },
+      updateFixed: (id: string, fixed: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/test-cases/${id}/fixed`, {
+          method: "PATCH",
+          headers: api.data._headers(true),
+          credentials: "include",
+          body: JSON.stringify({ fixed }),
+        });
+      },
       uploadAttachment: (wsId: string, testCaseId: string, formData: FormData): Promise<Response> => {
         const headers = api.data._headers();
         // Browser sets Content-Type automatically for FormData with boundary
