@@ -6,6 +6,9 @@
   import PaginationFooter from "./PaginationFooter.svelte";
   import PriorityBadge from "./PriorityBadge.svelte";
   import { _ } from "$lib/i18n";
+  import { columnSettings } from "$lib/stores/columnSettings";
+
+  $: enabledColumns = new Map($columnSettings.map((s) => [s.id, s.enabled]));
 
   const dispatch = createEventDispatcher<{
     move: { id: string | number; newStatus: Task["status"] };
@@ -232,14 +235,12 @@
               tabindex="0"
             >
               <!-- Task ID + menu -->
-              <div class="flex items-center justify-between mb-1.5">
-                {#if getTaskId(task)}
-                  <span class="text-[10px] font-semibold text-gray-400 dark:text-gray-500 tracking-wide">
-                    {getTaskId(task)}
-                  </span>
-                {:else}
-                  <span></span>
-                {/if}
+               <div class="flex items-center justify-between mb-1">
+                 <div class="flex items-center">
+                   {#if enabledColumns.get('priority') && task.priority && task.priority !== 'none'}
+                     <PriorityBadge priority={task.priority} />
+                   {/if}
+                 </div>
                 <button
                   on:click|stopPropagation={() =>
                     (openMenuId = openMenuId === task.id ? null : task.id)}
@@ -250,32 +251,37 @@
               </div>
 
               <!-- Title -->
-              <h4 class="text-sm font-medium text-gray-900 dark:text-white leading-snug mb-1 {status === 'done' ? 'line-through' : ''}">
+              <h4 class="text-sm font-semibold text-gray-900 dark:text-white leading-snug mb-1.5 {status === 'done' ? 'line-through' : ''}">
+                {#if enabledColumns.get('id') && getTaskId(task)}
+                  <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500 mr-1.5 tracking-wide">
+                    {getTaskId(task)}
+                  </span>
+                {/if}
                 {task.title}
               </h4>
 
-              <!-- Description (notes) -->
-              {#if task.notes}
-                <p class="text-xs text-gray-400 dark:text-gray-500 line-clamp-2 mb-2">
-                  {task.notes}
-                </p>
-              {/if}
+               <!-- Description (notes) -->
+               {#if enabledColumns.get('description') && task.notes}
+                 <p class="text-xs text-gray-400 dark:text-gray-500 line-clamp-2 mb-2">
+                   {task.notes}
+                 </p>
+               {/if}
 
-              <!-- Checklist progress -->
-              {#if task.checklist && task.checklist.length > 0}
-                {@const completed = task.checklist.filter((i) => i.completed).length}
-                {@const total = task.checklist.length}
-                {@const percent = Math.round((completed / total) * 100)}
-                <div class="mb-2">
-                  <div class="flex items-center gap-1.5 text-[10px] text-gray-400 dark:text-gray-500 mb-1">
-                    <ListTodo size={10} />
-                    <span>{completed}/{total}</span>
-                    <div class="flex-1 h-1 bg-gray-100 dark:bg-gray-700/50 rounded-full overflow-hidden">
-                      <div class="h-full bg-primary transition-all duration-300" style="width: {percent}%"></div>
-                    </div>
-                  </div>
-                </div>
-              {/if}
+               <!-- Checklist progress -->
+               {#if enabledColumns.get('checklist') && task.checklist && task.checklist.length > 0}
+                 {@const completed = task.checklist.filter((i) => i.completed).length}
+                 {@const total = task.checklist.length}
+                 {@const percent = Math.round((completed / total) * 100)}
+                 <div class="mb-2">
+                   <div class="flex items-center gap-1.5 text-[10px] text-gray-400 dark:text-gray-500 mb-1">
+                     <ListTodo size={10} />
+                     <span>{completed}/{total}</span>
+                     <div class="flex-1 h-1 bg-gray-100 dark:bg-gray-700/50 rounded-full overflow-hidden">
+                       <div class="h-full bg-primary transition-all duration-300" style="width: {percent}%"></div>
+                     </div>
+                   </div>
+                 </div>
+               {/if}
 
               <!-- Footer: assignees + category -->
               <div class="flex items-center justify-between mt-1.5 gap-2">
@@ -300,9 +306,6 @@
                 </div>
 
                 <div class="flex items-center gap-1.5 flex-wrap justify-end">
-                  {#if task.priority && task.priority !== 'none'}
-                    <PriorityBadge priority={task.priority} />
-                  {/if}
                   <!-- Category badge -->
                   {#if task.category}
                     <span class="text-[10px] font-medium px-1.5 py-0.5 rounded {getCategoryBadgeClass(task.category)} shrink-0">

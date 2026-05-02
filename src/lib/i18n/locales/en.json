@@ -517,6 +517,7 @@
 	"tableView__column_due_date": "Due Date",
 	"tableView__column_date_short": "Date",
 	"tableView__column_actions": "Actions",
+	"tableView__column_priority": "Priority",
 	"tableView__category_other": "Other",
 	"tableView__status_click_hint": "Click to change status",
 	"tableView__status_short_pending": "Hold",

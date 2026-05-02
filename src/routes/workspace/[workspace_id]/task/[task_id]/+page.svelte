@@ -71,6 +71,7 @@
   } from "lucide-svelte";
   import ConfirmModal from "$lib/components/ConfirmModal.svelte";
   import BranchDialog from "$lib/components/BranchDialog.svelte";
+  import PriorityBadge from "$lib/components/PriorityBadge.svelte";
   import RichTextEditor from "$lib/components/editor/RichTextEditor.svelte";
   import TitleEditor from "$lib/components/editor/TitleEditor.svelte";
   import ChecklistManager from "$lib/components/ChecklistManager.svelte";
@@ -246,6 +247,7 @@
   async function resolveWorkspaceShortName(sourceTask: Task) {
     const existingShortName =
       sourceTask.workspace_short_name ||
+      currentProject?.short_name ||
       get(currentWorkspaceShortName) ||
       workspaceShortNameFallback;
     if (existingShortName) return existingShortName;
@@ -780,17 +782,19 @@
               />
             {:else}
               <div class="flex items-center gap-2 mb-1">
+                {#if task.priority && task.priority !== 'none'}
+                  <PriorityBadge priority={task.priority} />
+                {/if}
                 {#if task.task_number}
                   {@const displayShortName =
-                    $currentWorkspaceShortName ||
+                    projectShortName ||
                     task.workspace_short_name ||
+                    $currentWorkspaceShortName ||
                     workspaceShortNameFallback}
                   <span
                     class="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 tracking-wide"
                   >
-                    {displayShortName
-                      ? `${displayShortName}-${task.task_number}`
-                      : `#${task.task_number}`}
+                    {displayShortName || "TASK"}-{task.task_number}
                   </span>
                 {/if}
               </div>
@@ -1427,7 +1431,7 @@
     <BranchDialog
       show={isBranchDialogOpen}
       title={task.title}
-      workspaceShortName={projectShortName || task.workspace_short_name || ""}
+      workspaceShortName={task.workspace_short_name || projectShortName || ""}
       taskNumber={task.task_number || null}
       on:close={closeBranchDialog}
     />

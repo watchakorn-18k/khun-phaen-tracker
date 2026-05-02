@@ -11,7 +11,9 @@
     MessageSquareQuote,
     Settings,
     Rocket,
+    SlidersHorizontal,
   } from "lucide-svelte";
+  import ColumnSettingsDropdown from "./ColumnSettingsDropdown.svelte";
 
   export let isFiltersOpen: boolean = false;
   export let isOwner: boolean = false;
@@ -24,7 +26,46 @@
   export let showWorkspaceSettings: boolean = true;
   export let showMilestones: boolean = true;
 
+  let showColumnSettings = false;
   const dispatch = createEventDispatcher();
+
+  let buttonEl: HTMLButtonElement;
+  let dropdownEl: HTMLDivElement;
+  let dropdownPos = { top: 0, left: 0 };
+
+  $: if (showColumnSettings && buttonEl) {
+    const rect = buttonEl.getBoundingClientRect();
+    dropdownPos = { top: rect.bottom + 8, left: rect.left };
+  }
+
+  function toggleColumnSettings() {
+    showColumnSettings = !showColumnSettings;
+  }
+
+  function closeColumnSettings() {
+    showColumnSettings = false;
+  }
+
+  function handleWindowClick(e: MouseEvent) {
+    if (!showColumnSettings) return;
+    const target = e.target as Node;
+    if (buttonEl && buttonEl.contains(target)) return;
+    if (dropdownEl && dropdownEl.contains(target)) return;
+    closeColumnSettings();
+  }
+
+  function portal(node: HTMLElement) {
+    document.body.appendChild(node);
+    return {
+      destroy() {
+        if (node.parentNode) node.parentNode.removeChild(node);
+      },
+    };
+  }
+
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.key === "Escape") closeColumnSettings();
+  }
 
   function toggleFilters() {
     dispatch("toggleFilters");
@@ -64,6 +105,8 @@
 
 </script>
 
+<svelte:window on:click={handleWindowClick} />
+
 <div
   class="relative z-30 flex flex-col md:flex-row items-center gap-3 bg-white/50 dark:bg-gray-900/30 p-2 rounded-2xl border border-gray-200/50 dark:border-gray-800/50 backdrop-blur-sm transition-all group shadow-sm"
 >
@@ -81,6 +124,30 @@
     >
       <Filter size={20} />
     </button>
+
+    <div class="relative">
+      <button
+        bind:this={buttonEl}
+        on:click={toggleColumnSettings}
+        class="flex items-center justify-center w-12 h-12 shrink-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all shadow-sm {showColumnSettings
+          ? 'bg-primary/10 border-primary text-primary'
+          : ''}"
+        title={$_("page__display_settings")}
+      >
+        <SlidersHorizontal size={20} />
+      </button>
+
+      {#if showColumnSettings}
+        <div
+          use:portal
+          bind:this={dropdownEl}
+          class="fixed z-[9999]"
+          style="top: {dropdownPos.top}px; left: {dropdownPos.left}px;"
+        >
+          <ColumnSettingsDropdown on:close={closeColumnSettings} />
+        </div>
+      {/if}
+    </div>
 
     {#if showTeam}
       <button

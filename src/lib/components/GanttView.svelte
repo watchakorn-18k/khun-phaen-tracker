@@ -3,6 +3,7 @@
   import type { Task, Sprint } from '$lib/types';
   import { _ } from '$lib/i18n';
   import { Folder, Flag } from 'lucide-svelte';
+  import PriorityBadge from './PriorityBadge.svelte';
   import SearchableSprintSelect from './SearchableSprintSelect.svelte';
   
   export let tasks: Task[] = [];
@@ -231,14 +232,21 @@
                     >
                         <!-- Sidebar Item -->
                         <div class="sticky left-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 border-r border-gray-200 dark:border-gray-700 p-3 text-sm truncate flex items-center justify-between" style="width: {SIDEBAR_WIDTH}px; min-width: {SIDEBAR_WIDTH}px; height: {ROW_HEIGHT}px;">
-                            <span class="truncate pl-4 border-l-2 border-gray-100 dark:border-gray-700" title={task.task_number ? `#${task.task_number} ${task.title}` : task.title}>
-                                {#if task.task_number}
-                                    <span class="inline-flex items-center mr-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary align-middle">
-                                        #{task.task_number}
-                                    </span>
+                            <div class="flex flex-col gap-0.5 flex-1 min-w-0" title="{task.priority && task.priority !== 'none' ? task.priority + ' ' : ''}{task.workspace_short_name || 'TASK'}-{task.task_number} {task.title}">
+                                {#if task.priority && task.priority !== 'none'}
+                                    <div class="flex items-center">
+                                        <PriorityBadge priority={task.priority} />
+                                    </div>
                                 {/if}
-                                {task.title}
-                            </span>
+                                <span class="truncate text-gray-900 dark:text-white font-medium">
+                                    {#if task.task_number}
+                                        <span class="text-gray-500 dark:text-gray-400 text-[9px] font-bold mr-1">
+                                            {task.workspace_short_name || "TASK"}-{task.task_number}
+                                        </span>
+                                    {/if}
+                                    {task.title}
+                                </span>
+                            </div>
                              <button class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-blue-500" aria-label="Edit task" on:click|stopPropagation={() => handleTaskClick(task)}>
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                             </button>
@@ -264,9 +272,9 @@
                                 on:keydown={(e) => e.key === 'Enter' && handleTaskClick(task)}
                                 role="button"
                                 tabindex="0"
-                                title="{task.task_number ? `#${task.task_number} ` : ''}{task.title} ({task._start.toLocaleDateString()} - {task._end.toLocaleDateString()})"
+                                title="{task.priority && task.priority !== 'none' ? task.priority + ' ' : ''}{task.workspace_short_name || 'TASK'}-{task.task_number} {task.title} ({task._start.toLocaleDateString()} - {task._end.toLocaleDateString()})"
                             >
-                                {#if task.task_number}#{task.task_number} {/if}{task.title}
+                                {#if task.task_number}{task.workspace_short_name || 'TASK'}-{task.task_number} {/if}{task.title}
                             </div>
                         </div>
                     </div>

@@ -182,17 +182,13 @@
 
   $: activeSprint = sprints.find((s) => s.status === "active");
   $: currentProjectObj = projects.find((p) => p.name === project);
-  $: workspaceBadgePrefix = (
-    currentProjectObj?.short_name ||
-    editingTask?.workspace_short_name ||
-    editingTask?.workspace_name ||
-    $currentWorkspaceShortName ||
-    $currentWorkspaceName ||
-    ""
-  )
-    .replace(/\s+/g, "")
-    .slice(0, 4)
-    .toUpperCase();
+  $: workspaceBadgePrefix = (() => {
+    const sn = currentProjectObj?.short_name || editingTask?.workspace_short_name || $currentWorkspaceShortName;
+    if (sn) return sn.toUpperCase();
+    
+    const name = editingTask?.workspace_name || $currentWorkspaceName || "";
+    return name.replace(/\s+/g, "").slice(0, 4).toUpperCase();
+  })();
   $: displayTaskNumber = editingTask?.task_number ?? nextTaskNumber;
   $: taskNumberBadge =
     displayTaskNumber && workspaceBadgePrefix

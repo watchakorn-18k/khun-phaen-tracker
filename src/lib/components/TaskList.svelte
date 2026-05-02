@@ -17,6 +17,9 @@
   import PaginationFooter from "./PaginationFooter.svelte";
   import PriorityBadge from "./PriorityBadge.svelte";
   import { _ } from "$lib/i18n";
+  import { columnSettings } from "$lib/stores/columnSettings";
+
+  $: enabledColumns = new Map($columnSettings.map((s) => [s.id, s.enabled]));
 
   const dispatch = createEventDispatcher<{
     edit: Task;
@@ -110,19 +113,12 @@
         >
           <div class="flex items-start justify-between gap-4">
             <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2 flex-wrap">
-                <h3 class="font-medium text-gray-900 dark:text-white truncate">
-                  {#if task.task_number}
-                    <span
-                      class="inline-flex items-center mr-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary align-middle"
-                    >
-                      #{task.task_number}
-                    </span>
-                  {/if}
-                  {task.title}
-                </h3>
+              <div class="flex items-center gap-2 mb-1.5">
+                {#if enabledColumns.get('priority')}
+                  <PriorityBadge priority={task.priority} />
+                {/if}
                 <span
-                  class="px-2 py-0.5 text-xs rounded-full border {getStatusColor(
+                  class="px-2 py-0.5 text-[10px] font-bold rounded-full border {getStatusColor(
                     task.status,
                     task.is_archived,
                   )}"
@@ -130,16 +126,25 @@
                   {getStatusText(task.status, task.is_archived)}
                 </span>
               </div>
+              <h3 class="font-semibold text-gray-900 dark:text-white text-base leading-snug">
+                {#if enabledColumns.get('id') && task.task_number}
+                  <span class="text-gray-500 dark:text-gray-400 mr-2 text-sm font-bold">
+                    {task.workspace_short_name || "TASK"}-{task.task_number}
+                  </span>
+                {/if}
+                {task.title}
+              </h3>
 
               <div
                 class="flex items-center gap-4 mt-2 text-sm text-gray-500 dark:text-gray-400 flex-wrap"
               >
-                <PriorityBadge priority={task.priority} />
-                <span class="flex items-center gap-1">
-                  <Calendar size={14} />
-                  {formatDate(task.date)}
-                </span>
-                {#if task.project}
+                {#if enabledColumns.get('date')}
+                  <span class="flex items-center gap-1">
+                    <Calendar size={14} />
+                    {formatDate(task.date)}
+                  </span>
+                {/if}
+                {#if enabledColumns.get('project') && task.project}
                   <span
                     class="flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded text-xs"
                   >
@@ -163,13 +168,15 @@
                     {getSprintName(task.sprint_id)}
                   </span>
                 {/if}
-                <span class="flex items-center gap-1">
-                  <Tag size={14} />
-                  {task.category}
-                </span>
+                {#if enabledColumns.get('category')}
+                  <span class="flex items-center gap-1">
+                    <Tag size={14} />
+                    {task.category}
+                  </span>
+                {/if}
               </div>
 
-              {#if task.notes}
+              {#if enabledColumns.get('description') && task.notes}
                 <p
                   class="mt-2 text-sm text-gray-600 dark:text-gray-300 flex items-start gap-1"
                 >
@@ -178,7 +185,7 @@
                 </p>
               {/if}
 
-              {#if task.checklist && task.checklist.length > 0}
+              {#if enabledColumns.get('checklist') && task.checklist && task.checklist.length > 0}
                 {@const completed = task.checklist.filter(
                   (i) => i.completed,
                 ).length}

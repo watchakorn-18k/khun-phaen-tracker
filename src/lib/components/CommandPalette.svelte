@@ -260,9 +260,11 @@
         score,
         item: {
           id: `task-${task.id}`,
-          label: t("commandPalette__open_task_label", {
-            values: { title: task.title },
-          }),
+          label: (() => {
+            const prefix = task.workspace_short_name || "TASK";
+            const id = task.task_number ? `${prefix}-${task.task_number} ` : "";
+            return id + task.title;
+          })(),
           description: `${task.project || t("commandPalette__no_project")} · ${getCommandStatusInfo(task.status).label}`,
           keywords: [
             task.title,

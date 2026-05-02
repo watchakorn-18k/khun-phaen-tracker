@@ -32,9 +32,11 @@
   import PaginationFooter from "./PaginationFooter.svelte";
   import Tooltip from "./Tooltip.svelte";
   import PriorityBadge from "./PriorityBadge.svelte";
+  import { columnSettings } from "$lib/stores/columnSettings";
 
   export let tasks: Task[] = [];
   export let sprints: Sprint[] = [];
+  $: enabledColumns = new Map($columnSettings.map((s) => [s.id, s.enabled]));
   export let currentPage: number = 1;
   export let totalPages: number = 1;
   export let totalTasks: number = 0;
@@ -61,7 +63,15 @@
     return sprints.find((s) => String(s.id) === String(sprintId))?.name || null;
   }
 
+  const priorityOrder: Record<string, number> = {
+    high: 3,
+    medium: 2,
+    low: 1,
+    none: 0,
+  };
+
   type SortColumn =
+    | "priority"
     | "title"
     | "project"
     | "date"
@@ -79,6 +89,7 @@
 
   const COL_WIDTHS_KEY = "tableView_colWidths_v2";
   type ColumnKey =
+    | "priority"
     | "title"
     | "project"
     | "category"
@@ -88,6 +99,7 @@
     | "date";
   type ColumnWidths = Record<ColumnKey, number>;
   const defaultColWidths: ColumnWidths = {
+    priority: 65,
     title: 200,
     project: 120,
     category: 100,
@@ -163,6 +175,10 @@
     let bVal: any;
 
     switch (sortColumn) {
+      case "priority":
+        aVal = priorityOrder[a.priority || "none"] ?? 0;
+        bVal = priorityOrder[b.priority || "none"] ?? 0;
+        break;
       case "assignee":
         // Sort by first assignee's name, or empty if no assignees
         aVal = a.assignees && a.assignees.length > 0 ? a.assignees[0].name : "";
@@ -177,8 +193,8 @@
         bVal = dueDateOf(b);
         break;
       default:
-        aVal = a[sortColumn] || "";
-        bVal = b[sortColumn] || "";
+        aVal = (a as any)[sortColumn] || "";
+        bVal = (b as any)[sortColumn] || "";
     }
 
     if (typeof aVal === "string") {
@@ -503,6 +519,18 @@
               class="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
             />
           </th>
+          {#if enabledColumns.get('priority')}
+            <th class="px-2 py-2 text-left relative" style="width: {displayColWidth('priority')}px;">
+              <button
+                on:click={() => toggleSort("priority")}
+                class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
+              >
+                {$_("tableView__column_priority")}
+                <svelte:component this={getSortIcon("priority")} size={12} />
+              </button>
+              <div class="col-resize-handle {resizingCol === 'priority' ? 'active' : ''}" on:mousedown={(e) => startColResize('priority', e)}></div>
+            </th>
+          {/if}
           <th class="px-3 py-2 text-left relative" style="width: {displayColWidth('title')}px;">
             <button
               on:click={() => toggleSort("title")}
@@ -514,83 +542,95 @@
             <!-- svelte-ignore a11y-no-static-element-interactions -->
             <div class="col-resize-handle {resizingCol === 'title' ? 'active' : ''}" on:mousedown={(e) => startColResize('title', e)}></div>
           </th>
-          <th class="px-3 py-2 text-left hidden lg:table-cell relative" style="width: {displayColWidth('project')}px;">
-            <button
-              on:click={() => toggleSort("project")}
-              class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
-            >
-              <Folder size={12} />
-              {$_("tableView__column_project")}
-              <svelte:component this={getSortIcon("project")} size={12} />
-            </button>
-            <!-- svelte-ignore a11y-no-static-element-interactions -->
-            <div class="col-resize-handle {resizingCol === 'project' ? 'active' : ''}" on:mousedown={(e) => startColResize('project', e)}></div>
-          </th>
-          <th class="px-3 py-2 text-left hidden xl:table-cell relative" style="width: {displayColWidth('category')}px;">
-            <button
-              on:click={() => toggleSort("category")}
-              class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
-            >
-              {$_("tableView__column_category")}
-              <svelte:component this={getSortIcon("category")} size={12} />
-            </button>
-            <!-- svelte-ignore a11y-no-static-element-interactions -->
-            <div class="col-resize-handle {resizingCol === 'category' ? 'active' : ''}" on:mousedown={(e) => startColResize('category', e)}></div>
-          </th>
-          <th class="px-3 py-2 text-left relative" style="width: {displayColWidth('assignee')}px;">
-            <button
-              on:click={() => toggleSort("assignee")}
-              class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
-            >
-              <User size={12} />
-              <span class="hidden lg:inline"
-                >{$_("tableView__column_assignee")}</span
+          {#if enabledColumns.get('project')}
+            <th class="px-3 py-2 text-left hidden lg:table-cell relative" style="width: {displayColWidth('project')}px;">
+              <button
+                on:click={() => toggleSort("project")}
+                class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
               >
-              <span class="lg:hidden"
-                >{$_("tableView__column_assignee_short")}</span
+                <Folder size={12} />
+                {$_("tableView__column_project")}
+                <svelte:component this={getSortIcon("project")} size={12} />
+              </button>
+              <!-- svelte-ignore a11y-no-static-element-interactions -->
+              <div class="col-resize-handle {resizingCol === 'project' ? 'active' : ''}" on:mousedown={(e) => startColResize('project', e)}></div>
+            </th>
+          {/if}
+          {#if enabledColumns.get('category')}
+            <th class="px-3 py-2 text-left hidden xl:table-cell relative" style="width: {displayColWidth('category')}px;">
+              <button
+                on:click={() => toggleSort("category")}
+                class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
               >
-              <svelte:component this={getSortIcon("assignee")} size={12} />
-            </button>
-            <!-- svelte-ignore a11y-no-static-element-interactions -->
-            <div class="col-resize-handle {resizingCol === 'assignee' ? 'active' : ''}" on:mousedown={(e) => startColResize('assignee', e)}></div>
-          </th>
-          <th class="px-3 py-2 text-left hidden xl:table-cell relative" style="width: {displayColWidth('sprint')}px;">
-            <span
-              class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider"
-            >
-              <Flag size={12} />
-              {$_("tableView__column_sprint")}
-            </span>
-            <!-- svelte-ignore a11y-no-static-element-interactions -->
-            <div class="col-resize-handle {resizingCol === 'sprint' ? 'active' : ''}" on:mousedown={(e) => startColResize('sprint', e)}></div>
-          </th>
-          <th class="px-3 py-2 text-left relative" style="width: {displayColWidth('status')}px;">
-            <button
-              on:click={() => toggleSort("status")}
-              class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
-            >
-              {$_("tableView__column_status")}
-              <svelte:component this={getSortIcon("status")} size={12} />
-            </button>
-            <!-- svelte-ignore a11y-no-static-element-interactions -->
-            <div class="col-resize-handle {resizingCol === 'status' ? 'active' : ''}" on:mousedown={(e) => startColResize('status', e)}></div>
-          </th>
-          <th class="px-3 py-2 text-left relative" style="width: {displayColWidth('date')}px;">
-            <button
-              on:click={() => toggleSort("date")}
-              class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
-            >
-              <Calendar size={12} />
-              <span class="hidden lg:inline"
-                >{$_("tableView__column_due_date")}</span
+                {$_("tableView__column_category")}
+                <svelte:component this={getSortIcon("category")} size={12} />
+              </button>
+              <!-- svelte-ignore a11y-no-static-element-interactions -->
+              <div class="col-resize-handle {resizingCol === 'category' ? 'active' : ''}" on:mousedown={(e) => startColResize('category', e)}></div>
+            </th>
+          {/if}
+          {#if enabledColumns.get('assignee')}
+            <th class="px-3 py-2 text-left relative" style="width: {displayColWidth('assignee')}px;">
+              <button
+                on:click={() => toggleSort("assignee")}
+                class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
               >
-              <span class="lg:hidden">{$_("tableView__column_date_short")}</span
+                <User size={12} />
+                <span class="hidden lg:inline"
+                  >{$_("tableView__column_assignee")}</span
+                >
+                <span class="lg:hidden"
+                  >{$_("tableView__column_assignee_short")}</span
+                >
+                <svelte:component this={getSortIcon("assignee")} size={12} />
+              </button>
+              <!-- svelte-ignore a11y-no-static-element-interactions -->
+              <div class="col-resize-handle {resizingCol === 'assignee' ? 'active' : ''}" on:mousedown={(e) => startColResize('assignee', e)}></div>
+            </th>
+          {/if}
+          {#if enabledColumns.get('sprint')}
+            <th class="px-3 py-2 text-left hidden xl:table-cell relative" style="width: {displayColWidth('sprint')}px;">
+              <span
+                class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider"
               >
-              <svelte:component this={getSortIcon("date")} size={12} />
-            </button>
-            <!-- svelte-ignore a11y-no-static-element-interactions -->
-            <div class="col-resize-handle {resizingCol === 'date' ? 'active' : ''}" on:mousedown={(e) => startColResize('date', e)}></div>
-          </th>
+                <Flag size={12} />
+                {$_("tableView__column_sprint")}
+              </span>
+              <!-- svelte-ignore a11y-no-static-element-interactions -->
+              <div class="col-resize-handle {resizingCol === 'sprint' ? 'active' : ''}" on:mousedown={(e) => startColResize('sprint', e)}></div>
+            </th>
+          {/if}
+          {#if enabledColumns.get('status')}
+            <th class="px-3 py-2 text-left relative" style="width: {displayColWidth('status')}px;">
+              <button
+                on:click={() => toggleSort("status")}
+                class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
+              >
+                {$_("tableView__column_status")}
+                <svelte:component this={getSortIcon("status")} size={12} />
+              </button>
+              <!-- svelte-ignore a11y-no-static-element-interactions -->
+              <div class="col-resize-handle {resizingCol === 'status' ? 'active' : ''}" on:mousedown={(e) => startColResize('status', e)}></div>
+            </th>
+          {/if}
+          {#if enabledColumns.get('date')}
+            <th class="px-3 py-2 text-left relative" style="width: {displayColWidth('date')}px;">
+              <button
+                on:click={() => toggleSort("date")}
+                class="flex items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
+              >
+                <Calendar size={12} />
+                <span class="hidden lg:inline"
+                  >{$_("tableView__column_due_date")}</span
+                >
+                <span class="lg:hidden">{$_("tableView__column_date_short")}</span
+                >
+                <svelte:component this={getSortIcon("date")} size={12} />
+              </button>
+              <!-- svelte-ignore a11y-no-static-element-interactions -->
+              <div class="col-resize-handle {resizingCol === 'date' ? 'active' : ''}" on:mousedown={(e) => startColResize('date', e)}></div>
+            </th>
+          {/if}
           <th
             class="px-3 py-2 text-center text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider w-20"
           >
@@ -613,30 +653,26 @@
                 class="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
               />
             </td>
+            {#if enabledColumns.get('priority')}
+              <td class="px-2 py-2">
+                <PriorityBadge priority={task.priority} />
+              </td>
+            {/if}
             <td class="px-3 py-2 overflow-hidden">
-              <div class="flex flex-col min-w-0 w-full">
-                <div class="flex items-center gap-2 min-w-0 w-full">
-                  <span
-                    class="font-medium text-gray-900 dark:text-white text-sm truncate"
-                    title={task.title}
-                  >
-                    {#if task.task_number}
-                      <span
-                        class="inline-flex items-center mr-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary align-middle"
-                      >
-                        #{task.task_number}
-                      </span>
-                    {/if}
-                    {task.title}
-                  </span>
-                  {#if task.priority && task.priority !== 'none'}
-                    <div class="shrink-0">
-                      <PriorityBadge priority={task.priority} />
-                    </div>
+              <div class="flex flex-col min-w-0 w-full gap-1">
+                <div
+                  class="font-semibold text-gray-900 dark:text-white text-sm truncate leading-tight"
+                  title={task.title}
+                >
+                  {#if task.task_number}
+                    <span class="text-gray-500 dark:text-gray-400 mr-1.5 text-[10px] font-bold">
+                      {task.workspace_short_name || "TASK"}-{task.task_number}
+                    </span>
                   {/if}
+                  {task.title}
                 </div>
 
-                {#if task.checklist && task.checklist.length > 0}
+                {#if enabledColumns.get('checklist') && task.checklist && task.checklist.length > 0}
                   {@const completed = task.checklist.filter(
                     (i) => i.completed,
                   ).length}
@@ -681,120 +717,115 @@
                 {/if}
               </div>
             </td>
-            <td class="px-3 py-2 hidden lg:table-cell">
-              {#if task.project}
-                <span
-                  class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 truncate max-w-25"
-                  title={task.project}
-                >
-                  {task.project}
-                </span>
-              {:else}
-                <span class="text-gray-400 dark:text-gray-500 text-sm">-</span>
-              {/if}
-            </td>
-            <td class="px-3 py-2 hidden xl:table-cell">
-              <span
-                class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
-              >
-                {task.category || $_("tableView__category_other")}
-              </span>
-            </td>
-            <td class="px-3 py-2">
-              {#if task.assignees && task.assignees.length > 0}
-                <Tooltip>
-                  <div slot="content" class="space-y-1.5 py-1">
-                    {#each task.assignees as assignee}
-                      <div class="flex items-center gap-2">
-                        <div
-                          class="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
-                          style="background-color: {assignee.color ||
-                            '#6366F1'}"
-                        >
-                          {assignee.name.charAt(0).toUpperCase()}
-                        </div>
-                        <span class="font-medium">{assignee.name}</span>
-                      </div>
-                    {/each}
-                  </div>
-
-                  <div class="flex items-center gap-1 flex-wrap">
-                    {#each task.assignees.slice(0, 2) as assignee, idx}
-                      <div
-                        class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium text-white shrink-0 {idx >
-                        0
-                          ? '-ml-1.5 border-2 border-white dark:border-gray-900'
-                          : ''}"
-                        style="background-color: {assignee.color || '#6366F1'}"
-                      >
-                        {assignee.name.charAt(0)}
-                      </div>
-                    {/each}
-
-                    {#if task.assignees.length === 1}
-                      <span
-                        class="text-xs text-gray-700 dark:text-gray-300 truncate max-w-24 ml-1"
-                      >
-                        {task.assignees[0].name}
-                      </span>
-                    {:else if task.assignees.length > 2}
-                      <span
-                        class="text-[10px] text-gray-500 dark:text-gray-400 font-medium ml-0.5"
-                        >+{task.assignees.length - 2}</span
-                      >
-                    {/if}
-                  </div>
-                </Tooltip>
-              {:else}
-                <span class="text-gray-400 dark:text-gray-500 text-sm">-</span>
-              {/if}
-            </td>
-            <td class="px-3 py-2 hidden xl:table-cell">
-              {#if getSprintName(task.sprint_id)}
-                <span
-                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 truncate max-w-25"
-                  title={getSprintName(task.sprint_id)}
-                >
-                  <Flag size={10} />
-                  {getSprintName(task.sprint_id)}
-                </span>
-              {:else}
-                <span class="text-gray-400 dark:text-gray-500 text-sm">-</span>
-              {/if}
-            </td>
-            <td class="px-3 py-2">
-              <button
-                on:click|stopPropagation={() =>
-                  handleStatusChange(task.id!, nextStatus(task.status))}
-                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors {getStatusClass(
-                  task.status,
-                  task.is_archived,
-                )} hover:opacity-80 whitespace-nowrap"
-                title={$_("tableView__status_click_hint")}
-              >
-                <svelte:component this={getStatusIcon(task.status)} size={11} />
-                <span class="hidden sm:inline"
-                  >{getStatusLabel(task.status, task.is_archived)}</span
-                >
-                <span class="sm:hidden">{getStatusShort(task.status)}</span>
-              </button>
-            </td>
-            <td class="px-3 py-2">
-              <span
-                class="text-xs text-gray-700 dark:text-gray-300 whitespace-nowrap {isOverdue(
-                  dueDateOf(task),
-                  task.status,
-                  task.is_archived,
-                )
-                  ? 'text-red-600 dark:text-red-400 font-medium'
-                  : ''}"
-              >
-                {formatDate(dueDateOf(task))}
-                {#if isOverdue(dueDateOf(task), task.status, task.is_archived)}
-                  <span class="ml-1 text-red-500">!</span>
+            {#if enabledColumns.get('project')}
+              <td class="px-3 py-2 hidden lg:table-cell">
+                {#if task.project}
+                  <span
+                    class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 truncate max-w-25"
+                    title={task.project}
+                  >
+                    {task.project}
+                  </span>
+                {:else}
+                  <span class="text-gray-400 dark:text-gray-500 text-sm">-</span>
                 {/if}
-              </span>
-            </td>
+              </td>
+            {/if}
+            {#if enabledColumns.get('category')}
+              <td class="px-3 py-2 hidden xl:table-cell">
+                <span
+                  class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+                >
+                  {task.category || $_("tableView__category_other")}
+                </span>
+              </td>
+            {/if}
+            {#if enabledColumns.get('assignee')}
+              <td class="px-3 py-2">
+                <div class="flex items-center -space-x-2 overflow-visible">
+                  {#if task.assignees && task.assignees.length > 0}
+                    {#each task.assignees.slice(0, 3) as assignee}
+                      <div
+                        class="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full ring-2 ring-white dark:ring-gray-900 text-[10px] font-bold text-white"
+                        style="background-color: {assignee.color || '#6366f1'}"
+                        title={assignee.name}
+                      >
+                        {#if assignee.avatar_url}
+                          <img
+                            src={assignee.avatar_url}
+                            alt={assignee.name}
+                            class="h-full w-full object-cover"
+                          />
+                        {:else}
+                          {assignee.name?.[0]?.toUpperCase() || "?"}
+                        {/if}
+                      </div>
+                    {/each}
+                    {#if task.assignees.length > 3}
+                      <div
+                        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full ring-2 ring-white dark:ring-gray-900 bg-gray-200 dark:bg-gray-700 text-[10px] font-bold text-gray-700 dark:text-gray-200"
+                      >
+                        +{task.assignees.length - 3}
+                      </div>
+                    {/if}
+                  {:else}
+                    <span class="text-gray-400 dark:text-gray-500 text-sm">-</span>
+                  {/if}
+                </div>
+              </td>
+            {/if}
+            {#if enabledColumns.get('sprint')}
+              <td class="px-3 py-2 hidden xl:table-cell">
+                {#if getSprintName(task.sprint_id)}
+                  <span
+                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 truncate max-w-25"
+                    title={getSprintName(task.sprint_id)}
+                  >
+                    <Flag size={10} />
+                    {getSprintName(task.sprint_id)}
+                  </span>
+                {:else}
+                  <span class="text-gray-400 dark:text-gray-500 text-sm">-</span>
+                {/if}
+              </td>
+            {/if}
+            {#if enabledColumns.get('status')}
+              <td class="px-3 py-2">
+                <button
+                  on:click|stopPropagation={() =>
+                    handleStatusChange(task.id!, nextStatus(task.status))}
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors {getStatusClass(
+                    task.status,
+                    task.is_archived,
+                  )} hover:opacity-80 whitespace-nowrap"
+                  title={$_("tableView__status_click_hint")}
+                >
+                  <svelte:component this={getStatusIcon(task.status)} size={11} />
+                  <span class="hidden sm:inline"
+                    >{getStatusLabel(task.status, task.is_archived)}</span
+                  >
+                  <span class="sm:hidden">{getStatusShort(task.status)}</span>
+                </button>
+              </td>
+            {/if}
+            {#if enabledColumns.get('date')}
+              <td class="px-3 py-2">
+                <span
+                  class="text-xs {isOverdue(
+                    dueDateOf(task),
+                    task.status,
+                    task.is_archived,
+                  )
+                    ? 'text-red-500 font-medium'
+                    : 'text-gray-600 dark:text-gray-400'}"
+                >
+                  {formatDate(dueDateOf(task))}
+                  {#if isOverdue(dueDateOf(task), task.status, task.is_archived)}
+                    <span class="ml-1 text-red-500">!</span>
+                  {/if}
+                </span>
+              </td>
+            {/if}
             <td class="px-3 py-2">
               <div class="flex items-center justify-center gap-1">
                 <button
@@ -901,19 +932,24 @@
               />
               <div class="flex-1 min-w-0">
                 <div class="flex items-start justify-between gap-2">
-                  <h3
-                    class="font-medium text-gray-900 dark:text-white text-sm line-clamp-2 flex-1"
-                    title={task.title}
-                  >
-                    {#if task.task_number}
-                      <span
-                        class="inline-flex items-center mr-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary align-middle"
-                      >
-                        #{task.task_number}
-                      </span>
+                  <div class="flex-1 min-w-0">
+                    {#if task.priority && task.priority !== 'none'}
+                      <div class="flex items-center mb-1">
+                        <PriorityBadge priority={task.priority} />
+                      </div>
                     {/if}
-                    {task.title}
-                  </h3>
+                    <h3
+                      class="font-semibold text-gray-900 dark:text-white text-sm line-clamp-2"
+                      title={task.title}
+                    >
+                      {#if task.task_number}
+                        <span class="text-gray-500 dark:text-gray-400 mr-1.5 text-[10px] font-bold">
+                          {task.workspace_short_name || "TASK"}-{task.task_number}
+                        </span>
+                      {/if}
+                      {task.title}
+                    </h3>
+                  </div>
                   <div class="flex items-center gap-1 shrink-0">
                     <button
                       on:click|stopPropagation={() => dispatch("edit", task)}

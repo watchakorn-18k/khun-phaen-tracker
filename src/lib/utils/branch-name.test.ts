@@ -12,7 +12,11 @@ describe('branch-name utils', () => {
     });
 
     it('should handle workspace short name with spaces', () => {
-      expect(getWorkItemPrefix('MY PROJ', 123)).toBe('MYPR-123');
+      expect(getWorkItemPrefix('MY PROJ', 123)).toBe('MYPROJ-123');
+    });
+
+    it('should handle long workspace short name without slicing', () => {
+      expect(getWorkItemPrefix('MYLONGPROJECT', 123)).toBe('MYLONGPROJECT-123');
     });
 
     it('should return task prefix if short name is missing', () => {

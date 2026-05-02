@@ -59,7 +59,7 @@
 
   $: workspaceId = $page.params.workspace_id;
   $: routeTaskId = $page.params.task_id;
-  $: isMyTasksWorkspace = workspaceId === MY_TASKS_WORKSPACE_ID || $page.url.pathname.includes('/dashboard');
+  $: isMyTasksWorkspace = activeWorkspaceId === MY_TASKS_WORKSPACE_ID || $page.url.pathname.includes('/dashboard');
   $: workspaceName =
     $currentWorkspaceName || (isMyTasksWorkspace ? $_("sidebar__focus_hub") : $_("sidebar__workspace"));
   $: workspaceColor = $currentWorkspaceColor || "#6366f1";
@@ -67,6 +67,10 @@
 
   $: currentPath = $page.url.pathname;
   $: normalizedCurrentPath = normalizePath(currentPath);
+  $: pathWorkspaceId = getWorkspaceIdFromPath(normalizedCurrentPath);
+  $: activeWorkspaceId = pathWorkspaceId || workspaceId;
+  $: sidebarWorkspaceId = activeWorkspaceId || workspaceId;
+  $: activeWorkspaceSection = getWorkspaceSection(normalizedCurrentPath);
   $: isPinnedTaskPage =
     !!routeTaskId &&
     ($page.url.searchParams.get("pinned") === "true" ||
@@ -97,26 +101,34 @@
     return normalized;
   }
 
+  function getWorkspaceIdFromPath(path: string): string {
+    return path.match(/^\/workspace\/([^/]+)(?:\/|$)/)?.[1] || "";
+  }
+
+  function getWorkspaceSection(path: string): string {
+    const match = path.match(/^\/workspace\/[^/]+(?:\/([^/]+))?/);
+    return match?.[1] || "";
+  }
+
   function isDashboardActive(): boolean {
     return normalizedCurrentPath === "/dashboard";
   }
 
   function isMyTasksActive(): boolean {
-    return workspaceId === MY_TASKS_WORKSPACE_ID && !routeTaskId;
+    return activeWorkspaceId === MY_TASKS_WORKSPACE_ID && !activeWorkspaceSection;
   }
 
   function isWorkspaceOverviewActive(): boolean {
     return (
-      workspaceId !== MY_TASKS_WORKSPACE_ID &&
-      normalizedCurrentPath === `/workspace/${workspaceId}/overview`
+      activeWorkspaceId !== MY_TASKS_WORKSPACE_ID &&
+      activeWorkspaceSection === "overview"
     );
   }
 
   function isWorkspaceBoardActive(): boolean {
     return (
-      workspaceId !== MY_TASKS_WORKSPACE_ID &&
-      !routeTaskId &&
-      normalizedCurrentPath === `/workspace/${workspaceId}`
+      activeWorkspaceId !== MY_TASKS_WORKSPACE_ID &&
+      !activeWorkspaceSection
     );
   }
 
@@ -131,7 +143,8 @@
 
   function getPinnedTaskNumber(task: any): string {
     if (!task?.task_number) return "";
-    return task.short_name ? `${task.short_name}-${task.task_number}` : `#${task.task_number}`;
+    const prefix = task.workspace_short_name || task.short_name || "TASK";
+    return `${prefix}-${task.task_number}`;
   }
 
   function getPinnedTaskTitle(task: any): string {
@@ -254,7 +267,7 @@
 
   $: workspaceHref = isMyTasksWorkspace
     ? `${base}/workspace/${MY_TASKS_WORKSPACE_ID}${$page.url.search}`
-    : `${base}/workspace/${workspaceId}${$page.url.search}`;
+    : `${base}/workspace/${sidebarWorkspaceId}${$page.url.search}`;
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -551,7 +564,7 @@
     {/if}
 
     <!-- Workspace -->
-    {#if !isPinnedTaskPage && !isMyTasksWorkspace && workspaceId && workspaceId !== MY_TASKS_WORKSPACE_ID}
+    {#if !isPinnedTaskPage && !isMyTasksWorkspace && sidebarWorkspaceId && sidebarWorkspaceId !== MY_TASKS_WORKSPACE_ID}
       <div>
         {#if !isSidebarCollapsed}
           <div class="px-2 py-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-2">
@@ -560,7 +573,7 @@
         {/if}
         <div class="space-y-1">
           <a
-            href="{base}/workspace/{workspaceId}/overview{$page.url.search}"
+            href="{base}/workspace/{sidebarWorkspaceId}/overview{$page.url.search}"
             title={$_("sidebar__overview")}
             class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isWorkspaceOverviewActive()
               ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-black shadow-[inset_0_0_12px_rgba(99,102,241,0.05)]'

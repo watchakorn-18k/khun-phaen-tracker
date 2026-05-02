@@ -24,7 +24,7 @@ export function slugifyBranchSegment(input: string): string {
 }
 
 export function getWorkItemPrefix(workspaceShortName = '', taskNumber: number | null = null): string {
-  const ws = workspaceShortName.trim().toUpperCase().replace(/\s+/g, '').slice(0, 4);
+  const ws = workspaceShortName.trim().toUpperCase().replace(/\s+/g, '');
   if (ws && taskNumber) return `${ws}-${taskNumber}`;
   if (ws) return ws;
   if (taskNumber) return `task-${taskNumber}`;
