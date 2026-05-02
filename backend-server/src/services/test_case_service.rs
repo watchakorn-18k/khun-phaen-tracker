@@ -100,6 +100,11 @@ impl TestCaseService {
         &self,
         workspace_id: &ObjectId,
         suite_id: Option<String>,
+        search: Option<String>,
+        field: Option<String>,
+        priority: Option<String>,
+        status: Option<String>,
+        fixed: Option<String>,
         limit: Option<i64>,
         page: Option<u64>,
     ) -> mongodb::error::Result<Vec<TestCase>> {
@@ -107,7 +112,7 @@ impl TestCaseService {
         let page = page.unwrap_or(1);
         let offset = (page - 1) * (limit as u64);
         
-        self.repo.find_by_workspace(workspace_id, suite_id, Some(limit), Some(offset)).await
+        self.repo.find_by_workspace(workspace_id, suite_id, search, field, priority, status, fixed, Some(limit), Some(offset)).await
     }
 
     pub async fn update_attachments(
@@ -133,7 +138,7 @@ mod tests {
     #[test]
     fn test_create_request_defaults() {
         let req = CreateTestCaseRequest {
-            suite_id: "suite-1".to_string(),
+            suite_id: Some("suite-1".to_string()),
             name: "Test login".to_string(),
             description: None,
             preconditions: None,
@@ -142,6 +147,7 @@ mod tests {
             expected_result: None,
             actual_result: None,
             status: None,
+            priority: None,
             fixed: None,
             assign_dev: None,
             assign_tester: None,

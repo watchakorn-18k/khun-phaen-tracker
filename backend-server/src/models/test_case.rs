@@ -202,7 +202,7 @@ mod tests {
         }"#;
         let req: CreateTestCaseRequest = serde_json::from_str(json).unwrap();
         assert_eq!(req.name, "My test case");
-        assert_eq!(req.suite_id, "abc-123");
+        assert_eq!(req.suite_id, Some("abc-123".to_string()));
         assert!(req.status.is_none());
         assert!(req.classic_steps.is_none());
     }

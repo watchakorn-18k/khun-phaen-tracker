@@ -443,6 +443,14 @@ async fn main() {
             patch(handlers::test_case_handler::update_test_case_fixed),
         )
         .route(
+            "/api/test-cases/:id/assign-dev",
+            patch(handlers::test_case_handler::update_test_case_assign_dev),
+        )
+        .route(
+            "/api/test-cases/:id/notes",
+            patch(handlers::test_case_handler::update_test_case_notes),
+        )
+        .route(
             "/api/workspaces/:ws_id/test-cases/:test_case_id/attachments",
             post(handlers::test_case_handler::upload_test_case_attachment),
         )

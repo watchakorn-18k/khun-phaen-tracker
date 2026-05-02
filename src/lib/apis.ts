@@ -974,7 +974,7 @@ export const api = {
     },
     // Test Cases
     testCases: {
-      list: (wsId: string, params?: { suite_id?: string; limit?: number; page?: number }): Promise<Response> => {
+      list: (wsId: string, params?: { suite_id?: string; limit?: number; page?: number; q?: string; field?: string; priority?: string; status?: string; fixed?: string }): Promise<Response> => {
         const query = params ? "?" + new URLSearchParams(params as any).toString() : "";
         return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-cases${query}`, {
           headers: api.data._headers(),
@@ -1031,6 +1031,22 @@ export const api = {
           headers: api.data._headers(true),
           credentials: "include",
           body: JSON.stringify({ fixed }),
+        });
+      },
+      updateAssignDev: (id: string, assign_dev: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/test-cases/${id}/assign-dev`, {
+          method: "PATCH",
+          headers: api.data._headers(true),
+          credentials: "include",
+          body: JSON.stringify({ assign_dev }),
+        });
+      },
+      updateNotes: (id: string, payload: { dev_note?: string, test_note?: string }): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/test-cases/${id}/notes`, {
+          method: "PATCH",
+          headers: api.data._headers(true),
+          credentials: "include",
+          body: JSON.stringify(payload),
         });
       },
       uploadAttachment: (wsId: string, testCaseId: string, formData: FormData): Promise<Response> => {

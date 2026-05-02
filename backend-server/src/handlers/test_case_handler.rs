@@ -1,16 +1,21 @@
+use crate::handlers::auth_handler::extract_claims;
 use crate::models::test_case::{CreateTestCaseRequest, CreateTestSuiteRequest, TestCaseAttachment};
+use crate::repositories::profile_repo::ProfileRepository;
 use crate::repositories::test_case_repo::TestCaseRepository;
 use crate::repositories::test_suite_repo::TestSuiteRepository;
+use crate::repositories::user_repo::UserRepository;
+use crate::services::auth_service::AuthService;
 use crate::services::test_case_service::TestCaseService;
 use crate::services::test_suite_service::TestSuiteService;
 use crate::state::AppState;
 use aws_sdk_s3::primitives::ByteStream;
 use axum::{
     extract::{Multipart, Path, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::IntoResponse,
     Json,
 };
+use axum_extra::extract::cookie::CookieJar;
 use chrono::Utc;
 use mongodb::bson::{doc, oid::ObjectId};
 use std::sync::Arc;
@@ -21,6 +26,11 @@ pub struct TestCaseQuery {
     pub suite_id: Option<String>,
     pub limit: Option<i64>,
     pub page: Option<u64>,
+    pub q: Option<String>,
+    pub field: Option<String>,
+    pub priority: Option<String>,
+    pub status: Option<String>,
+    pub fixed: Option<String>,
 }
 
 /// GET /api/workspaces/:ws_id/test-cases
@@ -38,7 +48,17 @@ pub async fn list_test_cases(
     let suite_repo = TestSuiteRepository::new(&state.db);
     let service = TestCaseService::new(repo, suite_repo);
 
-    match service.list_test_cases(&ws_oid, query.suite_id, query.limit, query.page).await {
+    match service.list_test_cases(
+        &ws_oid, 
+        query.suite_id, 
+        query.q, 
+        query.field, 
+        query.priority,
+        query.status,
+        query.fixed,
+        query.limit, 
+        query.page
+    ).await {
         Ok(tcs) => (StatusCode::OK, Json(tcs)).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
@@ -61,9 +81,23 @@ pub async fn get_test_case(
 /// PATCH /api/test-cases/:id
 pub async fn update_test_case(
     State(state): State<Arc<AppState>>,
+    jar: CookieJar,
+    headers: HeaderMap,
     Path(id): Path<String>,
     Json(req): Json<serde_json::Value>,
 ) -> impl IntoResponse {
+    let claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
+        Some(c) => c,
+        None => return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response(),
+    };
+
+    let user_repo = UserRepository::new(&state.db);
+    let profile_repo = ProfileRepository::new(&state.db);
+
+    if !AuthService::can_mutate_test_cases(&user_repo, &profile_repo, &claims).await {
+        return (StatusCode::FORBIDDEN, "Permission denied").into_response();
+    }
+
     let repo = TestCaseRepository::new(&state.db);
 
     let tc = match repo.find_by_id(&id).await {
@@ -114,9 +148,23 @@ pub async fn list_suites(
 /// POST /api/workspaces/:ws_id/test-suites
 pub async fn create_suite(
     State(state): State<Arc<AppState>>,
+    jar: CookieJar,
+    headers: HeaderMap,
     Path(ws_id): Path<String>,
     Json(req): Json<CreateTestSuiteRequest>,
 ) -> impl IntoResponse {
+    let claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
+        Some(c) => c,
+        None => return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response(),
+    };
+
+    let user_repo = UserRepository::new(&state.db);
+    let profile_repo = ProfileRepository::new(&state.db);
+
+    if !AuthService::can_mutate_test_cases(&user_repo, &profile_repo, &claims).await {
+        return (StatusCode::FORBIDDEN, "Permission denied").into_response();
+    }
+
     let ws_oid = match ObjectId::parse_str(&ws_id) {
         Ok(oid) => oid,
         Err(_) => return (StatusCode::BAD_REQUEST, "Invalid workspace ID").into_response(),
@@ -140,9 +188,23 @@ pub struct UpdateTestSuiteRequest {
 /// PATCH /api/test-suites/:id
 pub async fn update_suite(
     State(state): State<Arc<AppState>>,
+    jar: CookieJar,
+    headers: HeaderMap,
     Path(id): Path<String>,
     Json(req): Json<UpdateTestSuiteRequest>,
 ) -> impl IntoResponse {
+    let claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
+        Some(c) => c,
+        None => return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response(),
+    };
+
+    let user_repo = UserRepository::new(&state.db);
+    let profile_repo = ProfileRepository::new(&state.db);
+
+    if !AuthService::can_mutate_test_cases(&user_repo, &profile_repo, &claims).await {
+        return (StatusCode::FORBIDDEN, "Permission denied").into_response();
+    }
+
     let repo = TestSuiteRepository::new(&state.db);
     let case_repo = TestCaseRepository::new(&state.db);
     let service = TestSuiteService::new(repo, case_repo);
@@ -172,9 +234,23 @@ pub struct DeleteTestSuiteQuery {
 /// DELETE /api/test-suites/:id
 pub async fn delete_suite(
     State(state): State<Arc<AppState>>,
+    jar: CookieJar,
+    headers: HeaderMap,
     Path(id): Path<String>,
     axum::extract::Query(query): axum::extract::Query<DeleteTestSuiteQuery>,
 ) -> impl IntoResponse {
+    let claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
+        Some(c) => c,
+        None => return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response(),
+    };
+
+    let user_repo = UserRepository::new(&state.db);
+    let profile_repo = ProfileRepository::new(&state.db);
+
+    if !AuthService::can_mutate_test_cases(&user_repo, &profile_repo, &claims).await {
+        return (StatusCode::FORBIDDEN, "Permission denied").into_response();
+    }
+
     let repo = TestSuiteRepository::new(&state.db);
     let case_repo = TestCaseRepository::new(&state.db);
     let service = TestSuiteService::new(repo, case_repo);
@@ -228,9 +304,23 @@ pub async fn get_next_test_case_number(
 /// POST /api/workspaces/:ws_id/test-cases
 pub async fn create_test_case(
     State(state): State<Arc<AppState>>,
+    jar: CookieJar,
+    headers: HeaderMap,
     Path(ws_id): Path<String>,
     Json(req): Json<CreateTestCaseRequest>,
 ) -> impl IntoResponse {
+    let claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
+        Some(c) => c,
+        None => return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response(),
+    };
+
+    let user_repo = UserRepository::new(&state.db);
+    let profile_repo = ProfileRepository::new(&state.db);
+
+    if !AuthService::can_mutate_test_cases(&user_repo, &profile_repo, &claims).await {
+        return (StatusCode::FORBIDDEN, "Permission denied").into_response();
+    }
+
     let ws_oid = match ObjectId::parse_str(&ws_id) {
         Ok(oid) => oid,
         Err(_) => {
@@ -260,9 +350,23 @@ pub async fn create_test_case(
 /// POST /api/workspaces/:ws_id/test-cases/:test_case_id/attachments
 pub async fn upload_test_case_attachment(
     State(state): State<Arc<AppState>>,
+    jar: CookieJar,
+    headers: HeaderMap,
     Path((ws_id_str, test_case_id)): Path<(String, String)>,
     mut multipart: Multipart,
 ) -> impl IntoResponse {
+    let claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
+        Some(c) => c,
+        None => return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response(),
+    };
+
+    let user_repo = UserRepository::new(&state.db);
+    let profile_repo = ProfileRepository::new(&state.db);
+
+    if !AuthService::can_mutate_test_cases(&user_repo, &profile_repo, &claims).await {
+        return (StatusCode::FORBIDDEN, "Permission denied").into_response();
+    }
+
     let ws_oid = match ObjectId::parse_str(&ws_id_str) {
         Ok(id) => id,
         Err(_) => {
@@ -270,6 +374,7 @@ pub async fn upload_test_case_attachment(
                 StatusCode::BAD_REQUEST,
                 Json(serde_json::json!({"error": "Invalid workspace ID"})),
             )
+                .into_response()
         }
     };
 
@@ -284,12 +389,14 @@ pub async fn upload_test_case_attachment(
                 StatusCode::NOT_FOUND,
                 Json(serde_json::json!({"error": "Test case not found"})),
             )
+                .into_response()
         }
         Err(e) => {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({"error": e.to_string()})),
             )
+                .into_response()
         }
     };
 
@@ -299,7 +406,8 @@ pub async fn upload_test_case_attachment(
             Json(
                 serde_json::json!({"error": "Test case does not belong to this workspace"}),
             ),
-        );
+        )
+            .into_response();
     }
 
     let storage = state.storage_snapshot().await;
@@ -310,6 +418,7 @@ pub async fn upload_test_case_attachment(
                 StatusCode::SERVICE_UNAVAILABLE,
                 Json(serde_json::json!({"error": "Storage is disabled"})),
             )
+                .into_response()
         }
     };
 
@@ -368,7 +477,8 @@ pub async fn upload_test_case_attachment(
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     Json(serde_json::json!({"error": "Storage error"})),
-                );
+                )
+                    .into_response();
             }
         }
     }
@@ -377,7 +487,8 @@ pub async fn upload_test_case_attachment(
         return (
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({"error": "No valid files received"})),
-        );
+        )
+            .into_response();
     }
 
     let mut current = tc.attachments.unwrap_or_default();
@@ -396,7 +507,8 @@ pub async fn upload_test_case_attachment(
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({"error": "Failed to update db"})),
-            );
+            )
+                .into_response();
         }
     }
 
@@ -407,6 +519,7 @@ pub async fn upload_test_case_attachment(
             "attachments": attached_files
         })),
     )
+        .into_response()
 }
 
 #[derive(serde::Deserialize)]
@@ -419,9 +532,23 @@ pub struct UpdateTestCaseStepsRequest {
 /// PATCH /api/test-cases/:id/steps
 pub async fn update_test_case_steps(
     State(state): State<Arc<AppState>>,
+    jar: CookieJar,
+    headers: HeaderMap,
     Path(id): Path<String>,
     Json(req): Json<UpdateTestCaseStepsRequest>,
 ) -> impl IntoResponse {
+    let claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
+        Some(c) => c,
+        None => return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response(),
+    };
+
+    let user_repo = UserRepository::new(&state.db);
+    let profile_repo = ProfileRepository::new(&state.db);
+
+    if !AuthService::can_mutate_test_cases(&user_repo, &profile_repo, &claims).await {
+        return (StatusCode::FORBIDDEN, "Permission denied").into_response();
+    }
+
     let repo = TestCaseRepository::new(&state.db);
 
     let tc = match repo.find_by_id(&id).await {
@@ -468,9 +595,23 @@ pub struct UpdateTestCaseStatusRequest {
 /// PATCH /api/test-cases/:id/status
 pub async fn update_test_case_status(
     State(state): State<Arc<AppState>>,
+    jar: CookieJar,
+    headers: HeaderMap,
     Path(id): Path<String>,
     Json(req): Json<UpdateTestCaseStatusRequest>,
 ) -> impl IntoResponse {
+    let claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
+        Some(c) => c,
+        None => return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response(),
+    };
+
+    let user_repo = UserRepository::new(&state.db);
+    let profile_repo = ProfileRepository::new(&state.db);
+
+    if !AuthService::can_mutate_test_cases(&user_repo, &profile_repo, &claims).await {
+        return (StatusCode::FORBIDDEN, "Permission denied").into_response();
+    }
+
     let repo = TestCaseRepository::new(&state.db);
 
     let tc = match repo.find_by_id(&id).await {
@@ -499,9 +640,18 @@ pub struct UpdateTestCaseFixedRequest {
 /// PATCH /api/test-cases/:id/fixed
 pub async fn update_test_case_fixed(
     State(state): State<Arc<AppState>>,
+    jar: CookieJar,
+    headers: HeaderMap,
     Path(id): Path<String>,
     Json(req): Json<UpdateTestCaseFixedRequest>,
 ) -> impl IntoResponse {
+    let _claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
+        Some(c) => c,
+        None => return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response(),
+    };
+
+    // All roles can update the 'fixed' status as requested by the user.
+
     let repo = TestCaseRepository::new(&state.db);
 
     let tc = match repo.find_by_id(&id).await {
@@ -517,6 +667,117 @@ pub async fn update_test_case_fixed(
 
     match repo.update(&id, &tc.workspace_id, updates).await {
         Ok(true) => (StatusCode::OK, "Fixed status updated").into_response(),
+        Ok(false) => (StatusCode::NOT_FOUND, "Test case not found").into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+#[derive(serde::Deserialize)]
+pub struct UpdateTestCaseAssignDevRequest {
+    pub assign_dev: String,
+}
+
+/// PATCH /api/test-cases/:id/assign-dev
+pub async fn update_test_case_assign_dev(
+    State(state): State<Arc<AppState>>,
+    jar: CookieJar,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(req): Json<UpdateTestCaseAssignDevRequest>,
+) -> impl IntoResponse {
+    let claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
+        Some(c) => c,
+        None => return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response(),
+    };
+
+    let user_repo = UserRepository::new(&state.db);
+    let profile_repo = ProfileRepository::new(&state.db);
+
+    let is_admin_or_qa = AuthService::can_mutate_test_cases(&user_repo, &profile_repo, &claims).await;
+
+    let repo = TestCaseRepository::new(&state.db);
+
+    let tc = match repo.find_by_id(&id).await {
+        Ok(Some(tc)) => tc,
+        Ok(None) => return (StatusCode::NOT_FOUND, "Test case not found").into_response(),
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+
+    // If not QA/Admin, they can only assign themselves or unassign
+    if !is_admin_or_qa && req.assign_dev != "unassigned" {
+        let data_repo = crate::repositories::data_repo::DataRepository::new(&state.db);
+        let assignees = data_repo.find_assignees(&tc.workspace_id).await.unwrap_or_default();
+        
+        let is_valid_assignee = assignees.iter().any(|a| {
+            a.id.map(|oid| oid.to_hex()) == Some(req.assign_dev.clone())
+            && a.user_id == Some(claims.sub.clone())
+        });
+
+        if !is_valid_assignee {
+            return (StatusCode::FORBIDDEN, "Permission denied. You can only assign yourself.").into_response();
+        }
+    }
+
+    let updates = doc! {
+        "assign_dev": req.assign_dev,
+        "updated_at": Utc::now().to_rfc3339(),
+    };
+
+    match repo.update(&id, &tc.workspace_id, updates).await {
+        Ok(true) => (StatusCode::OK, "Assign Dev updated").into_response(),
+        Ok(false) => (StatusCode::NOT_FOUND, "Test case not found").into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+#[derive(serde::Deserialize)]
+pub struct UpdateTestCaseNotesRequest {
+    pub dev_note: Option<String>,
+    pub test_note: Option<String>,
+}
+
+/// PATCH /api/test-cases/:id/notes
+pub async fn update_test_case_notes(
+    State(state): State<Arc<AppState>>,
+    jar: CookieJar,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(req): Json<UpdateTestCaseNotesRequest>,
+) -> impl IntoResponse {
+    let claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
+        Some(c) => c,
+        None => return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response(),
+    };
+
+    let user_repo = UserRepository::new(&state.db);
+    let profile_repo = ProfileRepository::new(&state.db);
+
+    let is_admin_or_qa = AuthService::can_mutate_test_cases(&user_repo, &profile_repo, &claims).await;
+
+    let repo = TestCaseRepository::new(&state.db);
+
+    let tc = match repo.find_by_id(&id).await {
+        Ok(Some(tc)) => tc,
+        Ok(None) => return (StatusCode::NOT_FOUND, "Test case not found").into_response(),
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+
+    let mut updates = doc! {
+        "updated_at": Utc::now().to_rfc3339(),
+    };
+
+    if let Some(dev_note) = req.dev_note {
+        updates.insert("dev_note", dev_note);
+    }
+
+    if let Some(test_note) = req.test_note {
+        if is_admin_or_qa {
+            updates.insert("test_note", test_note);
+        }
+    }
+
+    match repo.update(&id, &tc.workspace_id, updates).await {
+        Ok(true) => (StatusCode::OK, "Notes updated").into_response(),
         Ok(false) => (StatusCode::NOT_FOUND, "Test case not found").into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }

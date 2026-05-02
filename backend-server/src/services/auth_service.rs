@@ -409,4 +409,31 @@ impl AuthService {
 
         Ok(())
     }
+
+    pub async fn can_mutate_test_cases(
+        user_repo: &UserRepository,
+        profile_repo: &ProfileRepository,
+        claims: &Claims,
+    ) -> bool {
+        if claims.role == "admin" {
+            return true;
+        }
+
+        let oid = match ObjectId::parse_str(&claims.sub) {
+            Ok(oid) => oid,
+            Err(_) => return false,
+        };
+
+        let user = match user_repo.find_by_id(&oid).await {
+            Ok(Some(u)) => u,
+            _ => return false,
+        };
+
+        let profile = match profile_repo.find_by_user_id(&user.user_id).await {
+            Ok(Some(p)) => p,
+            _ => return false,
+        };
+
+        profile.position.as_deref() == Some("QA Tester")
+    }
 }

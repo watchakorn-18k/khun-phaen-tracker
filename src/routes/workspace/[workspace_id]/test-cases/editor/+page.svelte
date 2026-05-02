@@ -486,6 +486,16 @@
                 <SearchableSelect id="editor-status" bind:value={status} options={statusOptions} showSearch={false} minimal={true} />
               </div>
             </label>
+          {:else}
+            <label class="space-y-2 opacity-80 pointer-events-none">
+              <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
+                <ClipboardCheck size={14} />
+                Status
+              </span>
+              <div class="property-select">
+                <SearchableSelect id="editor-status" bind:value={status} options={statusOptions} showSearch={false} minimal={true} />
+              </div>
+            </label>
           {/if}
 
           <label class="space-y-2">
@@ -742,6 +752,7 @@
         <label for="new-suite-name" class="block text-[12px] font-black uppercase tracking-widest text-gray-500">
           Suite Name
         </label>
+        <!-- svelte-ignore a11y_autofocus -->
         <input
           id="new-suite-name"
           type="text"

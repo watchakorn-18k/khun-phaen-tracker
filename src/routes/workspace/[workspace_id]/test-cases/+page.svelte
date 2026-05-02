@@ -40,6 +40,7 @@
   } from "lucide-svelte";
   import { _ } from "svelte-i18n";
   import TestCaseStepList from "$lib/components/TestCaseStepList.svelte";
+  import { getAssignees } from "$lib/db";
 
   type Step = {
     action: string;
@@ -68,6 +69,8 @@
     assign_dev?: string;
     fixed: "no" | "yes";
     suite_id: string;
+    dev_note?: string;
+    test_note?: string;
   };
 
   type Suite = {
@@ -103,10 +106,11 @@
   let suites: Suite[] = [];
   const ui = createUIActions();
 
-  $: canSeeStatus = $user?.role === "admin" || $user?.profile?.position === "QA Tester";
+  $: isAuthorized =
+    $user?.role === "admin" || $user?.profile?.position === "QA Tester";
 
   let query = "";
-  let field = "all fields";
+  let field = "all";
   let selectedSuiteId = "";
   let selectedCaseId = "";
   let workspaceId = $page.params.workspace_id;
@@ -144,8 +148,44 @@
   let sidebarStepFormat: "classic" | "gherkin" = "classic";
   let isSavingSidebarSteps = false;
   let lastLoadedCaseId = "";
+  let sidebarTab: "general" | "notes" | "properties" = "general";
+  let isSavingNotes = false;
+  let devNote = "";
+  let testNote = "";
 
   let isEditingSidebarSteps = false;
+  let showActionsMenu = false;
+  
+  let showFilterDropdown = false;
+  let activeFilterProperty: string | null = null;
+  let activeFilters: Record<string, string[]> = {
+    priority: [],
+    status: [],
+    fixed: [],
+    assign_dev: []
+  };
+
+  const filterProperties = [
+    { id: "priority", label: "Priority" },
+    { id: "status", label: "Status" },
+    { id: "fixed", label: "Fixed" },
+    { id: "assign_dev", label: "Assign Dev" }
+  ];
+
+  function toggleFilterValue(property: string, value: string) {
+    if (!activeFilters[property]) {
+      activeFilters[property] = [];
+    }
+    const idx = activeFilters[property].indexOf(value);
+    if (idx >= 0) {
+      activeFilters[property] = activeFilters[property].filter(v => v !== value);
+    } else {
+      activeFilters[property] = [...activeFilters[property], value];
+    }
+    // Update API or re-fetch data
+    loadData(query, field);
+  }
+
 
   $: if (selectedCase && selectedCase.id !== lastLoadedCaseId) {
     lastLoadedCaseId = selectedCase.id;
@@ -155,6 +195,8 @@
       sidebarStepFormat === "gherkin"
         ? [...(selectedCase.gherkin_steps || [])]
         : [...(selectedCase.classic_steps || selectedCase.steps || [])];
+    devNote = selectedCase.dev_note || "";
+    testNote = selectedCase.test_note || "";
   }
 
   async function saveSidebarSteps() {
@@ -168,7 +210,10 @@
         gherkin_steps:
           sidebarStepFormat === "gherkin" ? sidebarSteps : undefined,
       };
-      const resp = await api.data.testCases.updateSteps(selectedCase.id, payload);
+      const resp = await api.data.testCases.updateSteps(
+        selectedCase.id,
+        payload,
+      );
       if (resp.ok) {
         isEditingSidebarSteps = false;
         ui.showMessage("Steps updated", "success");
@@ -203,6 +248,34 @@
       ui.showMessage("An error occurred", "error");
     } finally {
       isSavingSidebarSteps = false;
+    }
+  }
+
+  async function handleUpdateNotes() {
+    if (!selectedCase) return;
+    isSavingNotes = true;
+    try {
+      const resp = await api.data.testCases.updateNotes(selectedCase.id, {
+        dev_note: devNote,
+        test_note: testNote,
+      });
+      if (resp.ok) {
+        ui.showMessage("Notes updated", "success");
+        suites = suites.map((s) => ({
+          ...s,
+          cases: s.cases.map((c) =>
+            c.id === selectedCase.id
+              ? { ...c, dev_note: devNote, test_note: testNote }
+              : c,
+          ),
+        }));
+      } else {
+        ui.showMessage("Failed to update notes", "error");
+      }
+    } catch (e) {
+      ui.showMessage("An error occurred", "error");
+    } finally {
+      isSavingNotes = false;
     }
   }
 
@@ -241,9 +314,9 @@
     if (!editingSuite || !editingSuite.title.trim()) return;
     const suiteId = editingSuite.id || (editingSuite as any)._id;
     const newTitle = editingSuite.title;
-    
+
     console.log("Updating suite:", { suiteId, newTitle });
-    
+
     try {
       const resp = await api.data.testSuites.update(suiteId, {
         title: newTitle,
@@ -257,12 +330,17 @@
           }
           return s;
         });
-        
+
         ui.showMessage("Suite updated", "success");
         editingSuite = null;
       } else {
         const errorData = await resp.text();
-        console.error("Failed to update suite. Status:", resp.status, "Error:", errorData);
+        console.error(
+          "Failed to update suite. Status:",
+          resp.status,
+          "Error:",
+          errorData,
+        );
         ui.showMessage(`Failed to update suite: ${errorData}`, "error");
       }
     } catch (e) {
@@ -343,17 +421,24 @@
       assign_dev: tc.assign_dev || "unassigned",
       fixed: tc.fixed || "no",
       suite_id: tc.suite_id,
+      dev_note: tc.dev_note || "",
+      test_note: tc.test_note || "",
     };
   }
 
   async function updateStatus(testCase: TestCase, newStatus: string) {
     try {
-      const resp = await api.data.testCases.updateStatus(testCase.id, newStatus);
+      const resp = await api.data.testCases.updateStatus(
+        testCase.id,
+        newStatus,
+      );
       if (resp.ok) {
         // Update local state
-        suites = suites.map(s => ({
+        suites = suites.map((s) => ({
           ...s,
-          cases: s.cases.map(c => c.id === testCase.id ? { ...c, status: newStatus as any } : c)
+          cases: s.cases.map((c) =>
+            c.id === testCase.id ? { ...c, status: newStatus as any } : c,
+          ),
         }));
         ui.showMessage("Status updated", "success");
       }
@@ -367,79 +452,125 @@
       const resp = await api.data.testCases.updateFixed(testCase.id, newFixed);
       if (resp.ok) {
         // Update local state
-        suites = suites.map(s => ({
+        suites = suites.map((s) => ({
           ...s,
-          cases: s.cases.map(c => c.id === testCase.id ? { ...c, fixed: newFixed as any } : c)
+          cases: s.cases.map((c) =>
+            c.id === testCase.id ? { ...c, fixed: newFixed as any } : c,
+          ),
         }));
         ui.showMessage("Fixed status updated", "success");
+      } else {
+        ui.showMessage("Failed to update fixed status", "error");
       }
     } catch (e) {
       ui.showMessage("Failed to update fixed status", "error");
     }
   }
 
-  onMount(async () => {
-    if (workspaceId) {
-      try {
-        const [suiteResp, caseResp] = await Promise.all([
-          api.data.testSuites.list(workspaceId),
-          api.data.testCases.list(workspaceId),
-        ]);
+  async function updateAssignDev(testCase: TestCase, newAssignDev: string) {
+    try {
+      const resp = await api.data.testCases.updateAssignDev(testCase.id, newAssignDev);
+      if (resp.ok) {
+        suites = suites.map((s) => ({
+          ...s,
+          cases: s.cases.map((c) =>
+            c.id === testCase.id ? { ...c, assign_dev: newAssignDev } : c,
+          ),
+        }));
+        ui.showMessage("Assignee updated", "success");
+      } else {
+        const err = await resp.text();
+        ui.showMessage(`Failed to update assignee: ${err}`, "error");
+      }
+    } catch (e) {
+      ui.showMessage("Failed to update assignee", "error");
+    }
+  }
 
-        if (suiteResp.ok && caseResp.ok) {
-          const suiteData = await suiteResp.json();
-          const caseData = await caseResp.json();
+  async function loadData(q?: string, searchField?: string) {
+    if (!workspaceId) return;
+    try {
+      const priorityQuery = activeFilters.priority?.length > 0 ? activeFilters.priority.join(",") : undefined;
+      const statusQuery = activeFilters.status?.length > 0 ? activeFilters.status.join(",") : undefined;
+      const fixedQuery = activeFilters.fixed?.length > 0 ? activeFilters.fixed.join(",") : undefined;
 
-          const mappedCases = caseData.map(mapBackendToFrontend);
+      const [suiteResp, caseResp] = await Promise.all([
+        api.data.testSuites.list(workspaceId),
+        api.data.testCases.list(workspaceId, { 
+          q, 
+          field: searchField,
+          priority: priorityQuery,
+          status: statusQuery,
+          fixed: fixedQuery
+        }),
+      ]);
 
-          // Map suites and ensure they have 'id'
-          const suitesWithId = suiteData.map((s: any) => ({
-            ...s,
-            id: s.id || s._id,
-          }));
+      if (suiteResp.ok && caseResp.ok) {
+        const suiteData = await suiteResp.json();
+        const caseData = await caseResp.json();
 
-          const suiteIds = new Set(suitesWithId.map((s: any) => s.id));
-          const unassignedCases = mappedCases.filter(
-            (c: TestCase) => !suiteIds.has(c.suite_id),
-          );
+        const mappedCases = caseData.map(mapBackendToFrontend);
 
-          suites = suitesWithId.map((s: any) => ({
-            ...s,
-            cases: mappedCases.filter((c: TestCase) => c.suite_id === s.id),
-            page: 1,
-            hasMore:
-              mappedCases.filter((c: TestCase) => c.suite_id === s.id).length >=
-              10,
-          }));
+        // Map suites and ensure they have 'id'
+        const suitesWithId = suiteData.map((s: any) => ({
+          ...s,
+          id: s.id || s._id,
+        }));
 
-          // Add 'Unassigned' virtual suite if there are unassigned cases
-          if (unassignedCases.length > 0) {
-            suites = [
-              ...suites,
-              {
-                id: "unassigned",
-                title: "Unassigned",
-                description: "",
-                cases: unassignedCases,
-                page: 1,
-                hasMore: unassignedCases.length >= 10,
-              },
-            ];
-          }
+        const suiteIds = new Set(suitesWithId.map((s: any) => s.id));
+        const unassignedCases = mappedCases.filter(
+          (c: TestCase) => !suiteIds.has(c.suite_id),
+        );
 
-          if (suites.length > 0) {
-            selectedSuiteId = suites[0].id;
-            testCaseForm.suiteId =
-              suites[0].id === "unassigned" ? "" : suites[0].id;
-            if (suites[0].cases.length > 0) {
-              selectedCaseId = suites[0].cases[0].id;
-            }
+        suites = suitesWithId.map((s: any) => ({
+          ...s,
+          cases: mappedCases.filter((c: TestCase) => c.suite_id === s.id),
+          page: 1,
+          hasMore:
+            mappedCases.filter((c: TestCase) => c.suite_id === s.id).length >=
+            10,
+        }));
+
+        // Add 'Unassigned' virtual suite if there are unassigned cases
+        if (unassignedCases.length > 0) {
+          suites = [
+            ...suites,
+            {
+              id: "unassigned",
+              title: "Unassigned",
+              description: "",
+              cases: unassignedCases,
+              page: 1,
+              hasMore: unassignedCases.length >= 10,
+            },
+          ];
+        }
+
+        if (suites.length > 0) {
+          selectedSuiteId = suites[0].id;
+          testCaseForm.suiteId =
+            suites[0].id === "unassigned" ? "" : suites[0].id;
+          if (suites[0].cases.length > 0) {
+            selectedCaseId = suites[0].cases[0].id;
           }
         }
-      } catch (e) {
-        console.error("Failed to load test cases:", e);
       }
+    } catch (e) {
+      console.error("Failed to load test cases:", e);
     }
+  }
+
+  let searchTimeout: any;
+  $: if ((query !== undefined || field !== undefined) && browser) {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      loadData(query, field);
+    }, 300);
+  }
+
+  onMount(async () => {
+    assignees = await getAssignees(true);
+    await loadData();
   });
   function downloadTemplate() {
     const headers = [
@@ -534,7 +665,8 @@
 
     let csv = headers.join(",") + "\n";
     rows.forEach((row) => {
-      csv += row.map((v) => `"${(v || "").replace(/"/g, '""')}"`).join(",") + "\n";
+      csv +=
+        row.map((v) => `"${(v || "").replace(/"/g, '""')}"`).join(",") + "\n";
     });
 
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -719,28 +851,59 @@
       console.error("Failed to load suite page:", e);
     }
   }
-  const assignees = [
-    { id: "unassigned", name: "Unassigned" },
-    { id: "wk-18k", name: "WK 18K" },
-    { id: "qa-lead", name: "QA Lead" },
-    { id: "product-owner", name: "Product Owner" },
-  ];
+  let assignees: any[] = [];
 
   const fieldOptions = [
-    { value: "all fields", label: "By all fields" },
-    { value: "title", label: "By title" },
-    { value: "steps", label: "By steps" },
+    { value: "all", label: "By all fields" },
+    { value: "test_no", label: "ID" },
+    { value: "name", label: "Title" },
+    { value: "suite", label: "Suite" },
+    { value: "description", label: "Description" },
+    { value: "preconditions", label: "Pre-conditions" },
+    { value: "postconditions", label: "Post-conditions" },
+    { value: "custom_fields", label: "Custom Fields" },
+    { value: "comments", label: "Comments" },
+    { value: "steps", label: "Steps" },
   ];
 
   const statusOptions = [
-    { value: "draft", label: "Draft", icon: CircleDashed, iconClass: "text-slate-400" },
-    { value: "actual", label: "Actual", icon: ListChecks, iconClass: "text-blue-400" },
-    { value: "pass", label: "Pass", icon: CheckCircle2, iconClass: "text-green-400" },
-    { value: "failed", label: "Failed", icon: XCircle, iconClass: "text-rose-400" },
-    { value: "blocked", label: "Blocked", icon: Ban, iconClass: "text-slate-500" },
-    { value: "deprecated", label: "Deprecated", icon: History, iconClass: "text-slate-600" },
+    {
+      value: "draft",
+      label: "Draft",
+      icon: CircleDashed,
+      iconClass: "text-slate-400",
+    },
+    {
+      value: "actual",
+      label: "Actual",
+      icon: ListChecks,
+      iconClass: "text-blue-400",
+    },
+    {
+      value: "pass",
+      label: "Pass",
+      icon: CheckCircle2,
+      iconClass: "text-green-400",
+    },
+    {
+      value: "failed",
+      label: "Failed",
+      icon: XCircle,
+      iconClass: "text-rose-400",
+    },
+    {
+      value: "blocked",
+      label: "Blocked",
+      icon: Ban,
+      iconClass: "text-slate-500",
+    },
+    {
+      value: "deprecated",
+      label: "Deprecated",
+      icon: History,
+      iconClass: "text-slate-600",
+    },
   ];
-
 
   const stepFormatOptions = [
     { value: "gherkin", label: "Gherkin" },
@@ -748,7 +911,12 @@
   ];
 
   const fixedOptions = [
-    { value: "no", label: "Not fixed", icon: AlertCircle, iconClass: "text-amber-400" },
+    {
+      value: "no",
+      label: "Not fixed",
+      icon: AlertCircle,
+      iconClass: "text-amber-400",
+    },
     { value: "yes", label: "Fixed", icon: Check, iconClass: "text-green-400" },
   ];
 
@@ -756,10 +924,20 @@
     value: suite.id,
     label: suite.title,
   }));
-  $: assigneeOptions = assignees.map((assignee) => ({
-    value: assignee.id,
-    label: assignee.name,
-  }));
+  $: assigneeOptions = [
+    { value: "unassigned", label: "Unassigned", user_id: null },
+    ...assignees.map((assignee) => ({
+      value: String(assignee.id),
+      label: assignee.name,
+      user_id: assignee.user_id,
+    }))
+  ];
+
+  $: availableAssigneeOptions = isAuthorized 
+    ? assigneeOptions 
+    : assigneeOptions
+        .filter((o) => o.value === "unassigned" || String(o.user_id) === String($user?.id))
+        .map((o) => (String(o.user_id) === String($user?.id) ? { ...o, label: "me" } : o));
 
   $: workspaceId = $page.params.workspace_id;
   $: workspaceLabel = $currentWorkspaceName || "Current workspace";
@@ -835,7 +1013,6 @@
   function closeTestCaseModal() {
     showTestCaseModal = false;
   }
-
 
   async function submitTestCase() {
     if (!testCaseForm.name.trim() || !workspaceId) return;
@@ -1021,38 +1198,42 @@
       <header
         class="shrink-0 border-b border-gray-200 bg-white px-6 py-5 dark:border-gray-800 dark:bg-gray-950"
       >
-        <div
-          class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between"
-        >
-          <div>
-            <p
-              class="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400"
-            >
-              Workspace test repository
-            </p>
-            <h1
-              class="mt-1 text-2xl font-black tracking-tight text-slate-800 dark:text-white"
-            >
+        <div class="flex flex-col gap-4">
+          <div class="flex items-baseline gap-3">
+            <h1 class="text-2xl font-black tracking-tight text-slate-800 dark:text-white">
               {workspaceLabel} repository
             </h1>
-            <p class="mt-1 text-sm font-medium text-slate-500">
+            <span class="text-sm font-medium text-slate-500">
               {caseCount} cases ({caseCount}) | {suiteCount} suites ({suiteCount})
-            </p>
+            </span>
           </div>
 
-          <div class="flex flex-wrap items-center gap-2">
+          <div class="flex flex-wrap items-center gap-3">
             <div
-              class="flex h-9 min-w-[280px] overflow-hidden rounded-lg border border-slate-300 bg-white dark:border-gray-700 dark:bg-gray-900"
+              class="group flex h-10 min-w-[320px] rounded-xl border border-slate-200 bg-white shadow-sm transition-all focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 dark:border-gray-700 dark:bg-gray-900 dark:focus-within:border-indigo-400"
             >
-              <label class="flex min-w-0 flex-1 items-center gap-2 px-3">
-                <Search size={16} class="shrink-0 text-slate-400" />
+              <label class="flex min-w-0 flex-1 items-center gap-2.5 px-3.5">
+                <Search
+                  size={18}
+                  class="shrink-0 text-slate-400 group-focus-within:text-indigo-500"
+                />
                 <input
                   bind:value={query}
-                  class="min-w-0 flex-1 border-0 bg-transparent text-sm font-medium outline-none placeholder:text-slate-400"
-                  placeholder="Search"
+                  class="min-w-0 flex-1 border-0 bg-transparent text-sm font-bold text-slate-700 outline-none placeholder:text-slate-400 dark:!bg-transparent dark:text-gray-200"
+                  placeholder="Search test cases, ID, description..."
                 />
+                {#if query}
+                  <button
+                    on:click={() => (query = "")}
+                    class="p-1 hover:bg-slate-100 rounded-full dark:hover:bg-gray-800"
+                  >
+                    <X size={14} class="text-slate-400" />
+                  </button>
+                {/if}
               </label>
-              <div class="w-44 border-l border-slate-300 dark:border-gray-700">
+              <div
+                class="flex h-full items-center w-48 rounded-r-xl border-l border-slate-200 bg-slate-50/50 dark:border-gray-700 dark:bg-gray-800/50"
+              >
                 <SearchableSelect
                   id="test-case-search-field"
                   bind:value={field}
@@ -1063,43 +1244,72 @@
               </div>
             </div>
             <button
-              class="h-9 rounded-lg px-3 text-sm font-black text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/10"
+              class="flex h-10 items-center gap-2 rounded-xl bg-slate-100 px-4 text-[13px] font-black text-slate-600 hover:bg-slate-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
             >
+              <Plus size={16} />
               Add filter
             </button>
             <div class="h-6 w-px bg-slate-200 dark:bg-gray-800"></div>
-            <div class="flex items-center gap-2">
+            <div class="relative flex items-center gap-2">
               <button
-                class="flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-black text-slate-600 hover:bg-slate-100 dark:text-gray-300 dark:hover:bg-gray-800"
-                on:click={downloadTemplate}
-                title={$_("testCases__download_template")}
+                class="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                on:click={() => (showActionsMenu = !showActionsMenu)}
+                title="Actions"
               >
-                <Download size={16} />
-                <span class="hidden sm:inline"
-                  >{$_("testCases__download_template")}</span
-                >
+                <MoreHorizontal size={16} />
               </button>
-              <label
-                class="flex h-9 cursor-pointer items-center gap-2 rounded-lg px-3 text-sm font-black text-slate-600 hover:bg-slate-100 dark:text-gray-300 dark:hover:bg-gray-800"
-                title={$_("testCases__import")}
-              >
-                <FileUp size={16} />
-                <span class="hidden sm:inline">{$_("testCases__import")}</span>
-                <input
-                  type="file"
-                  accept=".csv"
-                  class="hidden"
-                  on:change={handleImport}
-                />
-              </label>
-              <button
-                class="flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-black text-slate-600 hover:bg-slate-100 dark:text-gray-300 dark:hover:bg-gray-800"
-                on:click={exportToCSV}
-                title={$_("testCases__export")}
-              >
-                <FileDown size={16} />
-                <span class="hidden sm:inline">{$_("testCases__export")}</span>
-              </button>
+
+              {#if showActionsMenu}
+                <!-- svelte-ignore a11y_consider_explicit_label -->
+                <button
+                  class="fixed inset-0 z-40 h-full w-full cursor-default border-none bg-transparent"
+                  on:click={() => (showActionsMenu = false)}
+                ></button>
+
+                <div class="absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800">
+                  <div class="flex flex-col py-1">
+                    <button
+                      class="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-black text-slate-700 hover:bg-slate-50 dark:text-gray-200 dark:hover:bg-gray-700/50 transition-colors"
+                      on:click={() => {
+                        downloadTemplate();
+                        showActionsMenu = false;
+                      }}
+                    >
+                      <Download size={16} class="text-slate-400" />
+                      {$_("testCases__download_template")}
+                    </button>
+                    
+                    {#if isAuthorized}
+                      <label
+                        class="flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left text-sm font-black text-slate-700 hover:bg-slate-50 dark:text-gray-200 dark:hover:bg-gray-700/50 transition-colors"
+                      >
+                        <FileUp size={16} class="text-slate-400" />
+                        {$_("testCases__import")}
+                        <input
+                          type="file"
+                          accept=".csv"
+                          class="hidden"
+                          on:change={(e) => {
+                            handleImport(e);
+                            showActionsMenu = false;
+                          }}
+                        />
+                      </label>
+                    {/if}
+                    
+                    <button
+                      class="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-black text-slate-700 hover:bg-slate-50 dark:text-gray-200 dark:hover:bg-gray-700/50 transition-colors"
+                      on:click={() => {
+                        exportToCSV();
+                        showActionsMenu = false;
+                      }}
+                    >
+                      <FileDown size={16} class="text-slate-400" />
+                      {$_("testCases__export")}
+                    </button>
+                  </div>
+                </div>
+              {/if}
             </div>
           </div>
         </div>
@@ -1119,13 +1329,15 @@
             <h2 class="text-lg font-black text-slate-800 dark:text-white">
               Suites
             </h2>
-            <button
-              class="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
-              title="Add suite"
-              on:click={() => (showCreateSuiteModal = true)}
-            >
-              <Plus size={16} />
-            </button>
+            {#if isAuthorized}
+              <button
+                class="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                title="Add suite"
+                on:click={() => (showCreateSuiteModal = true)}
+              >
+                <Plus size={16} />
+              </button>
+            {/if}
           </div>
 
           <div class="space-y-1">
@@ -1165,48 +1377,50 @@
                   >
                     {suite.title}
                   </h3>
-                  <button
-                    class="grid h-8 w-8 place-items-center rounded-md text-indigo-600 hover:bg-white dark:text-indigo-400 dark:hover:bg-gray-800"
-                    title="Add case"
-                    on:click={() => openTestCaseEditor(suite.id)}
-                  >
-                    <Plus size={16} />
-                  </button>
-                  <button
-                    class="grid h-8 w-8 place-items-center rounded-md text-slate-400 hover:bg-white hover:text-slate-700 dark:hover:bg-gray-800 dark:hover:text-white"
-                    title="Edit suite"
-                    on:click={() => (editingSuite = { ...suite })}
-                  >
-                    <Edit3 size={15} />
-                  </button>
-                  <button
-                    class="grid h-8 w-8 place-items-center rounded-md text-slate-400 hover:bg-white hover:text-rose-600 dark:hover:bg-gray-800 dark:hover:text-rose-400"
-                    title="Delete suite"
-                    on:click={() => {
-                      suiteToDelete = suite;
-                      showDeleteSuiteModal = true;
-                    }}
-                  >
-                    <Trash2 size={15} />
-                  </button>
+                  {#if isAuthorized}
+                    <button
+                      class="grid h-8 w-8 place-items-center rounded-md text-indigo-600 hover:bg-white dark:text-indigo-400 dark:hover:bg-gray-800"
+                      title="Add case"
+                      on:click={() => openTestCaseEditor(suite.id)}
+                    >
+                      <Plus size={16} />
+                    </button>
+                    <button
+                      class="grid h-8 w-8 place-items-center rounded-md text-slate-400 hover:bg-white hover:text-slate-700 dark:hover:bg-gray-800 dark:hover:text-white"
+                      title="Edit suite"
+                      on:click={() => (editingSuite = { ...suite })}
+                    >
+                      <Edit3 size={15} />
+                    </button>
+                    <button
+                      class="grid h-8 w-8 place-items-center rounded-md text-slate-400 hover:bg-white hover:text-rose-600 dark:hover:bg-gray-800 dark:hover:text-rose-400"
+                      title="Delete suite"
+                      on:click={() => {
+                        suiteToDelete = suite;
+                        showDeleteSuiteModal = true;
+                      }}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  {/if}
                 </div>
 
                 <div class="divide-y divide-slate-200 dark:divide-gray-800">
                   {#each suite.cases || [] as testCase}
                     <div
-                      class="grid w-full grid-cols-[24px_52px_1fr_auto_auto_auto] items-center gap-3 rounded-md px-3 py-2 text-left transition-colors {selectedCaseId ===
+                      class="grid w-full grid-cols-[24px_52px_1fr_auto_auto_auto] sm:grid-cols-[60px_52px_1fr_auto_auto_auto] items-center gap-3 rounded-md px-3 py-2 text-left transition-colors {selectedCaseId ===
                       testCase.id
                         ? 'bg-slate-100 dark:bg-transparent'
                         : 'hover:bg-slate-50 dark:hover:bg-gray-900/70'}"
                     >
                       <button
-                        class="col-span-3 grid grid-cols-[24px_52px_1fr] items-center gap-3 text-left"
+                        class="col-span-3 grid grid-cols-[24px_52px_1fr] sm:grid-cols-[60px_52px_1fr] items-center gap-3 text-left"
                         on:click={() => {
                           selectCase(suite, testCase);
                           showDetail = true;
                         }}
                       >
-                        <span class="grid h-5 w-5 place-items-center">
+                        <span class="grid h-5 w-5 place-items-center sm:hidden">
                           <span
                             class="h-2.5 w-2.5 rounded-full border-2 {testCase.priority ===
                             'high'
@@ -1214,7 +1428,15 @@
                               : 'border-slate-300'}"
                           ></span>
                         </span>
-                        <span class="font-mono text-sm font-bold text-slate-400 text-left"
+                        <span
+                          class="hidden w-full items-center justify-center rounded-md border px-1 py-0.5 text-[10px] font-black uppercase tracking-wide sm:flex {priorityColor(
+                            testCase.priority,
+                          )}"
+                        >
+                          {testCase.priority}
+                        </span>
+                        <span
+                          class="font-mono text-sm font-bold text-slate-400 text-left"
                           >TC-{testCase.test_no}</span
                         >
                         <span
@@ -1223,7 +1445,7 @@
                         >
                       </button>
                       <div class="flex items-center gap-2">
-                        {#if canSeeStatus}
+                        {#if isAuthorized}
                           <div class="property-select min-w-[80px]">
                             <SearchableSelect
                               id="status-update-{testCase.id}"
@@ -1231,7 +1453,21 @@
                               options={statusOptions}
                               showSearch={false}
                               minimal={true}
-                              on:select={(e) => updateStatus(testCase, e.detail)}
+                              on:select={(e) =>
+                                updateStatus(testCase, e.detail)}
+                            />
+                          </div>
+                        {:else}
+                          <div
+                            class="property-select min-w-[80px] pointer-events-none opacity-80"
+                          >
+                            <SearchableSelect
+                              id="status-update-{testCase.id}"
+                              value={testCase.status}
+                              options={statusOptions}
+                              showSearch={false}
+                              minimal={true}
+                              on:select={() => {}}
                             />
                           </div>
                         {/if}
@@ -1245,21 +1481,27 @@
                             on:select={(e) => updateFixed(testCase, e.detail)}
                           />
                         </div>
-                        <span
-                          class="hidden rounded-md border px-2 py-0.5 text-[11px] font-black uppercase tracking-wide sm:inline-flex {priorityColor(
-                            testCase.priority,
-                          )}"
-                        >
-                          {testCase.priority}
-                        </span>
+                        <div class="property-select min-w-[120px]">
+                          <SearchableSelect
+                            id="assigndev-update-{testCase.id}"
+                            value={testCase.assign_dev || "unassigned"}
+                            options={availableAssigneeOptions}
+                            showSearch={true}
+                            minimal={true}
+                            on:select={(e) => updateAssignDev(testCase, e.detail)}
+                          />
+                        </div>
                       </div>
-                      <button
-                        class="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-white hover:text-indigo-600 dark:hover:bg-gray-800 dark:hover:text-indigo-400"
-                        title="Edit Case"
-                        on:click={() => openTestCaseEditor(suite.id, testCase.id)}
-                      >
-                        <Edit3 size={16} />
-                      </button>
+                      {#if isAuthorized}
+                        <button
+                          class="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-white hover:text-indigo-600 dark:hover:bg-gray-800 dark:hover:text-indigo-400"
+                          title="Edit Case"
+                          on:click={() =>
+                            openTestCaseEditor(suite.id, testCase.id)}
+                        >
+                          <Edit3 size={16} />
+                        </button>
+                      {/if}
                     </div>
                   {/each}
 
@@ -1278,34 +1520,38 @@
                   class="flex items-center justify-between px-3 py-3 border-t border-slate-100 dark:border-gray-800"
                 >
                   <div class="flex flex-1 items-center gap-4">
-                    {#if quickTestInputSuiteId === suite.id}
-                      <input
-                        bind:value={quickTestTitle}
-                        class="flex-1 border-0 !bg-transparent text-sm font-bold outline-none placeholder:text-slate-400 dark:text-white"
-                        placeholder={$_("testCases__title_placeholder")}
-                        on:keydown={(e) => {
-                          if (e.key === "Enter") handleQuickCreate(suite.id);
-                          if (e.key === "Escape") {
-                            quickTestInputSuiteId = "";
+                    {#if isAuthorized}
+                      {#if quickTestInputSuiteId === suite.id}
+                        <input
+                          bind:value={quickTestTitle}
+                          class="flex-1 border-0 !bg-transparent text-sm font-bold outline-none placeholder:text-slate-400 dark:text-white"
+                          placeholder={$_("testCases__title_placeholder")}
+                          on:keydown={(e) => {
+                            if (e.key === "Enter") handleQuickCreate(suite.id);
+                            if (e.key === "Escape") {
+                              quickTestInputSuiteId = "";
+                              quickTestTitle = "";
+                            }
+                          }}
+                          on:blur={() => {
+                            if (!quickTestTitle.trim())
+                              quickTestInputSuiteId = "";
+                          }}
+                          use:autofocus
+                        />
+                      {:else}
+                        <button
+                          class="text-sm font-black text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+                          on:click={() => {
+                            quickTestInputSuiteId = suite.id;
                             quickTestTitle = "";
-                          }
-                        }}
-                        on:blur={() => {
-                          if (!quickTestTitle.trim())
-                            quickTestInputSuiteId = "";
-                        }}
-                        use:autofocus
-                      />
+                          }}
+                        >
+                          {$_("testCases__quick_create")}
+                        </button>
+                      {/if}
                     {:else}
-                      <button
-                        class="text-sm font-black text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
-                        on:click={() => {
-                          quickTestInputSuiteId = suite.id;
-                          quickTestTitle = "";
-                        }}
-                      >
-                        {$_("testCases__quick_create")}
-                      </button>
+                      <div class="flex-1"></div>
                     {/if}
 
                     <div class="flex gap-2">
@@ -1359,28 +1605,6 @@
                 <p class="font-mono text-sm font-bold text-slate-400">
                   TC-{selectedCase.test_no}
                 </p>
-                {#if canSeeStatus}
-                  <div class="property-select min-w-[80px]">
-                    <SearchableSelect
-                      id="sidebar-status-update"
-                      value={selectedCase.status}
-                      options={statusOptions}
-                      showSearch={false}
-                      minimal={true}
-                      on:select={(e) => updateStatus(selectedCase, e.detail)}
-                    />
-                  </div>
-                {/if}
-                <div class="property-select min-w-[90px]">
-                  <SearchableSelect
-                    id="sidebar-fixed-update"
-                    value={selectedCase.fixed}
-                    options={fixedOptions}
-                    showSearch={false}
-                    minimal={true}
-                    on:select={(e) => updateFixed(selectedCase, e.detail)}
-                  />
-                </div>
               </div>
               <h2
                 class="mt-1 truncate text-2xl font-black text-slate-800 dark:text-white"
@@ -1401,31 +1625,55 @@
           </div>
 
           <div class="mt-4 flex flex-wrap items-center gap-2">
-            <button
-              class="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-gray-800 dark:text-gray-200"
-              title="Edit"
-              on:click={() =>
-                openTestCaseEditor(selectedSuite.id, selectedCase.id)}
-            >
-              <Edit3 size={17} />
-            </button>
-            <button
-              class="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-gray-800 dark:text-gray-200"
-              title="Delete"
-            >
-              <Trash2 size={17} />
-            </button>
+            {#if isAuthorized}
+              <button
+                class="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-gray-800 dark:text-gray-200"
+                title="Edit"
+                on:click={() =>
+                  openTestCaseEditor(selectedSuite.id, selectedCase.id)}
+              >
+                <Edit3 size={17} />
+              </button>
+              <button
+                class="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-gray-800 dark:text-gray-200"
+                title="Delete"
+              >
+                <Trash2 size={17} />
+              </button>
+            {/if}
           </div>
 
           <div
             class="mt-4 flex gap-6 border-b border-gray-200 text-sm font-black text-slate-500 dark:border-gray-800"
           >
-            <span
-              class="border-b-2 border-indigo-600 pb-2 text-slate-800 dark:text-white"
-              >General</span
+            <button
+              class="pb-2 transition-colors {sidebarTab === 'general'
+                ? 'border-b-2 border-indigo-600 text-slate-800 dark:text-white'
+                : 'hover:text-slate-700 dark:hover:text-gray-300'}"
+              on:click={() => (sidebarTab = "general")}
             >
+              General
+            </button>
+            <button
+              class="pb-2 transition-colors {sidebarTab === 'properties'
+                ? 'border-b-2 border-indigo-600 text-slate-800 dark:text-white'
+                : 'hover:text-slate-700 dark:hover:text-gray-300'}"
+              on:click={() => (sidebarTab = "properties")}
+            >
+              Properties
+            </button>
+            <button
+              class="pb-2 transition-colors {sidebarTab === 'notes'
+                ? 'border-b-2 border-indigo-600 text-slate-800 dark:text-white'
+                : 'hover:text-slate-700 dark:hover:text-gray-300'}"
+              on:click={() => (sidebarTab = "notes")}
+            >
+              Notes
+            </button>
           </div>
         </div>
+
+        {#if sidebarTab === "general"}
 
         <div class="space-y-7 px-5 py-6">
           <section>
@@ -1462,56 +1710,58 @@
                 Steps
               </h3>
               <div class="flex items-center gap-4">
-                {#if !isEditingSidebarSteps}
-                  <button
-                    class="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-500 transition-colors"
-                    on:click={() => (isEditingSidebarSteps = true)}
-                  >
-                    <Edit3 size={14} />
-                    Edit
-                  </button>
-                {:else}
-                  <div class="flex items-center gap-3">
-                    <div class="property-select min-w-[96px]">
-                      <SearchableSelect
-                        id="sidebar-step-format"
-                        bind:value={sidebarStepFormat}
-                        options={[
-                          { value: "classic", label: "Classic" },
-                          { value: "gherkin", label: "Gherkin" },
-                        ]}
-                        showSearch={false}
-                        minimal={true}
-                      />
+                {#if isAuthorized}
+                  {#if !isEditingSidebarSteps}
+                    <button
+                      class="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-500 transition-colors"
+                      on:click={() => (isEditingSidebarSteps = true)}
+                    >
+                      <Edit3 size={14} />
+                      Edit
+                    </button>
+                  {:else}
+                    <div class="flex items-center gap-3">
+                      <div class="property-select min-w-[96px]">
+                        <SearchableSelect
+                          id="sidebar-step-format"
+                          bind:value={sidebarStepFormat}
+                          options={[
+                            { value: "classic", label: "Classic" },
+                            { value: "gherkin", label: "Gherkin" },
+                          ]}
+                          showSearch={false}
+                          minimal={true}
+                        />
+                      </div>
+                      <button
+                        class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-black text-white hover:bg-indigo-500 disabled:opacity-50 dark:bg-indigo-500 dark:hover:bg-indigo-400"
+                        on:click={saveSidebarSteps}
+                        disabled={isSavingSidebarSteps}
+                      >
+                        <Save size={14} />
+                        {isSavingSidebarSteps ? "Saving..." : "Save"}
+                      </button>
+                      <button
+                        class="text-xs font-bold text-gray-500 hover:text-gray-700 transition-colors"
+                        on:click={() => {
+                          isEditingSidebarSteps = false;
+                          // Reset local steps to match selected case
+                          sidebarStepFormat =
+                            selectedCase.step_format || "classic";
+                          sidebarSteps =
+                            sidebarStepFormat === "gherkin"
+                              ? [...(selectedCase.gherkin_steps || [])]
+                              : [
+                                  ...(selectedCase.classic_steps ||
+                                    selectedCase.steps ||
+                                    []),
+                                ];
+                        }}
+                      >
+                        Cancel
+                      </button>
                     </div>
-                    <button
-                      class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-black text-white hover:bg-indigo-500 disabled:opacity-50 dark:bg-indigo-500 dark:hover:bg-indigo-400"
-                      on:click={saveSidebarSteps}
-                      disabled={isSavingSidebarSteps}
-                    >
-                      <Save size={14} />
-                      {isSavingSidebarSteps ? "Saving..." : "Save"}
-                    </button>
-                    <button
-                      class="text-xs font-bold text-gray-500 hover:text-gray-700 transition-colors"
-                      on:click={() => {
-                        isEditingSidebarSteps = false;
-                        // Reset local steps to match selected case
-                        sidebarStepFormat =
-                          selectedCase.step_format || "classic";
-                        sidebarSteps =
-                          sidebarStepFormat === "gherkin"
-                            ? [...(selectedCase.gherkin_steps || [])]
-                            : [
-                                ...(selectedCase.classic_steps ||
-                                  selectedCase.steps ||
-                                  []),
-                              ];
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
+                  {/if}
                 {/if}
               </div>
             </div>
@@ -1523,6 +1773,115 @@
             />
           </section>
         </div>
+        {:else if sidebarTab === "properties"}
+          <div class="space-y-6 px-5 py-6">
+            <section>
+              <h3 class="mb-3 text-sm font-black text-slate-700 dark:text-gray-200">
+                Status
+              </h3>
+              <div class="property-select w-full">
+                {#if isAuthorized}
+                  <SearchableSelect
+                    id="sidebar-prop-status-update"
+                    value={selectedCase.status}
+                    options={statusOptions}
+                    showSearch={false}
+                    on:select={(e) => updateStatus(selectedCase, e.detail)}
+                  />
+                {:else}
+                  <div class="opacity-80 pointer-events-none">
+                    <SearchableSelect
+                      id="sidebar-prop-status-update"
+                      value={selectedCase.status}
+                      options={statusOptions}
+                      showSearch={false}
+                      on:select={() => {}}
+                    />
+                  </div>
+                {/if}
+              </div>
+            </section>
+
+            <section>
+              <h3 class="mb-3 text-sm font-black text-slate-700 dark:text-gray-200">
+                Fix Status
+              </h3>
+              <div class="property-select w-full">
+                <SearchableSelect
+                  id="sidebar-prop-fixed-update"
+                  value={selectedCase.fixed}
+                  options={fixedOptions}
+                  showSearch={false}
+                  on:select={(e) => updateFixed(selectedCase, e.detail)}
+                />
+              </div>
+            </section>
+
+            <section>
+              <h3 class="mb-3 text-sm font-black text-slate-700 dark:text-gray-200">
+                Assign Developer
+              </h3>
+              <div class="property-select w-full">
+                <SearchableSelect
+                  id="sidebar-prop-assigndev-update"
+                  value={selectedCase.assign_dev || "unassigned"}
+                  options={availableAssigneeOptions}
+                  showSearch={true}
+                  on:select={(e) => updateAssignDev(selectedCase, e.detail)}
+                />
+              </div>
+            </section>
+          </div>
+        {:else if sidebarTab === "notes"}
+          <div class="space-y-6 px-5 py-6">
+            <section>
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="text-sm font-black text-slate-700 dark:text-gray-200">
+                  Dev Notes
+                </h3>
+                <button
+                  class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-black text-white hover:bg-indigo-500 disabled:opacity-50 dark:bg-indigo-500 dark:hover:bg-indigo-400 transition-all active:scale-95 shadow-sm shadow-indigo-200 dark:shadow-none"
+                  on:click={handleUpdateNotes}
+                  disabled={isSavingNotes}
+                >
+                  <Save size={14} />
+                  {isSavingNotes ? "Saving..." : "Save"}
+                </button>
+              </div>
+              <textarea
+                class="w-full rounded-xl border border-gray-200 bg-slate-50 p-3 text-sm text-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                rows="6"
+                placeholder="Add dev notes..."
+                bind:value={devNote}
+              ></textarea>
+            </section>
+
+            <section>
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="text-sm font-black text-slate-700 dark:text-gray-200">
+                  Tester Notes
+                </h3>
+                {#if isAuthorized}
+                  <button
+                    class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-black text-white hover:bg-indigo-500 disabled:opacity-50 dark:bg-indigo-500 dark:hover:bg-indigo-400 transition-all active:scale-95 shadow-sm shadow-indigo-200 dark:shadow-none"
+                    on:click={handleUpdateNotes}
+                    disabled={isSavingNotes}
+                  >
+                    <Save size={14} />
+                    {isSavingNotes ? "Saving..." : "Save"}
+                  </button>
+                {/if}
+              </div>
+              <textarea
+                class="w-full rounded-xl border border-gray-200 bg-slate-50 p-3 text-sm text-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 disabled:bg-gray-100/50 dark:disabled:bg-gray-900/50"
+                rows="6"
+                placeholder={isAuthorized ? "Add tester notes..." : "Only QA Testers can add notes here"}
+                bind:value={testNote}
+                disabled={!isAuthorized}
+              ></textarea>
+            </section>
+          </div>
+        {/if}
       </aside>
     {/if}
   </div>
@@ -1733,6 +2092,7 @@
         >
           Suite Name
         </label>
+        <!-- svelte-ignore a11y_autofocus -->
         <input
           id="new-suite-name"
           type="text"
@@ -1782,6 +2142,7 @@
           class="block text-[12px] font-black uppercase tracking-widest text-slate-500"
           >Suite Name</label
         >
+        <!-- svelte-ignore a11y_autofocus -->
         <input
           id="edit-suite-name"
           type="text"

@@ -193,8 +193,7 @@
         {/if}
 
         <div class="flex items-start gap-2 pt-1">
-          {#if readOnly}
-          {:else}
+          {#if !readOnly}
             <button
               type="button"
               class="grid h-8 w-8 place-items-center rounded-md text-slate-500 hover:text-rose-600 dark:hover:text-rose-400"
@@ -268,9 +267,7 @@
         {/if}
 
         <div class="flex items-center gap-2">
-          {#if readOnly}
-            <!-- Actions for readOnly gherkin -->
-          {:else}
+          {#if !readOnly}
             <button
               type="button"
               class="grid h-8 w-8 place-items-center rounded-md text-slate-500 hover:text-rose-600 dark:hover:text-rose-400"

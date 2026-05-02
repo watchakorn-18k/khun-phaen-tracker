@@ -528,7 +528,8 @@
                 {$_("tableView__column_priority")}
                 <svelte:component this={getSortIcon("priority")} size={12} />
               </button>
-              <div class="col-resize-handle {resizingCol === 'priority' ? 'active' : ''}" on:mousedown={(e) => startColResize('priority', e)}></div>
+              <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+              <div role="separator" tabindex="-1" class="col-resize-handle {resizingCol === 'priority' ? 'active' : ''}" on:mousedown={(e) => startColResize('priority', e)}></div>
             </th>
           {/if}
           <th class="px-3 py-2 text-left relative" style="width: {displayColWidth('title')}px;">
@@ -539,8 +540,8 @@
               {$_("tableView__column_title")}
               <svelte:component this={getSortIcon("title")} size={12} />
             </button>
-            <!-- svelte-ignore a11y-no-static-element-interactions -->
-            <div class="col-resize-handle {resizingCol === 'title' ? 'active' : ''}" on:mousedown={(e) => startColResize('title', e)}></div>
+            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+            <div role="separator" tabindex="-1" class="col-resize-handle {resizingCol === 'title' ? 'active' : ''}" on:mousedown={(e) => startColResize('title', e)}></div>
           </th>
           {#if enabledColumns.get('project')}
             <th class="px-3 py-2 text-left hidden lg:table-cell relative" style="width: {displayColWidth('project')}px;">
@@ -552,8 +553,8 @@
                 {$_("tableView__column_project")}
                 <svelte:component this={getSortIcon("project")} size={12} />
               </button>
-              <!-- svelte-ignore a11y-no-static-element-interactions -->
-              <div class="col-resize-handle {resizingCol === 'project' ? 'active' : ''}" on:mousedown={(e) => startColResize('project', e)}></div>
+              <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+              <div role="separator" tabindex="-1" class="col-resize-handle {resizingCol === 'project' ? 'active' : ''}" on:mousedown={(e) => startColResize('project', e)}></div>
             </th>
           {/if}
           {#if enabledColumns.get('category')}
@@ -565,8 +566,8 @@
                 {$_("tableView__column_category")}
                 <svelte:component this={getSortIcon("category")} size={12} />
               </button>
-              <!-- svelte-ignore a11y-no-static-element-interactions -->
-              <div class="col-resize-handle {resizingCol === 'category' ? 'active' : ''}" on:mousedown={(e) => startColResize('category', e)}></div>
+              <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+              <div role="separator" tabindex="-1" class="col-resize-handle {resizingCol === 'category' ? 'active' : ''}" on:mousedown={(e) => startColResize('category', e)}></div>
             </th>
           {/if}
           {#if enabledColumns.get('assignee')}
@@ -584,8 +585,8 @@
                 >
                 <svelte:component this={getSortIcon("assignee")} size={12} />
               </button>
-              <!-- svelte-ignore a11y-no-static-element-interactions -->
-              <div class="col-resize-handle {resizingCol === 'assignee' ? 'active' : ''}" on:mousedown={(e) => startColResize('assignee', e)}></div>
+              <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+              <div role="separator" tabindex="-1" class="col-resize-handle {resizingCol === 'assignee' ? 'active' : ''}" on:mousedown={(e) => startColResize('assignee', e)}></div>
             </th>
           {/if}
           {#if enabledColumns.get('sprint')}
@@ -596,8 +597,8 @@
                 <Flag size={12} />
                 {$_("tableView__column_sprint")}
               </span>
-              <!-- svelte-ignore a11y-no-static-element-interactions -->
-              <div class="col-resize-handle {resizingCol === 'sprint' ? 'active' : ''}" on:mousedown={(e) => startColResize('sprint', e)}></div>
+              <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+              <div role="separator" tabindex="-1" class="col-resize-handle {resizingCol === 'sprint' ? 'active' : ''}" on:mousedown={(e) => startColResize('sprint', e)}></div>
             </th>
           {/if}
           {#if enabledColumns.get('status')}
@@ -609,8 +610,8 @@
                 {$_("tableView__column_status")}
                 <svelte:component this={getSortIcon("status")} size={12} />
               </button>
-              <!-- svelte-ignore a11y-no-static-element-interactions -->
-              <div class="col-resize-handle {resizingCol === 'status' ? 'active' : ''}" on:mousedown={(e) => startColResize('status', e)}></div>
+              <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+              <div role="separator" tabindex="-1" class="col-resize-handle {resizingCol === 'status' ? 'active' : ''}" on:mousedown={(e) => startColResize('status', e)}></div>
             </th>
           {/if}
           {#if enabledColumns.get('date')}
@@ -627,8 +628,8 @@
                 >
                 <svelte:component this={getSortIcon("date")} size={12} />
               </button>
-              <!-- svelte-ignore a11y-no-static-element-interactions -->
-              <div class="col-resize-handle {resizingCol === 'date' ? 'active' : ''}" on:mousedown={(e) => startColResize('date', e)}></div>
+              <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+              <div role="separator" tabindex="-1" class="col-resize-handle {resizingCol === 'date' ? 'active' : ''}" on:mousedown={(e) => startColResize('date', e)}></div>
             </th>
           {/if}
           <th
