@@ -177,6 +177,7 @@ function docToTaskComment(doc: any): TaskComment {
         }))
       : [],
     created_by: doc.created_by || "",
+    created_by_name: doc.created_by_name || doc.author_name || "",
     created_at: doc.created_at || "",
     updated_at: doc.updated_at || "",
   };

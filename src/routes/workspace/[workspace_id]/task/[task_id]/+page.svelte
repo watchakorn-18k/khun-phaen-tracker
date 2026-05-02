@@ -79,6 +79,15 @@
     AlertTriangle,
     FileText,
     Image as ImageIcon,
+    ZoomIn,
+    ZoomOut,
+    Maximize2,
+    RotateCw,
+    RotateCcw,
+    Download,
+    ExternalLink,
+    X,
+    ChevronLeft,
   } from "lucide-svelte";
   import ConfirmModal from "$lib/components/ConfirmModal.svelte";
   import BranchDialog from "$lib/components/BranchDialog.svelte";
@@ -107,6 +116,22 @@
   let commentFileInputRef: HTMLInputElement | undefined;
   let commentRows = 3;
   let attachedFiles: { file: File, preview?: string }[] = [];
+
+  let lightboxImages: { src: string; alt: string }[] = [];
+  let lightboxSrc = "";
+  let lightboxAlt = "";
+  let lightboxOpen = false;
+  let lightboxZoom = 1;
+  let lightboxX = 0;
+  let lightboxY = 0;
+  let lightboxRotation = 0;
+  let lightboxIndex = 0;
+  let isLightboxDragging = false;
+  let dragStartX = 0;
+  let dragStartY = 0;
+  let dragStartOffsetX = 0;
+  let dragStartOffsetY = 0;
+  let lightboxCopyFeedback = "";
 
   let sidebarOpen = true;
   let isEditingTitle = false;
@@ -570,6 +595,136 @@
     }
   }
 
+  function openLightbox(images: { file_key: string; filename?: string }[], index: number) {
+    lightboxImages = images.map(img => ({
+      src: getCommentImageUrl(img.file_key),
+      alt: img.filename || "Image",
+    }));
+    lightboxIndex = Math.min(Math.max(index, 0), lightboxImages.length - 1);
+    lightboxSrc = lightboxImages[lightboxIndex].src;
+    lightboxAlt = lightboxImages[lightboxIndex].alt;
+    lightboxZoom = 1;
+    lightboxX = 0;
+    lightboxY = 0;
+    lightboxRotation = 0;
+    lightboxCopyFeedback = "";
+    lightboxOpen = true;
+  }
+
+  function closeLightbox() {
+    lightboxOpen = false;
+    isLightboxDragging = false;
+  }
+
+  function lbZoomIn() { lightboxZoom = Math.min(lightboxZoom + 0.25, 5); }
+  function lbZoomOut() { lightboxZoom = Math.max(lightboxZoom - 0.25, 0.25); }
+  function lbResetView() { lightboxZoom = 1; lightboxX = 0; lightboxY = 0; lightboxRotation = 0; }
+  function lbRotateRight() { lightboxRotation = (lightboxRotation + 90) % 360; }
+
+  function lbFitToScreen() {
+    lightboxX = 0;
+    lightboxY = 0;
+    const img = new window.Image();
+    img.onload = () => { lightboxZoom = Math.min((window.innerHeight * 0.9) / img.naturalHeight, 5); };
+    img.src = lightboxSrc;
+  }
+
+  function lbNavigatePrev() {
+    if (lightboxImages.length <= 1) return;
+    lightboxIndex = (lightboxIndex - 1 + lightboxImages.length) % lightboxImages.length;
+    lightboxSrc = lightboxImages[lightboxIndex].src;
+    lightboxAlt = lightboxImages[lightboxIndex].alt;
+    lbResetView();
+  }
+
+  function lbNavigateNext() {
+    if (lightboxImages.length <= 1) return;
+    lightboxIndex = (lightboxIndex + 1) % lightboxImages.length;
+    lightboxSrc = lightboxImages[lightboxIndex].src;
+    lightboxAlt = lightboxImages[lightboxIndex].alt;
+    lbResetView();
+  }
+
+  function lbOpenInNewTab() { window.open(lightboxSrc, "_blank", "noopener,noreferrer"); }
+
+  async function lbCopyToClipboard() {
+    try {
+      const res = await fetch(lightboxSrc);
+      const blob = await res.blob();
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+      lightboxCopyFeedback = "Copied!";
+      setTimeout(() => (lightboxCopyFeedback = ""), 2000);
+    } catch {
+      lightboxCopyFeedback = "Failed";
+      setTimeout(() => (lightboxCopyFeedback = ""), 2000);
+    }
+  }
+
+  async function lbDownload() {
+    try {
+      const a = document.createElement("a");
+      const res = await fetch(lightboxSrc);
+      const blob = await res.blob();
+      a.href = URL.createObjectURL(blob);
+      a.download = (lightboxAlt && lightboxAlt !== "Image" ? lightboxAlt : "image") + ".png";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch {}
+  }
+
+  function handleLightboxWheel(event: WheelEvent) {
+    event.preventDefault();
+    if (event.deltaY < 0) lbZoomIn(); else lbZoomOut();
+  }
+
+  function handleLightboxMouseDown(event: MouseEvent) {
+    if (event.button !== 0) return;
+    isLightboxDragging = true;
+    dragStartX = event.clientX;
+    dragStartY = event.clientY;
+    dragStartOffsetX = lightboxX;
+    dragStartOffsetY = lightboxY;
+  }
+
+  function handleLightboxMouseMove(event: MouseEvent) {
+    if (!isLightboxDragging) return;
+    lightboxX = dragStartOffsetX + (event.clientX - dragStartX);
+    lightboxY = dragStartOffsetY + (event.clientY - dragStartY);
+  }
+
+  function handleLightboxMouseUp() { isLightboxDragging = false; }
+
+  function handleLightboxKeydown(event: KeyboardEvent) {
+    if (!lightboxOpen) return;
+    switch (event.key) {
+      case "Escape": closeLightbox(); break;
+      case "+": case "=": lbZoomIn(); break;
+      case "-": lbZoomOut(); break;
+      case "0": lbResetView(); break;
+      case "r": case "R": lbRotateRight(); break;
+      case "f": case "F": lbFitToScreen(); break;
+      case "ArrowLeft": lbNavigatePrev(); break;
+      case "ArrowRight": lbNavigateNext(); break;
+      case "c": case "C":
+        if (!event.metaKey && !event.ctrlKey) void lbCopyToClipboard();
+        break;
+    }
+  }
+
+  function formatCommentAuthor(comment: TaskComment): string {
+    if (comment.created_by_name) return comment.created_by_name;
+    const uid = $user?.id || $user?.user_id;
+    if (uid && comment.created_by === uid) {
+      const profile = $user?.profile;
+      const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim();
+      return profile?.nickname || fullName || $user?.email?.split("@")[0] || "Unknown";
+    }
+    const matched = assignees.find(a => a.user_id && a.user_id === comment.created_by);
+    if (matched) return matched.name;
+    return comment.created_by || "Unknown";
+  }
+
   function formatRelativeTime(dateStr?: string) {
     if (!dateStr) return "";
     const date = new Date(dateStr);
@@ -738,7 +893,7 @@
 
 <svelte:window
   on:click={handleMoreMenuClickOutside}
-  on:keydown={handleKeydown}
+  on:keydown={(e) => { handleKeydown(e); handleLightboxKeydown(e); }}
 />
 
 <div
@@ -1055,13 +1210,9 @@
                 </p>
               {:else}
                 {#each comments as comment (comment.id)}
-                  {@const displayName =
-                    comment.created_by?.length > 24
-                      ? comment.created_by?.slice(0, 8) + "…"
-                      : comment.created_by}
-                  {@const initials = (
-                    comment.created_by?.[0] ?? "?"
-                  ).toUpperCase()}
+                  {@const authorName = formatCommentAuthor(comment)}
+                  {@const displayName = authorName.length > 24 ? authorName.slice(0, 24) + "…" : authorName}
+                  {@const initials = (authorName[0] ?? "?").toUpperCase()}
                   {@const cid = comment.id ?? ""}
                   <div
                     class="rounded-xl border border-slate-200 dark:border-white/[0.07] bg-white dark:bg-white/[0.04]"
@@ -1134,19 +1285,18 @@
                         {/if}
                         {#if comment.images && comment.images.length > 0}
                           <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
-                            {#each comment.images as img}
-                              <a 
-                                href={getCommentImageUrl(img.file_key)} 
-                                target="_blank"
-                                rel="noopener noreferrer"
+                            {#each comment.images as img, imgIdx}
+                              <button
+                                type="button"
+                                on:click={() => openLightbox(comment.images!, imgIdx)}
                                 class="aspect-square rounded-lg overflow-hidden border border-slate-200 dark:border-white/10 hover:opacity-90 transition-opacity"
                               >
-                                <img 
-                                  src={getCommentImageUrl(img.file_key)} 
+                                <img
+                                  src={getCommentImageUrl(img.file_key)}
                                   alt={img.filename}
                                   class="w-full h-full object-cover"
                                 />
-                              </a>
+                              </button>
                             {/each}
                           </div>
                         {/if}
@@ -1740,6 +1890,73 @@
         </div>
       </div>
     </div>
+  </div>
+{/if}
+
+{#if lightboxOpen}
+  <div
+    class="fixed inset-0 z-20020 bg-black/80 backdrop-blur-sm flex items-center justify-center"
+    on:click|self={closeLightbox}
+    on:keydown={(e) => e.key === 'Escape' && closeLightbox()}
+    on:wheel|preventDefault={handleLightboxWheel}
+    role="dialog"
+    aria-modal="true"
+    tabindex="-1"
+  >
+    <div class="absolute top-4 right-4 flex items-center gap-1.5 z-10">
+      <span class="text-white/70 text-sm font-mono bg-black/40 px-2 py-1 rounded">{Math.round(lightboxZoom * 100)}%</span>
+      {#if lightboxRotation !== 0}
+        <span class="text-white/70 text-sm font-mono bg-black/40 px-2 py-1 rounded">{lightboxRotation}°</span>
+      {/if}
+      {#if lightboxImages.length > 1}
+        <span class="text-white/70 text-sm bg-black/40 px-2 py-1 rounded">{lightboxIndex + 1}/{lightboxImages.length}</span>
+      {/if}
+      <div class="w-px h-5 bg-white/20"></div>
+      <button type="button" on:click={lbZoomIn} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors" title="Zoom in"><ZoomIn size={18} /></button>
+      <button type="button" on:click={lbZoomOut} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors" title="Zoom out"><ZoomOut size={18} /></button>
+      <button type="button" on:click={lbFitToScreen} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors" title="Fit to screen"><Maximize2 size={18} /></button>
+      <button type="button" on:click={lbRotateRight} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors" title="Rotate"><RotateCw size={18} /></button>
+      <button type="button" on:click={lbResetView} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors" title="Reset"><RotateCcw size={18} /></button>
+      <div class="w-px h-5 bg-white/20"></div>
+      <button type="button" on:click={() => void lbCopyToClipboard()} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors relative" title="Copy">
+        <Copy size={18} />
+        {#if lightboxCopyFeedback}
+          <span class="absolute -bottom-7 left-1/2 -translate-x-1/2 text-xs bg-green-500 text-white px-2 py-0.5 rounded whitespace-nowrap">{lightboxCopyFeedback}</span>
+        {/if}
+      </button>
+      <button type="button" on:click={() => void lbDownload()} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors" title="Download"><Download size={18} /></button>
+      <button type="button" on:click={lbOpenInNewTab} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors" title="Open in new tab"><ExternalLink size={18} /></button>
+      <div class="w-px h-5 bg-white/20"></div>
+      <button type="button" on:click={closeLightbox} class="p-2 bg-black/40 hover:bg-red-600/80 text-white rounded-lg transition-colors" title="Close"><X size={18} /></button>
+    </div>
+
+    {#if lightboxImages.length > 1}
+      <button type="button" on:click={lbNavigatePrev} class="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-black/40 hover:bg-black/60 text-white rounded-full transition-colors z-10" title="Previous">
+        <ChevronLeft size={24} />
+      </button>
+      <button type="button" on:click={lbNavigateNext} class="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-black/40 hover:bg-black/60 text-white rounded-full transition-colors z-10" title="Next">
+        <ChevronRight size={24} />
+      </button>
+    {/if}
+
+    <img
+      src={lightboxSrc}
+      alt={lightboxAlt}
+      class="max-w-[90vw] max-h-[85vh] object-contain select-none {isLightboxDragging ? 'cursor-grabbing' : 'cursor-grab transition-transform duration-150'}"
+      style="transform: scale({lightboxZoom}) translate({lightboxX / lightboxZoom}px, {lightboxY / lightboxZoom}px) rotate({lightboxRotation}deg);"
+      on:mousedown={handleLightboxMouseDown}
+      on:mousemove={handleLightboxMouseMove}
+      on:mouseup={handleLightboxMouseUp}
+      on:mouseleave={handleLightboxMouseUp}
+      draggable="false"
+      role="presentation"
+    />
+
+    {#if lightboxAlt && lightboxAlt !== "Image"}
+      <div class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white/80 text-sm px-4 py-1.5 rounded-full">
+        {lightboxAlt}
+      </div>
+    {/if}
   </div>
 {/if}
 

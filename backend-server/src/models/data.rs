@@ -369,10 +369,47 @@ pub struct CommentPaginationQuery {
     pub limit: Option<u64>,
 }
 
+/// Comment serialized in API responses — adds `created_by_name` without
+/// polluting the stored `CommentDocument` model.
+#[derive(Debug, Clone, Serialize)]
+pub struct CommentWithName {
+    #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
+    pub id: Option<ObjectId>,
+    pub workspace_id: ObjectId,
+    pub task_id: ObjectId,
+    pub content: String,
+    pub images: Vec<CommentImage>,
+    pub reactions: Vec<CommentReaction>,
+    pub created_by: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_by_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<String>,
+}
+
+impl CommentWithName {
+    pub fn from_doc(doc: CommentDocument, name: Option<String>) -> Self {
+        Self {
+            id: doc.id,
+            workspace_id: doc.workspace_id,
+            task_id: doc.task_id,
+            content: doc.content,
+            images: doc.images,
+            reactions: doc.reactions,
+            created_by: doc.created_by,
+            created_by_name: name,
+            created_at: doc.created_at,
+            updated_at: doc.updated_at,
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct PaginatedCommentResponse {
     pub success: bool,
-    pub comments: Vec<CommentDocument>,
+    pub comments: Vec<CommentWithName>,
     pub total: u64,
     pub page: u64,
     pub limit: u64,

@@ -12,7 +12,34 @@ use crate::handlers::auth_handler::extract_user_id;
 use crate::handlers::common::{verify_workspace_access, verify_task_belongs_to_workspace};
 use crate::models::data::*;
 use crate::repositories::data_repo::DataRepository;
+use crate::repositories::profile_repo::ProfileRepository;
+use crate::repositories::user_repo::UserRepository;
 use crate::state::SharedState;
+
+/// Resolve a human-readable display name for a comment author.
+/// `created_by` is the hex string of the user's MongoDB ObjectId.
+/// Priority: nickname → first+last name → email prefix.
+async fn resolve_author_name(db: &mongodb::Database, created_by: &str) -> Option<String> {
+    let oid = mongodb::bson::oid::ObjectId::parse_str(created_by).ok()?;
+    let user_repo = UserRepository::new(db);
+    let user = user_repo.find_by_id(&oid).await.ok()??;
+    let profile_repo = ProfileRepository::new(db);
+    if let Ok(Some(profile)) = profile_repo.find_by_user_id(&user.user_id).await {
+        if let Some(nick) = profile.nickname.filter(|s| !s.is_empty()) {
+            return Some(nick);
+        }
+        let full = [profile.first_name, profile.last_name]
+            .into_iter()
+            .flatten()
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<_>>()
+            .join(" ");
+        if !full.is_empty() {
+            return Some(full);
+        }
+    }
+    Some(user.email.split('@').next().unwrap_or(&user.email).to_string())
+}
 
 const MAX_COMMENT_IMAGES: usize = 10;
 const MAX_COMMENT_IMAGE_SIZE_BYTES: usize = 10 * 1024 * 1024;
@@ -52,8 +79,13 @@ pub async fn list_task_comments(
         .find_comments_by_task_paginated(&ws_oid, &task_oid, page, limit)
         .await
     {
-        Ok((comments, total)) => {
+        Ok((raw_comments, total)) => {
             let pages = (total as f64 / limit as f64).ceil() as u64;
+            let mut comments = Vec::with_capacity(raw_comments.len());
+            for c in raw_comments {
+                let name = resolve_author_name(&state.db, &c.created_by).await;
+                comments.push(CommentWithName::from_doc(c, name));
+            }
             axum::Json(PaginatedCommentResponse {
                 success: true,
                 comments,
@@ -232,7 +264,9 @@ pub async fn create_task_comment(
     };
     match repo.create_comment(comment).await {
         Ok(created) => {
-            axum::Json(serde_json::json!({ "success": true, "comment": created })).into_response()
+            let name = resolve_author_name(&state.db, &created.created_by).await;
+            let with_name = CommentWithName::from_doc(created, name);
+            axum::Json(serde_json::json!({ "success": true, "comment": with_name })).into_response()
         }
         Err(e) => (
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,

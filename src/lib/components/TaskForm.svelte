@@ -486,6 +486,7 @@
   }
 
   function formatCommentAuthor(comment: TaskComment): string {
+    if (comment.created_by_name) return comment.created_by_name;
     const uid = $user?.id || $user?.user_id;
     if (uid && comment.created_by === uid) {
       const profile = $user?.profile;
