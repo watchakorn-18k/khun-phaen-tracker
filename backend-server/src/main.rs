@@ -401,6 +401,32 @@ async fn main() {
             "/api/workspaces/:ws_id/checklist-templates/:template_id",
             delete(handlers::checklist_template_handler::delete_checklist_template),
         )
+        // Test suite routes
+        .route(
+            "/api/workspaces/:ws_id/test-suites",
+            get(handlers::test_case_handler::list_suites),
+        )
+        .route(
+            "/api/workspaces/:ws_id/test-suites",
+            post(handlers::test_case_handler::create_suite),
+        )
+        // Test case routes
+        .route(
+            "/api/workspaces/:ws_id/test-cases",
+            get(handlers::test_case_handler::list_test_cases),
+        )
+        .route(
+            "/api/workspaces/:ws_id/test-cases/next-number",
+            get(handlers::test_case_handler::get_next_test_case_number),
+        )
+        .route(
+            "/api/workspaces/:ws_id/test-cases",
+            post(handlers::test_case_handler::create_test_case),
+        )
+        .route(
+            "/api/workspaces/:ws_id/test-cases/:test_case_id/attachments",
+            post(handlers::test_case_handler::upload_test_case_attachment),
+        )
         .route("/ws", get(handlers::ws_handler::ws_handler))
         .layer(
             tower_http::cors::CorsLayer::new()

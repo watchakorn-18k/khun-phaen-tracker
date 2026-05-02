@@ -3,7 +3,18 @@
 	const dispatch = createEventDispatcher();
 	export let id: string = 'select';
 	export let value: string | number | null = 'all';
-	export let options: Array<{ value: string | number | null; label: string; badge?: boolean; badgeColor?: string; disabled?: boolean; icon?: any; iconClass?: string; pillClass?: string }> = [];
+	export let options: Array<{ 
+		value: string | number | null; 
+		label: string; 
+		badge?: boolean; 
+		badgeColor?: string; 
+		disabled?: boolean; 
+		icon?: any; 
+		iconClass?: string; 
+		pillClass?: string;
+		avatarUrl?: string;
+		avatarColor?: string;
+	}> = [];
 	export let placeholder: string = 'ค้นหา...';
 	export let emptyText: string = 'ไม่พบรายการ';
 	export let showSearch: boolean = true;
@@ -32,11 +43,14 @@
 	};
 
 	// Get selected label
-	$: selectedLabel = options.find(opt => isSameValue(opt.value, value))?.label || 'ทั้งหมด';
-	$: selectedBadge = options.find(opt => isSameValue(opt.value, value))?.badge;
-	$: selectedBadgeColor = options.find(opt => isSameValue(opt.value, value))?.badgeColor;
-	$: selectedIcon = options.find(opt => isSameValue(opt.value, value))?.icon;
-	$: selectedIconClass = options.find(opt => isSameValue(opt.value, value))?.iconClass;
+	$: selectedOption = options.find(opt => isSameValue(opt.value, value));
+	$: selectedLabel = selectedOption?.label || 'ทั้งหมด';
+	$: selectedBadge = selectedOption?.badge;
+	$: selectedBadgeColor = selectedOption?.badgeColor;
+	$: selectedIcon = selectedOption?.icon;
+	$: selectedIconClass = selectedOption?.iconClass;
+	$: selectedAvatarUrl = selectedOption?.avatarUrl;
+	$: selectedAvatarColor = selectedOption?.avatarColor;
 
 	function selectOption(optionValue: string | number | null) {
 		value = optionValue;
@@ -76,7 +90,18 @@
 		on:click={toggleDropdown}
 	>
 		<span class="truncate flex items-center gap-2">
-			{#if selectedIcon}
+			{#if selectedAvatarUrl || selectedAvatarColor}
+				<div 
+					class="shrink-0 w-5 h-5 rounded-full overflow-hidden flex items-center justify-center text-[10px] font-bold text-white"
+					style="background-color: {selectedAvatarColor || '#6366f1'}"
+				>
+					{#if selectedAvatarUrl}
+						<img src={selectedAvatarUrl} alt={selectedLabel} class="w-full h-full object-cover" />
+					{:else}
+						{selectedLabel?.[0]?.toUpperCase() || '?'}
+					{/if}
+				</div>
+			{:else if selectedIcon}
 				<span class="shrink-0 flex items-center justify-center {selectedIconClass || 'text-gray-400'}">
 					<svelte:component this={selectedIcon} size={14} class="shrink-0" />
 				</span>
@@ -127,7 +152,18 @@
 								on:click={() => selectOption(option.value)}
 							>
 								<div class="flex items-center gap-2.5 {option.pillClass || ''}">
-									{#if option.icon}
+									{#if option.avatarUrl || option.avatarColor}
+										<div 
+											class="shrink-0 w-6 h-6 rounded-full overflow-hidden flex items-center justify-center text-[11px] font-bold text-white"
+											style="background-color: {option.avatarColor || '#6366f1'}"
+										>
+											{#if option.avatarUrl}
+												<img src={option.avatarUrl} alt={option.label} class="w-full h-full object-cover" />
+											{:else}
+												{option.label?.[0]?.toUpperCase() || '?'}
+											{/if}
+										</div>
+									{:else if option.icon}
 										<span class="shrink-0 flex items-center justify-center {option.iconClass || 'text-gray-400'}">
 											<svelte:component this={option.icon} size={14} class="shrink-0" />
 										</span>

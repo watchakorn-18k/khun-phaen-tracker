@@ -972,5 +972,56 @@ export const api = {
         );
       },
     },
+    // Test Cases
+    testCases: {
+      list: (wsId: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-cases`, {
+          headers: api.data._headers(),
+          credentials: "include",
+        });
+      },
+      nextNumber: (wsId: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-cases/next-number`, {
+          headers: api.data._headers(),
+          credentials: "include",
+        });
+      },
+      create: (wsId: string, testCase: Record<string, any>): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-cases`, {
+          method: "POST",
+          headers: api.data._headers(true),
+          credentials: "include",
+          body: JSON.stringify(testCase),
+        });
+      },
+      uploadAttachment: (wsId: string, testCaseId: string, formData: FormData): Promise<Response> => {
+        const headers = api.data._headers();
+        // Browser sets Content-Type automatically for FormData with boundary
+        delete headers["Content-Type"];
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-cases/${testCaseId}/attachments`, {
+          method: "POST",
+          headers,
+          credentials: "include",
+          body: formData,
+        });
+      },
+    },
+    // Test Suites
+    testSuites: {
+      list: (wsId: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-suites`, {
+          headers: api.data._headers(),
+          credentials: "include",
+        });
+      },
+      create: (wsId: string, suite: Record<string, any>): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-suites`, {
+          method: "POST",
+          headers: api.data._headers(true),
+          credentials: "include",
+          body: JSON.stringify(suite),
+        });
+      },
+    },
   },
 };

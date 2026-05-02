@@ -6,6 +6,9 @@
   import { currentWorkspaceName } from "$lib/stores/workspace";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
   import { onDestroy, onMount } from "svelte";
+  import { fade } from "svelte/transition";
+  import { api } from "$lib/apis";
+  import { createUIActions } from "$lib/stores/uiActions";
   import {
     ChevronDown,
     ChevronsUpDown,
@@ -26,15 +29,17 @@
 
   type TestCase = {
     id: string;
+    test_no: number;
     title: string;
     type: "manual" | "automated";
     priority: "high" | "medium" | "low";
-    status?: "draft" | "actual" | "failed" | "blocked" | "deprecated";
+    status: string;
     assignee?: string;
     description: string;
     preconditions?: string;
     postconditions?: string;
     steps: Step[];
+    suite_id: string;
   };
 
   type Suite = {
@@ -65,206 +70,21 @@
     expected: string;
   };
 
-  let suites: Suite[] = [
-    {
-      id: "authorization",
-      title: "Authorization",
-      description:
-        "This suite contains cases that belong to login, signup, and password restore flows.",
-      cases: [
-        {
-          id: "TC-1",
-          title: "Authorization",
-          type: "manual",
-          priority: "high",
-          description:
-            "Registered users can log in to the application using email and password.",
-          preconditions: "User account exists and email is verified.",
-          postconditions: "User lands on the workspace dashboard.",
-          steps: [
-            {
-              action: "Go to sign in page /login",
-              data: "email: test@example.com",
-              expected: "Sign in page is shown",
-            },
-            {
-              action: "Fill the form with email and password",
-              data: "password: test1234",
-              expected: "Submit button becomes enabled",
-            },
-            {
-              action: "Click Remember me checkbox and submit",
-              data: "remember: true",
-              expected: "User is authenticated",
-            },
-          ],
-        },
-        {
-          id: "TC-2",
-          title: "Sign up",
-          type: "manual",
-          priority: "high",
-          description: "New users can create an account with valid profile data.",
-          steps: [
-            {
-              action: "Open create account screen",
-              data: "nickname: Demo Tester",
-              expected: "Registration form is visible",
-            },
-            {
-              action: "Submit valid email and password",
-              data: "email: qa@example.com",
-              expected: "Account is created",
-            },
-          ],
-        },
-        {
-          id: "TC-3",
-          title: "Password restore",
-          type: "manual",
-          priority: "medium",
-          description: "Users can request a password reset from the login screen.",
-          steps: [
-            {
-              action: "Click forgot password",
-              data: "email: test@example.com",
-              expected: "Reset instructions are sent",
-            },
-          ],
-        },
-        {
-          id: "TC-4",
-          title: "Sign up with invite link",
-          type: "manual",
-          priority: "medium",
-          description: "Invited users can join a workspace through a valid invite.",
-          steps: [
-            {
-              action: "Open invite link",
-              data: "invite: active",
-              expected: "Workspace context is prefilled",
-            },
-          ],
-        },
-      ],
-    },
-    {
-      id: "projects",
-      title: "Projects",
-      description:
-        "This suite contains project setup cases for repository structure and milestones.",
-      cases: [
-        {
-          id: "TC-5",
-          title: "Create new project",
-          type: "manual",
-          priority: "high",
-          description: "Workspace members can create a project from the board.",
-          steps: [
-            {
-              action: "Click add project",
-              data: "name: Mobile App",
-              expected: "Project appears in project filter",
-            },
-          ],
-        },
-        {
-          id: "TC-6",
-          title: "Edit existing project",
-          type: "manual",
-          priority: "medium",
-          description: "Project metadata can be edited without losing linked tasks.",
-          steps: [
-            {
-              action: "Rename project",
-              data: "name: Web Platform",
-              expected: "Tasks keep the same project assignment",
-            },
-          ],
-        },
-        {
-          id: "TC-7",
-          title: "Delete project",
-          type: "manual",
-          priority: "low",
-          description: "Unused projects can be removed from the workspace.",
-          steps: [
-            {
-              action: "Delete project with no tasks",
-              data: "project: empty",
-              expected: "Project is removed from filters",
-            },
-          ],
-        },
-      ],
-    },
-    {
-      id: "workspace",
-      title: "Workspace",
-      description: "Test cases corresponding to workspace membership and settings.",
-      cases: [
-        {
-          id: "TC-8",
-          title: "Invite new user into workspace",
-          type: "manual",
-          priority: "high",
-          description: "Owners can invite a new member to the active workspace.",
-          steps: [
-            {
-              action: "Open workspace settings",
-              data: "tab: members",
-              expected: "Invite button is available",
-            },
-            {
-              action: "Send invite to valid email",
-              data: "email: teammate@example.com",
-              expected: "Pending invite is listed",
-            },
-          ],
-        },
-        {
-          id: "TC-9",
-          title: "Deactivate user",
-          type: "manual",
-          priority: "medium",
-          description: "Owners can deactivate a workspace member.",
-          steps: [
-            {
-              action: "Deactivate selected member",
-              data: "member: active",
-              expected: "Member loses workspace access",
-            },
-          ],
-        },
-        {
-          id: "TC-10",
-          title: "Activate user",
-          type: "manual",
-          priority: "medium",
-          description: "Owners can reactivate a workspace member.",
-          steps: [
-            {
-              action: "Reactivate selected member",
-              data: "member: inactive",
-              expected: "Member access is restored",
-            },
-          ],
-        },
-      ],
-    },
-  ];
+  let suites: Suite[] = [];
+  const ui = createUIActions();
 
   let query = "";
   let field = "all fields";
-  let selectedSuiteId = suites[0].id;
-  let selectedCaseId = suites[0].cases[0].id;
+  let selectedSuiteId = "";
+  let selectedCaseId = "";
+  let workspaceId = $page.params.workspace_id;
   let showDetail = true;
   let detailPanelWidth = 420;
   let stopPanelResize: (() => void) | null = null;
   let showTestCaseModal = false;
   let testCaseForm: TestCaseForm = {
     name: "",
-    suiteId: suites[0].id,
+    suiteId: "",
     description: "",
     preconditions: "",
     postconditions: "",
@@ -280,6 +100,85 @@
   let classicSteps: ClassicStep[] = [
     { action: "", data: "", expected: "" },
   ];
+  let showCreateSuiteModal = false;
+  let newSuiteName = "";
+
+  async function handleCreateSuite() {
+    if (!newSuiteName.trim() || !workspaceId) return;
+    
+    try {
+      const resp = await api.data.testSuites.create(workspaceId, { 
+        title: newSuiteName,
+        description: "New test suite"
+      });
+      if (resp.ok) {
+        const newSuite = await resp.json();
+        suites = [...suites, { ...newSuite, cases: [] }];
+        newSuiteName = "";
+        showCreateSuiteModal = false;
+        ui.showMessage("Suite created successfully", "success");
+      } else {
+        ui.showMessage("Failed to create suite", "error");
+      }
+    } catch (e) {
+      console.error("Create suite error:", e);
+      ui.showMessage("An unexpected error occurred", "error");
+    }
+  }
+
+  function mapBackendToFrontend(tc: any): TestCase {
+    return {
+      id: tc.id,
+      test_no: tc.test_no,
+      title: tc.name,
+      type: "manual", // Default for now
+      priority: "medium", // Default for now
+      status: tc.status,
+      assignee: tc.assign_tester || "unassigned",
+      description: tc.description || "",
+      preconditions: tc.preconditions || "",
+      postconditions: tc.postconditions || "",
+      steps: tc.classic_steps || (tc.gherkin_steps || []).map((s: any) => ({
+        action: `${s.keyword} ${s.text}`,
+        data: "",
+        expected: ""
+      })),
+      suite_id: tc.suite_id
+    };
+  }
+
+  onMount(async () => {
+    if (workspaceId) {
+      try {
+        const [suiteResp, caseResp] = await Promise.all([
+          api.data.testSuites.list(workspaceId),
+          api.data.testCases.list(workspaceId)
+        ]);
+
+        if (suiteResp.ok && caseResp.ok) {
+          const suiteData = await suiteResp.json();
+          const caseData = await caseResp.json();
+          
+          const mappedCases = caseData.map(mapBackendToFrontend);
+          
+          suites = suiteData.map((s: any) => ({
+            ...s,
+            cases: mappedCases.filter((c: TestCase) => c.suite_id === s.id)
+          }));
+
+          if (suites.length > 0) {
+            selectedSuiteId = suites[0].id;
+            testCaseForm.suiteId = suites[0].id;
+            if (suites[0].cases.length > 0) {
+              selectedCaseId = suites[0].cases[0].id;
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load test cases:", e);
+      }
+    }
+  });
 
   const assignees = [
     { id: "unassigned", name: "Unassigned" },
@@ -320,21 +219,21 @@
   $: workspaceId = $page.params.workspace_id;
   $: workspaceLabel = $currentWorkspaceName || "Current workspace";
   $: suiteCount = suites.length;
-  $: caseCount = suites.reduce((total, suite) => total + suite.cases.length, 0);
+  $: caseCount = suites.reduce((total, suite) => total + (suite.cases?.length || 0), 0);
   $: selectedSuite = suites.find((suite) => suite.id === selectedSuiteId) || suites[0];
   $: selectedCase =
-    suites.flatMap((suite) => suite.cases).find((testCase) => testCase.id === selectedCaseId) ||
-    selectedSuite.cases[0];
+    suites.flatMap((suite) => suite.cases || []).find((testCase) => testCase.id === selectedCaseId) ||
+    (selectedSuite?.cases ? selectedSuite.cases[0] : null);
   $: filteredSuites = suites
     .map((suite) => ({
       ...suite,
-      cases: suite.cases.filter((testCase) =>
+      cases: (suite.cases || []).filter((testCase) =>
         `${suite.title} ${testCase.id} ${testCase.title} ${testCase.description}`
           .toLowerCase()
           .includes(query.trim().toLowerCase()),
       ),
     }))
-    .filter((suite) => suite.cases.length > 0 || suite.title.toLowerCase().includes(query.trim().toLowerCase()));
+    .filter((suite) => (suite.cases?.length || 0) > 0 || suite.title.toLowerCase().includes(query.trim().toLowerCase()));
 
   function selectSuite(suite: Suite) {
     selectedSuiteId = suite.id;
@@ -427,29 +326,44 @@
       }));
   }
 
-  function submitTestCase() {
-    const targetSuite = suites.find((suite) => suite.id === testCaseForm.suiteId) || suites[0];
-    const nextNumber = suites.reduce((total, suite) => total + suite.cases.length, 0) + 1;
-    const newCase: TestCase = {
-      id: `TC-${nextNumber}`,
-      title: testCaseForm.name.trim() || "Untitled test case",
-      type: "manual",
-      priority: "medium",
-      status: testCaseForm.status,
-      assignee: testCaseForm.assignee,
-      description: testCaseForm.description.trim() || "Not set",
+  async function submitTestCase() {
+    if (!testCaseForm.name.trim() || !workspaceId) return;
+
+    const payload = {
+      suite_id: testCaseForm.suiteId || (suites[0]?.id || null),
+      name: testCaseForm.name.trim(),
+      description: testCaseForm.description.trim(),
       preconditions: testCaseForm.preconditions.trim(),
       postconditions: testCaseForm.postconditions.trim(),
-      steps: getSubmittedSteps(),
+      status: testCaseForm.status,
+      assign_tester: testCaseForm.assignee,
+      step_format: stepFormat,
+      classic_steps: stepFormat === "classic" ? classicSteps : undefined,
+      gherkin_steps: stepFormat === "gherkin" ? testCaseSteps.map(s => ({ keyword: s.keyword, text: s.text })) : undefined,
     };
 
-    suites = suites.map((suite) =>
-      suite.id === targetSuite.id ? { ...suite, cases: [...suite.cases, newCase] } : suite,
-    );
-    selectedSuiteId = targetSuite.id;
-    selectedCaseId = newCase.id;
-    showDetail = true;
-    closeTestCaseModal();
+    try {
+      const resp = await api.data.testCases.create(workspaceId, payload);
+      if (resp.ok) {
+        const result = await resp.json();
+        const newCase = mapBackendToFrontend(result);
+        
+        suites = suites.map((suite) =>
+          suite.id === newCase.suite_id ? { ...suite, cases: [...(suite.cases || []), newCase] } : suite
+        );
+        
+        selectedSuiteId = newCase.suite_id;
+        selectedCaseId = newCase.id;
+        showDetail = true;
+        ui.showMessage("Test case created", "success");
+        closeTestCaseModal();
+      } else {
+        ui.showMessage("Failed to create test case", "error");
+      }
+    } catch (e) {
+      console.error("Submit error:", e);
+      ui.showMessage("An error occurred", "error");
+    }
   }
 
   function priorityColor(priority: TestCase["priority"]) {
@@ -562,7 +476,11 @@
               <ChevronsUpDown size={16} />
             </button>
             <h2 class="text-lg font-black text-slate-800 dark:text-white">Suites</h2>
-            <button class="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800" title="Add suite">
+            <button 
+              class="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800" 
+              title="Add suite"
+              on:click={() => (showCreateSuiteModal = true)}
+            >
               <Plus size={16} />
             </button>
           </div>
@@ -577,7 +495,7 @@
               >
                 <ChevronDown size={14} class="shrink-0 text-slate-500" />
                 <span class="min-w-0 flex-1 truncate">{suite.title}</span>
-                <span class="text-xs font-black text-slate-500">{suite.cases.length}</span>
+                <span class="text-xs font-black text-slate-500">{suite.cases?.length || 0}</span>
                 <MoreHorizontal size={14} class="text-slate-400 opacity-0 transition-opacity group-hover:opacity-100" />
               </button>
             {/each}
@@ -609,7 +527,7 @@
                 <p class="px-3 py-1 text-sm font-medium text-slate-400">{suite.description}</p>
 
                 <div class="divide-y divide-slate-200 dark:divide-gray-800">
-                  {#each suite.cases as testCase}
+                  {#each suite.cases || [] as testCase}
                     <button
                       class="grid w-full grid-cols-[24px_52px_minmax(0,1fr)_auto] items-center gap-3 rounded-md px-3 py-2 text-left transition-colors {selectedCaseId === testCase.id
                         ? 'bg-slate-100 dark:bg-gray-900'
@@ -619,7 +537,7 @@
                       <span class="grid h-5 w-5 place-items-center">
                         <span class="h-2.5 w-2.5 rounded-full border-2 {testCase.priority === 'high' ? 'border-rose-500' : 'border-slate-300'}"></span>
                       </span>
-                      <span class="font-mono text-sm font-bold text-slate-400">{testCase.id}</span>
+                      <span class="font-mono text-sm font-bold text-slate-400">TC-{testCase.test_no}</span>
                       <span class="min-w-0 truncate text-sm font-bold text-slate-700 dark:text-gray-200">{testCase.title}</span>
                       <span class="hidden rounded-md border px-2 py-0.5 text-[11px] font-black uppercase tracking-wide sm:inline-flex {priorityColor(testCase.priority)}">
                         {testCase.priority}
@@ -655,7 +573,7 @@
         <div class="sticky top-0 z-10 border-b border-gray-200 bg-white px-5 py-4 dark:border-gray-800 dark:bg-gray-950">
           <div class="flex items-start gap-3">
             <div class="min-w-0 flex-1">
-              <p class="font-mono text-sm font-bold text-slate-400">{selectedCase.id}</p>
+              <p class="font-mono text-sm font-bold text-slate-400">TC-{selectedCase.test_no}</p>
               <h2 class="mt-1 truncate text-2xl font-black text-slate-800 dark:text-white">
                 {selectedCase.title}
               </h2>
@@ -711,7 +629,7 @@
             </div>
 
             <div class="space-y-5">
-              {#each selectedCase.steps as step, index}
+              {#each selectedCase.steps || [] as step, index}
                 <div class="grid grid-cols-[28px_minmax(0,1fr)_76px] gap-3">
                   <div class="pt-2 text-center text-sm font-bold text-slate-600 dark:text-gray-300">{index + 1}</div>
                   <div class="space-y-3">
@@ -986,6 +904,51 @@
         </button>
       </div>
     </form>
+  </div>
+{/if}
+
+{#if showCreateSuiteModal}
+  <div class="fixed inset-0 z-[9999] flex items-center justify-center p-4" transition:fade={{ duration: 150 }}>
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" on:click={() => (showCreateSuiteModal = false)}></div>
+    <div class="relative w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-800 dark:bg-gray-900">
+      <h3 class="text-lg font-black text-slate-800 dark:text-white">Create New Suite</h3>
+      <p class="mt-1 text-sm text-slate-500">Enter a name for the new test suite.</p>
+
+      <div class="mt-6">
+        <label for="new-suite-name" class="block text-[12px] font-black uppercase tracking-widest text-slate-500">
+          Suite Name
+        </label>
+        <input
+          id="new-suite-name"
+          type="text"
+          bind:value={newSuiteName}
+          class="mt-3 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 outline-none focus:border-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:border-indigo-400"
+          placeholder="e.g. Authentication, Dashboard..."
+          autofocus
+          on:keydown={(e) => e.key === "Enter" && handleCreateSuite()}
+        />
+      </div>
+
+      <div class="mt-8 flex items-center justify-end gap-3">
+        <button
+          type="button"
+          class="rounded-xl px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
+          on:click={() => (showCreateSuiteModal = false)}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="rounded-xl bg-indigo-600 px-6 py-2 text-sm font-black text-white hover:bg-indigo-500 disabled:opacity-50"
+          disabled={!newSuiteName.trim()}
+          on:click={handleCreateSuite}
+        >
+          Create Suite
+        </button>
+      </div>
+    </div>
   </div>
 {/if}
 

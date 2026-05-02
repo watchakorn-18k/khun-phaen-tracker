@@ -3,4 +3,6 @@ pub mod milestone_service;
 pub mod notification_service;
 pub mod room_service;
 pub mod storage_service;
+pub mod test_case_service;
+pub mod test_suite_service;
 pub mod workspace_service;

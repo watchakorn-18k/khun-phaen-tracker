@@ -10,5 +10,6 @@ pub mod room_handler;
 pub mod sprint_handler;
 pub mod storage_handler;
 pub mod task_handler;
+pub mod test_case_handler;
 pub mod workspace_handler;
 pub mod ws_handler;

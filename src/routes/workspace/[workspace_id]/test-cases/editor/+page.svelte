@@ -1,9 +1,14 @@
 <script lang="ts">
-  import { onDestroy } from "svelte";
+  import { onMount, onDestroy } from "svelte";
+  import { fade } from "svelte/transition";
   import { goto } from "$app/navigation";
   import { base } from "$app/paths";
   import { page } from "$app/stores";
   import { currentWorkspaceName } from "$lib/stores/workspace";
+  import { getAssignees } from "$lib/db";
+  import { api } from "$lib/apis";
+  import { createUIActions } from "$lib/stores/uiActions";
+  import type { Assignee } from "$lib/types";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
   import {
     ArrowLeft,
@@ -23,6 +28,17 @@
     UserCheck,
     UserCog,
     Wrench,
+    CircleDashed,
+    XCircle,
+    Ban,
+    History,
+    Check,
+    AlertCircle,
+    Shield,
+    Folder,
+    Layout,
+    Clock,
+    FileText,
   } from "lucide-svelte";
 
   type Status = "draft" | "actual" | "failed" | "blocked" | "deprecated";
@@ -31,30 +47,30 @@
   type GherkinStep = { keyword: GherkinKeyword; text: string };
   type ClassicStep = { action: string; data: string; expected: string };
 
-  const suiteOptions = [
-    { value: "authorization", label: "Authorization" },
-    { value: "projects", label: "Projects" },
-    { value: "workspace", label: "Workspace" },
-  ];
+  let suiteOptions: any[] = [];
 
   const statusOptions = [
-    { value: "draft", label: "Draft" },
-    { value: "actual", label: "Actual" },
-    { value: "failed", label: "Failed" },
-    { value: "blocked", label: "Blocked" },
-    { value: "deprecated", label: "Deprecated" },
+    { value: "draft", label: "Draft", icon: CircleDashed, iconClass: "text-gray-400" },
+    { value: "actual", label: "Actual", icon: CheckCircle2, iconClass: "text-green-400" },
+    { value: "failed", label: "Failed", icon: XCircle, iconClass: "text-rose-400" },
+    { value: "blocked", label: "Blocked", icon: Ban, iconClass: "text-gray-500" },
+    { value: "deprecated", label: "Deprecated", icon: History, iconClass: "text-gray-600" },
   ];
 
-  const assigneeOptions = [
-    { value: "unassigned", label: "Unassigned" },
-    { value: "wk-18k", label: "WK 18K" },
-    { value: "qa-lead", label: "QA Lead" },
-    { value: "product-owner", label: "Product Owner" },
+  let workspaceAssignees: Assignee[] = [];
+  $: assigneeOptions = [
+    { value: "unassigned", label: "Unassigned", avatarColor: "#64748b" },
+    ...workspaceAssignees.map((a) => ({ 
+      value: String(a.id || ""), 
+      label: a.name,
+      avatarUrl: a.avatar_url,
+      avatarColor: a.color
+    })),
   ];
 
   const fixedOptions = [
-    { value: "no", label: "Not fixed" },
-    { value: "yes", label: "Fixed" },
+    { value: "no", label: "Not fixed", icon: AlertCircle, iconClass: "text-amber-400" },
+    { value: "yes", label: "Fixed", icon: Check, iconClass: "text-green-400" },
   ];
 
   const stepFormatOptions = [
@@ -105,7 +121,7 @@
 
   const initialCase = mockCases[caseId] || null;
   let name = initialCase?.name || "";
-  let suiteId = initialCase?.suiteId || $page.url.searchParams.get("suite") || "authorization";
+  let suiteId = initialCase?.suiteId || $page.url.searchParams.get("suite") || "";
   let description = initialCase?.description || "";
   let preconditions = initialCase?.preconditions || "";
   let postconditions = initialCase?.postconditions || "";
@@ -122,6 +138,37 @@
   let devNote = "";
   let testNote = "";
   let stepFormat: StepFormat = "classic";
+  let showCreateSuiteModal = false;
+  let newSuiteName = "";
+  let isSaving = false;
+  const ui = createUIActions();
+
+  async function handleCreateSuite() {
+    if (!newSuiteName.trim() || !workspaceId) return;
+    
+    try {
+      const resp = await api.data.testSuites.create(workspaceId, { title: newSuiteName });
+      if (resp.ok) {
+        const newSuite = await resp.json();
+        const newId = newSuite.id || newSuite._id;
+        suiteOptions = [...suiteOptions, { 
+          value: newId, 
+          label: newSuite.title, 
+          icon: Folder, 
+          iconClass: "text-gray-400" 
+        }];
+        suiteId = newId;
+        newSuiteName = "";
+        showCreateSuiteModal = false;
+        ui.showMessage("Suite created successfully", "success");
+      } else {
+        ui.showMessage("Failed to create suite", "error");
+      }
+    } catch (e) {
+      console.error("Create suite error:", e);
+      ui.showMessage("An unexpected error occurred", "error");
+    }
+  }
   let gherkinSteps: GherkinStep[] = [
     { keyword: "given", text: "" },
     { keyword: "when", text: "" },
@@ -160,6 +207,45 @@
 
   onDestroy(() => {
     attachments.forEach((a) => URL.revokeObjectURL(a.url));
+  });
+
+  onMount(async () => {
+    try {
+      workspaceAssignees = await getAssignees(true);
+      
+      // Fetch suites
+      if (workspaceId) {
+        const suiteResp = await api.data.testSuites.list(workspaceId);
+        if (suiteResp.ok) {
+          const suites = await suiteResp.json();
+          suiteOptions = suites.map((s: any) => ({
+            value: s.id || s._id,
+            label: s.title,
+            icon: Folder,
+            iconClass: "text-gray-400"
+          }));
+          
+          // If suiteId is not in options (e.g. from URL), handle it
+          if (suiteId && !suiteOptions.find(o => o.value === suiteId)) {
+            // Might need to fetch the specific suite if it's not in the list, 
+            // but usually list returns all for the workspace.
+          } else if (!suiteId && suiteOptions.length > 0 && suiteOptions[0].value) {
+            suiteId = suiteOptions[0].value;
+          }
+        }
+      }
+
+      // Fetch next test number
+      if (!isEditing && workspaceId) {
+        const resp = await api.data.testCases.nextNumber(workspaceId);
+        if (resp.ok) {
+          const data = await resp.json();
+          testNo = `TC-${data.next_number}`;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to initialize editor:", e);
+    }
   });
 
   let classicSteps: ClassicStep[] = isEditing
@@ -245,8 +331,60 @@
     classicSteps = classicSteps.filter((_, stepIndex) => stepIndex !== index);
   }
 
-  function handleSubmit() {
-    backToRepository();
+  async function handleSubmit() {
+    if (!name.trim()) return;
+    isSaving = true;
+
+    try {
+      const payload: any = {
+        suite_id: (suiteId && suiteId !== "undefined") ? String(suiteId) : null,
+        name: name.trim(),
+        description,
+        preconditions,
+        postconditions,
+        input,
+        expected_result: expectedResult,
+        actual_result: actualResult,
+        status,
+        fixed,
+        assign_dev: assignDev,
+        assign_tester: assignTester,
+        dev_note: devNote,
+        test_note: testNote,
+        step_format: stepFormat,
+        classic_steps: stepFormat === "classic" ? classicSteps : undefined,
+        gherkin_steps: stepFormat === "gherkin" ? gherkinSteps : undefined,
+      };
+
+      if (!workspaceId) return;
+      const resp = await api.data.testCases.create(workspaceId, payload);
+      
+      if (resp.ok) {
+        const result = await resp.json();
+        const testCaseId = result.id;
+
+        // Upload attachments if any
+        if (attachments.length > 0) {
+          const formData = new FormData();
+          attachments.forEach((a) => {
+            formData.append("files", a.file);
+          });
+
+          await api.data.testCases.uploadAttachment(workspaceId, testCaseId, formData);
+        }
+
+        ui.showMessage("Test case created successfully", "success");
+        backToRepository();
+      } else {
+        const error = await resp.json();
+        ui.showMessage(error.error || "Failed to create test case", "error");
+      }
+    } catch (e) {
+      console.error("Save error:", e);
+      ui.showMessage("An unexpected error occurred", "error");
+    } finally {
+      isSaving = false;
+    }
   }
 
   function autoGrow(node: HTMLTextAreaElement) {
@@ -284,10 +422,15 @@
       </button>
       <button
         type="submit"
-        class="h-10 rounded-xl bg-indigo-600 px-6 text-sm font-black text-white shadow-lg shadow-indigo-600/25 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-indigo-500/40"
-        disabled={!name.trim()}
+        class="flex h-10 items-center gap-2 rounded-xl bg-indigo-600 px-6 text-sm font-black text-white shadow-lg shadow-indigo-600/25 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+        disabled={isSaving || !name.trim()}
       >
-        {isEditing ? "Save test case" : "Create test case"}
+        {#if isSaving}
+          <Clock size={16} class="animate-spin" />
+          <span>Saving...</span>
+        {:else}
+          {isEditing ? "Save test case" : "Create test case"}
+        {/if}
       </button>
     </header>
 
@@ -320,7 +463,7 @@
           <textarea
             bind:value={description}
             use:autoGrow
-            class="min-h-20 w-full overflow-hidden resize-none !bg-transparent px-0 text-[15px] leading-relaxed text-gray-300 placeholder:text-gray-600 border-none outline-none"
+            class="min-h-[38px] w-full overflow-hidden resize-none !bg-transparent px-0 text-[15px] leading-relaxed text-gray-300 placeholder:text-gray-600 border-none outline-none"
             placeholder="Additional details..."
           ></textarea>
         </label>
@@ -369,9 +512,19 @@
           </label>
 
           <label class="space-y-2">
-            <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
-              <ListChecks size={14} />
-              Suite
+            <span class="flex items-center justify-between">
+              <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
+                <ListChecks size={14} />
+                Suite
+              </span>
+              <button
+                type="button"
+                on:click={() => (showCreateSuiteModal = true)}
+                class="flex h-5 w-5 items-center justify-center rounded-md text-gray-500 hover:bg-white/10 hover:text-white"
+                title="Create new suite"
+              >
+                <Plus size={12} />
+              </button>
             </span>
             <div class="property-select">
               <SearchableSelect id="editor-suite" bind:value={suiteId} options={suiteOptions} minimal={true} />
@@ -389,7 +542,8 @@
           <textarea
             bind:value={preconditions}
             use:autoGrow
-            class="mt-3 min-h-20 w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20"
+            rows="1"
+            class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20"
             placeholder="Conditions required before this test starts..."
           ></textarea>
         </label>
@@ -401,13 +555,14 @@
           <textarea
             bind:value={postconditions}
             use:autoGrow
-            class="mt-3 min-h-20 w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20"
+            rows="1"
+            class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20"
             placeholder="Expected state after this test finishes..."
           ></textarea>
         </label>
       </section>
 
-      <section class="grid grid-cols-1 gap-5 border-b border-white/5 px-6 py-6 lg:grid-cols-3">
+      <section class="border-b border-white/5 px-6 py-6">
         <label>
           <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
             <Keyboard size={14} />
@@ -416,36 +571,41 @@
           <textarea
             bind:value={input}
             use:autoGrow
-            class="mt-3 min-h-20 w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20"
+            rows="1"
+            class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20"
             placeholder="Data that tester must enter..."
           ></textarea>
         </label>
 
-        <label>
-          <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
-            <CheckCircle2 size={14} />
-            Expected Result
-          </span>
-          <textarea
-            bind:value={expectedResult}
-            use:autoGrow
-            class="mt-3 min-h-20 w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20"
-            placeholder="Expected behavior after running the step..."
-          ></textarea>
-        </label>
+        <div class="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <label>
+            <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
+              <CheckCircle2 size={14} />
+              Expected Result
+            </span>
+            <textarea
+              bind:value={expectedResult}
+              use:autoGrow
+              rows="1"
+              class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20"
+              placeholder="Expected behavior after running the step..."
+            ></textarea>
+          </label>
 
-        <label>
-          <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
-            <ClipboardCheck size={14} />
-            Actual Result
-          </span>
-          <textarea
-            bind:value={actualResult}
-            use:autoGrow
-            class="mt-3 min-h-20 w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20"
-            placeholder="Actual behavior found during testing..."
-          ></textarea>
-        </label>
+          <label>
+            <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
+              <ClipboardCheck size={14} />
+              Actual Result
+            </span>
+            <textarea
+              bind:value={actualResult}
+              use:autoGrow
+              rows="1"
+              class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20"
+              placeholder="Actual behavior found during testing..."
+            ></textarea>
+          </label>
+        </div>
       </section>
 
       <section class="grid grid-cols-1 gap-5 border-b border-white/5 px-6 py-6 lg:grid-cols-2">
@@ -458,7 +618,8 @@
           <textarea
             bind:value={devNote}
             use:autoGrow
-            class="mt-3 min-h-20 w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20"
+            rows="1"
+            class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20"
             placeholder="Developer note..."
           ></textarea>
         </label>
@@ -471,7 +632,8 @@
           <textarea
             bind:value={testNote}
             use:autoGrow
-            class="mt-3 min-h-20 w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20"
+            rows="1"
+            class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20"
             placeholder="Tester note..."
           ></textarea>
         </label>
@@ -567,9 +729,9 @@
             {#each classicSteps as step, index}
               <div class="grid items-start gap-3" style="grid-template-columns: 28px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 72px;">
                 <div class="pt-2 text-center text-sm font-black text-gray-400">{index + 1}</div>
-                <textarea rows="1" bind:value={step.action} use:autoGrow class="min-h-[44px] w-full overflow-hidden resize-none rounded-lg border border-white/10 !bg-transparent px-3 py-2.5 text-sm font-medium leading-5 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20" placeholder="Action"></textarea>
-                <textarea rows="1" bind:value={step.data} use:autoGrow class="min-h-[44px] w-full overflow-hidden resize-none rounded-lg border border-white/10 !bg-transparent px-3 py-2.5 text-sm font-medium leading-5 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20" placeholder="Data"></textarea>
-                <textarea rows="1" bind:value={step.expected} use:autoGrow class="min-h-[44px] w-full overflow-hidden resize-none rounded-lg border border-white/10 !bg-transparent px-3 py-2.5 text-sm font-medium leading-5 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20" placeholder="Expected result"></textarea>
+                <textarea rows="1" bind:value={step.action} use:autoGrow class="min-h-[38px] w-full overflow-hidden resize-none rounded-lg border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-5 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20" placeholder="Action"></textarea>
+                <textarea rows="1" bind:value={step.data} use:autoGrow class="min-h-[38px] w-full overflow-hidden resize-none rounded-lg border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-5 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20" placeholder="Data"></textarea>
+                <textarea rows="1" bind:value={step.expected} use:autoGrow class="min-h-[38px] w-full overflow-hidden resize-none rounded-lg border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-5 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20" placeholder="Expected result"></textarea>
                 <div class="flex items-center gap-2 pt-1">
                   <button type="button" class="grid h-8 w-8 place-items-center rounded-md text-gray-500 hover:text-rose-400" title="Delete step" on:click={() => removeClassicStep(index)}>
                     <Trash2 size={15} />
@@ -596,7 +758,8 @@
               <textarea
                 bind:value={gherkinRaw}
                 use:autoGrow
-                class="relative w-full h-full min-h-40 resize-none bg-transparent text-transparent caret-white px-4 py-3 outline-none border-none m-0 focus:ring-0"
+                rows="1"
+                class="relative w-full h-full min-h-[38px] resize-none bg-transparent text-transparent caret-white px-4 py-3 outline-none border-none m-0 focus:ring-0"
                 spellcheck="false"
                 placeholder="Given preconditions...&#10;When actions...&#10;Then expected results..."
               ></textarea>
@@ -626,6 +789,51 @@
     </main>
   </form>
 </div>
+
+{#if showCreateSuiteModal}
+  <div class="fixed inset-0 z-[9999] flex items-center justify-center p-4" transition:fade={{ duration: 150 }}>
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" on:click={() => (showCreateSuiteModal = false)}></div>
+    <div class="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#111827] p-6 shadow-2xl">
+      <h3 class="text-lg font-black text-white">Create New Suite</h3>
+      <p class="mt-1 text-sm text-gray-500">Enter a name for the new test suite.</p>
+
+      <div class="mt-6">
+        <label for="new-suite-name" class="block text-[12px] font-black uppercase tracking-widest text-gray-500">
+          Suite Name
+        </label>
+        <input
+          id="new-suite-name"
+          type="text"
+          bind:value={newSuiteName}
+          class="mt-3 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white outline-none focus:border-white/20"
+          placeholder="e.g. Authentication, Dashboard..."
+          autofocus
+          on:keydown={(e) => e.key === "Enter" && handleCreateSuite()}
+        />
+      </div>
+
+      <div class="mt-8 flex items-center justify-end gap-3">
+        <button
+          type="button"
+          class="rounded-xl px-4 py-2 text-sm font-bold text-gray-400 hover:bg-white/5 hover:text-white"
+          on:click={() => (showCreateSuiteModal = false)}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="rounded-xl bg-indigo-600 px-6 py-2 text-sm font-black text-white hover:bg-indigo-500 disabled:opacity-50"
+          disabled={!newSuiteName.trim()}
+          on:click={handleCreateSuite}
+        >
+          Create Suite
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <style>
   :global(.property-select .property-trigger-btn) {
