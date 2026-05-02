@@ -81,11 +81,31 @@ impl TestCaseRepository {
     pub async fn find_by_workspace(
         &self,
         workspace_id: &ObjectId,
+        suite_id: Option<String>,
+        limit: Option<i64>,
+        offset: Option<u64>,
     ) -> mongodb::error::Result<Vec<TestCase>> {
-        let mut cursor = self
-            .collection
-            .find(doc! { "workspace_id": workspace_id }, None)
-            .await?;
+        let mut filter = doc! { "workspace_id": workspace_id };
+        if let Some(sid) = suite_id {
+            if sid == "none" {
+                filter.insert("suite_id", doc! { "$in": ["", null] });
+            } else {
+                filter.insert("suite_id", sid);
+            }
+        }
+
+        let mut options = mongodb::options::FindOptions::builder()
+            .sort(doc! { "test_no": -1 })
+            .build();
+        
+        if let Some(l) = limit {
+            options.limit = Some(l);
+        }
+        if let Some(o) = offset {
+            options.skip = Some(o);
+        }
+
+        let mut cursor = self.collection.find(filter, options).await?;
         let mut results = Vec::new();
         while let Some(result) = cursor.next().await {
             match result {
@@ -114,5 +134,19 @@ impl TestCaseRepository {
             )
             .await?;
         Ok(res.matched_count > 0)
+    }
+
+    pub async fn delete_by_suite(&self, suite_id: &str) -> mongodb::error::Result<u64> {
+        let res = self.collection.delete_many(doc! { "suite_id": suite_id }, None).await?;
+        Ok(res.deleted_count)
+    }
+
+    pub async fn move_to_unassigned(&self, suite_id: &str) -> mongodb::error::Result<u64> {
+        let res = self.collection.update_many(
+            doc! { "suite_id": suite_id },
+            doc! { "$set": { "suite_id": "" } },
+            None
+        ).await?;
+        Ok(res.modified_count)
     }
 }

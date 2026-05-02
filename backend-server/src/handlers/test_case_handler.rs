@@ -16,10 +16,18 @@ use mongodb::bson::{doc, oid::ObjectId};
 use std::sync::Arc;
 use uuid::Uuid;
 
+#[derive(serde::Deserialize)]
+pub struct TestCaseQuery {
+    pub suite_id: Option<String>,
+    pub limit: Option<i64>,
+    pub page: Option<u64>,
+}
+
 /// GET /api/workspaces/:ws_id/test-cases
 pub async fn list_test_cases(
     State(state): State<Arc<AppState>>,
     Path(ws_id): Path<String>,
+    axum::extract::Query(query): axum::extract::Query<TestCaseQuery>,
 ) -> impl IntoResponse {
     let ws_oid = match ObjectId::parse_str(&ws_id) {
         Ok(oid) => oid,
@@ -30,7 +38,7 @@ pub async fn list_test_cases(
     let suite_repo = TestSuiteRepository::new(&state.db);
     let service = TestCaseService::new(repo, suite_repo);
 
-    match service.list_test_cases(&ws_oid).await {
+    match service.list_test_cases(&ws_oid, query.suite_id, query.limit, query.page).await {
         Ok(tcs) => (StatusCode::OK, Json(tcs)).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
@@ -47,7 +55,8 @@ pub async fn list_suites(
     };
 
     let repo = TestSuiteRepository::new(&state.db);
-    let service = TestSuiteService::new(repo);
+    let case_repo = TestCaseRepository::new(&state.db);
+    let service = TestSuiteService::new(repo, case_repo);
 
     match service.list_suites(&ws_oid).await {
         Ok(suites) => (StatusCode::OK, Json(suites)).into_response(),
@@ -67,10 +76,67 @@ pub async fn create_suite(
     };
 
     let repo = TestSuiteRepository::new(&state.db);
-    let service = TestSuiteService::new(repo);
+    let case_repo = TestCaseRepository::new(&state.db);
+    let service = TestSuiteService::new(repo, case_repo);
 
     match service.create_suite(ws_oid, req).await {
         Ok(suite) => (StatusCode::CREATED, Json(suite)).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+#[derive(serde::Deserialize)]
+pub struct UpdateTestSuiteRequest {
+    pub title: String,
+}
+
+/// PATCH /api/test-suites/:id
+pub async fn update_suite(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    Json(req): Json<UpdateTestSuiteRequest>,
+) -> impl IntoResponse {
+    let repo = TestSuiteRepository::new(&state.db);
+    let case_repo = TestCaseRepository::new(&state.db);
+    let service = TestSuiteService::new(repo, case_repo);
+
+    match service.update_suite(&id, req.title).await {
+        Ok(success) => {
+            if success {
+                StatusCode::OK.into_response()
+            } else {
+                (StatusCode::NOT_FOUND, "Suite not found").into_response()
+            }
+        }
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+#[derive(serde::Deserialize)]
+pub struct DeleteTestSuiteQuery {
+    pub mode: Option<String>, // "move" or "delete"
+}
+
+/// DELETE /api/test-suites/:id
+pub async fn delete_suite(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    axum::extract::Query(query): axum::extract::Query<DeleteTestSuiteQuery>,
+) -> impl IntoResponse {
+    let repo = TestSuiteRepository::new(&state.db);
+    let case_repo = TestCaseRepository::new(&state.db);
+    let service = TestSuiteService::new(repo, case_repo);
+
+    let delete_cases = query.mode.as_deref() == Some("delete");
+
+    match service.delete_suite(&id, delete_cases).await {
+        Ok(success) => {
+            if success {
+                StatusCode::NO_CONTENT.into_response()
+            } else {
+                (StatusCode::NOT_FOUND, "Suite not found").into_response()
+            }
+        }
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }

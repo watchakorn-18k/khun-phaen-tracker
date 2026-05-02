@@ -71,6 +71,7 @@ impl TestCaseService {
             expected_result: req.expected_result,
             actual_result: req.actual_result,
             status: req.status.unwrap_or_else(|| "draft".to_string()),
+            priority: req.priority.unwrap_or_else(|| "medium".to_string()),
             fixed: req.fixed.unwrap_or_else(|| "no".to_string()),
             assign_dev: req.assign_dev,
             assign_tester: req.assign_tester,
@@ -98,8 +99,15 @@ impl TestCaseService {
     pub async fn list_test_cases(
         &self,
         workspace_id: &ObjectId,
+        suite_id: Option<String>,
+        limit: Option<i64>,
+        page: Option<u64>,
     ) -> mongodb::error::Result<Vec<TestCase>> {
-        self.repo.find_by_workspace(workspace_id).await
+        let limit = limit.unwrap_or(10);
+        let page = page.unwrap_or(1);
+        let offset = (page - 1) * (limit as u64);
+        
+        self.repo.find_by_workspace(workspace_id, suite_id, Some(limit), Some(offset)).await
     }
 
     pub async fn update_attachments(

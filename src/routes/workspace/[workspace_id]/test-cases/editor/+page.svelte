@@ -57,6 +57,12 @@
     { value: "deprecated", label: "Deprecated", icon: History, iconClass: "text-gray-600" },
   ];
 
+  const priorityOptions = [
+    { value: "high", label: "High", icon: Shield, iconClass: "text-rose-500" },
+    { value: "medium", label: "Medium", icon: Shield, iconClass: "text-amber-500" },
+    { value: "low", label: "Low", icon: Shield, iconClass: "text-gray-400" },
+  ];
+
   let workspaceAssignees: Assignee[] = [];
   $: assigneeOptions = [
     { value: "unassigned", label: "Unassigned", avatarColor: "#64748b" },
@@ -126,6 +132,7 @@
   let preconditions = initialCase?.preconditions || "";
   let postconditions = initialCase?.postconditions || "";
   let status: Status = initialCase?.status || "actual";
+  let priority: "high" | "medium" | "low" = (initialCase as any)?.priority || "medium";
   let assignee = initialCase?.assignee || "unassigned";
   let testNo = caseId || "";
   let dateCreate = "2026-05-03";
@@ -346,6 +353,7 @@
         expected_result: expectedResult,
         actual_result: actualResult,
         status,
+        priority,
         fixed,
         assign_dev: assignDev,
         assign_tester: assignTester,
@@ -490,7 +498,7 @@
           </label>
         </div>
 
-        <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
           <label class="space-y-2">
             <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
               <ClipboardCheck size={14} />
@@ -498,6 +506,16 @@
             </span>
             <div class="property-select">
               <SearchableSelect id="editor-status" bind:value={status} options={statusOptions} showSearch={false} minimal={true} />
+            </div>
+          </label>
+
+          <label class="space-y-2">
+            <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
+              <Shield size={14} />
+              Priority
+            </span>
+            <div class="property-select">
+              <SearchableSelect id="editor-priority" bind:value={priority} options={priorityOptions} showSearch={false} minimal={true} />
             </div>
           </label>
 

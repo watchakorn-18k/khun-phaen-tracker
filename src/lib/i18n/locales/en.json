@@ -1311,5 +1311,9 @@
 	"page__view_gantt": "Gantt Chart",
 	"page__btn_theme": "Toggle Theme",
 	"sidebar__issues": "Workspace Board",
-	"sidebar__overview": "Overview"
+	"sidebar__overview": "Overview",
+	"testCases__quick_create": "+ Create quick test",
+	"testCases__title_placeholder": "Test case title",
+	"testCases__created_success": "Test case created",
+	"testCases__created_error": "Failed to create test case"
 }

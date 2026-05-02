@@ -76,6 +76,8 @@ pub struct TestCase {
     pub actual_result: Option<String>,
     #[serde(default = "default_status")]
     pub status: String,
+    #[serde(default = "default_priority")]
+    pub priority: String,
     #[serde(default = "default_fixed")]
     pub fixed: String,
     pub assign_dev: Option<String>,
@@ -93,6 +95,9 @@ pub struct TestCase {
 
 fn default_status() -> String {
     "draft".to_string()
+}
+fn default_priority() -> String {
+    "medium".to_string()
 }
 fn default_fixed() -> String {
     "no".to_string()
@@ -114,6 +119,7 @@ pub struct CreateTestCaseRequest {
     pub expected_result: Option<String>,
     pub actual_result: Option<String>,
     pub status: Option<String>,
+    pub priority: Option<String>,
     pub fixed: Option<String>,
     pub assign_dev: Option<String>,
     pub assign_tester: Option<String>,
@@ -138,7 +144,6 @@ pub struct TestSuite {
 #[derive(Debug, Deserialize)]
 pub struct CreateTestSuiteRequest {
     pub title: String,
-    pub description: Option<String>,
 }
 
 
@@ -166,6 +171,7 @@ mod tests {
             expected_result: None,
             actual_result: None,
             status: "draft".to_string(),
+            priority: "medium".to_string(),
             fixed: "no".to_string(),
             assign_dev: None,
             assign_tester: None,

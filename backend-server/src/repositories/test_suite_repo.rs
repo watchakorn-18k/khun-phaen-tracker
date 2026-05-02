@@ -62,4 +62,18 @@ impl TestSuiteRepository {
     pub async fn find_by_id(&self, id: &str) -> mongodb::error::Result<Option<TestSuite>> {
         self.collection.find_one(doc! { "_id": Self::build_id_filter(id) }, None).await
     }
+
+    pub async fn update(&self, id: &str, updates: mongodb::bson::Document) -> mongodb::error::Result<bool> {
+        let res = self.collection.update_one(
+            doc! { "_id": Self::build_id_filter(id) },
+            doc! { "$set": updates },
+            None
+        ).await?;
+        Ok(res.matched_count > 0)
+    }
+
+    pub async fn delete(&self, id: &str) -> mongodb::error::Result<bool> {
+        let res = self.collection.delete_one(doc! { "_id": Self::build_id_filter(id) }, None).await?;
+        Ok(res.deleted_count > 0)
+    }
 }

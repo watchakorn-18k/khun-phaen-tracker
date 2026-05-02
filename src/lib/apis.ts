@@ -974,8 +974,9 @@ export const api = {
     },
     // Test Cases
     testCases: {
-      list: (wsId: string): Promise<Response> => {
-        return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-cases`, {
+      list: (wsId: string, params?: { suite_id?: string; limit?: number; page?: number }): Promise<Response> => {
+        const query = params ? "?" + new URLSearchParams(params as any).toString() : "";
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-cases${query}`, {
           headers: api.data._headers(),
           credentials: "include",
         });
@@ -1020,6 +1021,21 @@ export const api = {
           headers: api.data._headers(true),
           credentials: "include",
           body: JSON.stringify(suite),
+        });
+      },
+      update: (id: string, payload: { title: string }): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/test-suites/${id}`, {
+          method: "PATCH",
+          headers: api.data._headers(true),
+          credentials: "include",
+          body: JSON.stringify(payload),
+        });
+      },
+      delete: (id: string, mode: "move" | "delete" = "move"): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/test-suites/${id}?mode=${mode}`, {
+          method: "DELETE",
+          headers: api.data._headers(),
+          credentials: "include",
         });
       },
     },

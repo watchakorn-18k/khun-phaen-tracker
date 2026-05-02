@@ -11,15 +11,21 @@
   import { createUIActions } from "$lib/stores/uiActions";
   import {
     ChevronDown,
+    ChevronLeft,
+    ChevronRight,
     ChevronsUpDown,
+    ClipboardList,
     Edit3,
+    Folder,
     Image,
+    ListChecks,
     MoreHorizontal,
     Plus,
     Search,
     Trash2,
     X,
   } from "lucide-svelte";
+  import { _ } from "svelte-i18n";
 
   type Step = {
     action: string;
@@ -47,6 +53,8 @@
     title: string;
     description: string;
     cases: TestCase[];
+    page: number;
+    hasMore: boolean;
   };
 
   type TestCaseForm = {
@@ -97,23 +105,27 @@
     { keyword: "then", text: "" },
   ];
   let stepFormat: "gherkin" | "classic" = "gherkin";
-  let classicSteps: ClassicStep[] = [
-    { action: "", data: "", expected: "" },
-  ];
+  let classicSteps: ClassicStep[] = [{ action: "", data: "", expected: "" }];
   let showCreateSuiteModal = false;
   let newSuiteName = "";
+  let editingSuite: Suite | null = null;
+  let showDeleteSuiteModal = false;
+  let suiteToDelete: Suite | null = null;
+  let deleteMode: "move" | "delete" = "move";
+
+  let quickTestInputSuiteId = "";
+  let quickTestTitle = "";
 
   async function handleCreateSuite() {
     if (!newSuiteName.trim() || !workspaceId) return;
-    
+
     try {
-      const resp = await api.data.testSuites.create(workspaceId, { 
+      const resp = await api.data.testSuites.create(workspaceId, {
         title: newSuiteName,
-        description: "New test suite"
       });
       if (resp.ok) {
         const newSuite = await resp.json();
-        suites = [...suites, { ...newSuite, cases: [] }];
+        suites = [...suites, { ...newSuite, id: newSuite.id || newSuite._id, cases: [], page: 1, hasMore: false }];
         newSuiteName = "";
         showCreateSuiteModal = false;
         ui.showMessage("Suite created successfully", "success");
@@ -126,24 +138,69 @@
     }
   }
 
+  async function handleUpdateSuite() {
+    if (!editingSuite || !editingSuite.title.trim()) return;
+    try {
+      const resp = await api.data.testSuites.update(editingSuite.id, { title: editingSuite.title });
+      if (resp.ok) {
+        suites = suites.map(s => s.id === editingSuite?.id ? { ...s, title: editingSuite.title } : s);
+        ui.showMessage("Suite updated", "success");
+        editingSuite = null;
+      } else {
+        ui.showMessage("Failed to update suite", "error");
+      }
+    } catch (e) {
+      ui.showMessage("An error occurred", "error");
+    }
+  }
+
+  async function handleDeleteSuite() {
+    if (!suiteToDelete) return;
+    try {
+      const resp = await api.data.testSuites.delete(suiteToDelete.id, deleteMode);
+      if (resp.ok) {
+        if (deleteMode === "move") {
+          // Move cases to unassigned
+          const unassignedSuite = suites.find(s => s.id === "unassigned");
+          const movedCases = suiteToDelete.cases || [];
+          if (unassignedSuite) {
+            suites = suites.map(s => s.id === "unassigned" ? { ...s, cases: [...s.cases, ...movedCases] } : s);
+          } else {
+            suites = [...suites, { id: "unassigned", title: "Unassigned", description: "", cases: movedCases, page: 1, hasMore: false }];
+          }
+        }
+        suites = suites.filter(s => s.id !== suiteToDelete?.id);
+        ui.showMessage("Suite deleted", "success");
+        showDeleteSuiteModal = false;
+        suiteToDelete = null;
+      } else {
+        ui.showMessage("Failed to delete suite", "error");
+      }
+    } catch (e) {
+      ui.showMessage("An error occurred", "error");
+    }
+  }
+
   function mapBackendToFrontend(tc: any): TestCase {
     return {
       id: tc.id,
       test_no: tc.test_no,
       title: tc.name,
       type: "manual", // Default for now
-      priority: "medium", // Default for now
+      priority: tc.priority || "medium",
       status: tc.status,
       assignee: tc.assign_tester || "unassigned",
       description: tc.description || "",
       preconditions: tc.preconditions || "",
       postconditions: tc.postconditions || "",
-      steps: tc.classic_steps || (tc.gherkin_steps || []).map((s: any) => ({
-        action: `${s.keyword} ${s.text}`,
-        data: "",
-        expected: ""
-      })),
-      suite_id: tc.suite_id
+      steps:
+        tc.classic_steps ||
+        (tc.gherkin_steps || []).map((s: any) => ({
+          action: `${s.keyword} ${s.text}`,
+          data: "",
+          expected: "",
+        })),
+      suite_id: tc.suite_id,
     };
   }
 
@@ -152,23 +209,54 @@
       try {
         const [suiteResp, caseResp] = await Promise.all([
           api.data.testSuites.list(workspaceId),
-          api.data.testCases.list(workspaceId)
+          api.data.testCases.list(workspaceId),
         ]);
 
         if (suiteResp.ok && caseResp.ok) {
           const suiteData = await suiteResp.json();
           const caseData = await caseResp.json();
-          
+
           const mappedCases = caseData.map(mapBackendToFrontend);
-          
-          suites = suiteData.map((s: any) => ({
+
+          // Map suites and ensure they have 'id'
+          const suitesWithId = suiteData.map((s: any) => ({
             ...s,
-            cases: mappedCases.filter((c: TestCase) => c.suite_id === s.id)
+            id: s.id || s._id,
           }));
+
+          const suiteIds = new Set(suitesWithId.map((s: any) => s.id));
+          const unassignedCases = mappedCases.filter(
+            (c: TestCase) => !suiteIds.has(c.suite_id),
+          );
+
+          suites = suitesWithId.map((s: any) => ({
+            ...s,
+            cases: mappedCases.filter((c: TestCase) => c.suite_id === s.id),
+            page: 1,
+            hasMore:
+              mappedCases.filter((c: TestCase) => c.suite_id === s.id).length >=
+              10,
+          }));
+
+          // Add 'Unassigned' virtual suite if there are unassigned cases
+          if (unassignedCases.length > 0) {
+            suites = [
+              ...suites,
+              {
+                id: "unassigned",
+                title: "Unassigned",
+                description: "",
+                cases: unassignedCases,
+                page: 1,
+                hasMore: unassignedCases.length >= 10,
+              },
+            ];
+          }
 
           if (suites.length > 0) {
             selectedSuiteId = suites[0].id;
-            testCaseForm.suiteId = suites[0].id;
+            testCaseForm.suiteId =
+              suites[0].id === "unassigned" ? "" : suites[0].id;
             if (suites[0].cases.length > 0) {
               selectedCaseId = suites[0].cases[0].id;
             }
@@ -179,7 +267,33 @@
       }
     }
   });
-
+  async function loadSuitePage(suiteId: string, page: number) {
+    if (!workspaceId) return;
+    try {
+      const resp = await api.data.testCases.list(workspaceId, {
+        suite_id: suiteId === "unassigned" ? "none" : suiteId,
+        page: page,
+        limit: 10,
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        const mapped = data.map(mapBackendToFrontend);
+        suites = suites.map((s) => {
+          if (s.id === suiteId) {
+            return {
+              ...s,
+              cases: mapped,
+              page: page,
+              hasMore: mapped.length >= 10,
+            };
+          }
+          return s;
+        });
+      }
+    } catch (e) {
+      console.error("Failed to load suite page:", e);
+    }
+  }
   const assignees = [
     { id: "unassigned", name: "Unassigned" },
     { id: "wk-18k", name: "WK 18K" },
@@ -213,16 +327,28 @@
     { value: "classic", label: "Classic" },
   ];
 
-  $: suiteOptions = suites.map((suite) => ({ value: suite.id, label: suite.title }));
-  $: assigneeOptions = assignees.map((assignee) => ({ value: assignee.id, label: assignee.name }));
+  $: suiteOptions = suites.map((suite) => ({
+    value: suite.id,
+    label: suite.title,
+  }));
+  $: assigneeOptions = assignees.map((assignee) => ({
+    value: assignee.id,
+    label: assignee.name,
+  }));
 
   $: workspaceId = $page.params.workspace_id;
   $: workspaceLabel = $currentWorkspaceName || "Current workspace";
   $: suiteCount = suites.length;
-  $: caseCount = suites.reduce((total, suite) => total + (suite.cases?.length || 0), 0);
-  $: selectedSuite = suites.find((suite) => suite.id === selectedSuiteId) || suites[0];
+  $: caseCount = suites.reduce(
+    (total, suite) => total + (suite.cases?.length || 0),
+    0,
+  );
+  $: selectedSuite =
+    suites.find((suite) => suite.id === selectedSuiteId) || suites[0];
   $: selectedCase =
-    suites.flatMap((suite) => suite.cases || []).find((testCase) => testCase.id === selectedCaseId) ||
+    suites
+      .flatMap((suite) => suite.cases || [])
+      .find((testCase) => testCase.id === selectedCaseId) ||
     (selectedSuite?.cases ? selectedSuite.cases[0] : null);
   $: filteredSuites = suites
     .map((suite) => ({
@@ -233,7 +359,11 @@
           .includes(query.trim().toLowerCase()),
       ),
     }))
-    .filter((suite) => (suite.cases?.length || 0) > 0 || suite.title.toLowerCase().includes(query.trim().toLowerCase()));
+    .filter(
+      (suite) =>
+        (suite.cases?.length || 0) > 0 ||
+        suite.title.toLowerCase().includes(query.trim().toLowerCase()),
+    );
 
   function selectSuite(suite: Suite) {
     selectedSuiteId = suite.id;
@@ -284,13 +414,14 @@
   }
 
   function addTestCaseStep() {
-    const nextKeyword = testCaseSteps.length === 0
-      ? "given"
-      : testCaseSteps.length % 3 === 1
-        ? "when"
-        : testCaseSteps.length % 3 === 2
-          ? "then"
-          : "given";
+    const nextKeyword =
+      testCaseSteps.length === 0
+        ? "given"
+        : testCaseSteps.length % 3 === 1
+          ? "when"
+          : testCaseSteps.length % 3 === 2
+            ? "then"
+            : "given";
     testCaseSteps = [...testCaseSteps, { keyword: nextKeyword, text: "" }];
   }
 
@@ -309,7 +440,10 @@
   function getSubmittedSteps(): Step[] {
     if (stepFormat === "classic") {
       return classicSteps
-        .filter((step) => step.action.trim() || step.data.trim() || step.expected.trim())
+        .filter(
+          (step) =>
+            step.action.trim() || step.data.trim() || step.expected.trim(),
+        )
         .map((step) => ({
           action: step.action.trim(),
           data: step.data.trim(),
@@ -330,7 +464,7 @@
     if (!testCaseForm.name.trim() || !workspaceId) return;
 
     const payload = {
-      suite_id: testCaseForm.suiteId || (suites[0]?.id || null),
+      suite_id: testCaseForm.suiteId || suites[0]?.id || null,
       name: testCaseForm.name.trim(),
       description: testCaseForm.description.trim(),
       preconditions: testCaseForm.preconditions.trim(),
@@ -339,7 +473,10 @@
       assign_tester: testCaseForm.assignee,
       step_format: stepFormat,
       classic_steps: stepFormat === "classic" ? classicSteps : undefined,
-      gherkin_steps: stepFormat === "gherkin" ? testCaseSteps.map(s => ({ keyword: s.keyword, text: s.text })) : undefined,
+      gherkin_steps:
+        stepFormat === "gherkin"
+          ? testCaseSteps.map((s) => ({ keyword: s.keyword, text: s.text }))
+          : undefined,
     };
 
     try {
@@ -347,11 +484,13 @@
       if (resp.ok) {
         const result = await resp.json();
         const newCase = mapBackendToFrontend(result);
-        
+
         suites = suites.map((suite) =>
-          suite.id === newCase.suite_id ? { ...suite, cases: [...(suite.cases || []), newCase] } : suite
+          suite.id === newCase.suite_id
+            ? { ...suite, cases: [...(suite.cases || []), newCase] }
+            : suite,
         );
-        
+
         selectedSuiteId = newCase.suite_id;
         selectedCaseId = newCase.id;
         showDetail = true;
@@ -366,9 +505,69 @@
     }
   }
 
+  async function handleQuickCreate(suiteId: string) {
+    if (!quickTestTitle.trim() || !workspaceId) {
+      quickTestInputSuiteId = "";
+      quickTestTitle = "";
+      return;
+    }
+
+    const payload = {
+      suite_id: suiteId === "unassigned" ? null : suiteId,
+      name: quickTestTitle.trim(),
+      description: "",
+      preconditions: "",
+      postconditions: "",
+      status: "actual",
+      assign_tester: "unassigned",
+      step_format: "gherkin",
+      gherkin_steps: [],
+    };
+
+    try {
+      const resp = await api.data.testCases.create(workspaceId, payload);
+      if (resp.ok) {
+        const result = await resp.json();
+        let newTcData = result;
+
+        // Ensure we have a test number, try to fetch if not in result
+        if (!newTcData.test_no) {
+          const nextResp = await api.data.testCases.nextNumber(workspaceId);
+          if (nextResp.ok) {
+            const nextData = await nextResp.json();
+            newTcData.test_no = (nextData.next_number || 1) - 1;
+          }
+        }
+
+        const newCase = mapBackendToFrontend(newTcData);
+
+        suites = suites.map((suite) =>
+          suite.id === (newCase.suite_id || "unassigned")
+            ? { ...suite, cases: [...(suite.cases || []), newCase] }
+            : suite,
+        );
+
+        selectedSuiteId = newCase.suite_id || "unassigned";
+        selectedCaseId = newCase.id;
+        showDetail = true;
+        ui.showMessage($_("testCases__created_success"), "success");
+      } else {
+        ui.showMessage($_("testCases__created_error"), "error");
+      }
+    } catch (e) {
+      console.error("Quick create error:", e);
+      ui.showMessage($_("page__error"), "error");
+    } finally {
+      quickTestInputSuiteId = "";
+      quickTestTitle = "";
+    }
+  }
+
   function priorityColor(priority: TestCase["priority"]) {
-    if (priority === "high") return "text-rose-500 bg-rose-50 border-rose-100 dark:bg-rose-500/10 dark:border-rose-500/20";
-    if (priority === "medium") return "text-amber-600 bg-amber-50 border-amber-100 dark:bg-amber-500/10 dark:border-amber-500/20";
+    if (priority === "high")
+      return "text-rose-500 bg-rose-50 border-rose-100 dark:bg-rose-500/10 dark:border-rose-500/20";
+    if (priority === "medium")
+      return "text-amber-600 bg-amber-50 border-amber-100 dark:bg-amber-500/10 dark:border-amber-500/20";
     return "text-gray-500 bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-700";
   }
 
@@ -385,11 +584,16 @@
     const startWidth = detailPanelWidth;
 
     const handlePointerMove = (moveEvent: PointerEvent) => {
-      detailPanelWidth = clampDetailWidth(startWidth + startX - moveEvent.clientX);
+      detailPanelWidth = clampDetailWidth(
+        startWidth + startX - moveEvent.clientX,
+      );
     };
 
     const handlePointerUp = () => {
-      localStorage.setItem("test-case-detail-panel-width", String(detailPanelWidth));
+      localStorage.setItem(
+        "test-case-detail-panel-width",
+        String(detailPanelWidth),
+      );
       stopPanelResize?.();
       stopPanelResize = null;
     };
@@ -410,7 +614,9 @@
 
   onMount(() => {
     if (!browser) return;
-    const savedWidth = Number(localStorage.getItem("test-case-detail-panel-width"));
+    const savedWidth = Number(
+      localStorage.getItem("test-case-detail-panel-width"),
+    );
     if (Number.isFinite(savedWidth) && savedWidth > 0) {
       detailPanelWidth = clampDetailWidth(savedWidth);
     }
@@ -425,25 +631,40 @@
   <title>Test Cases - {workspaceLabel}</title>
 </svelte:head>
 
-<div class="h-full min-h-screen bg-white text-slate-900 dark:bg-gray-950 dark:text-gray-100">
+<div
+  class="h-full min-h-screen bg-white text-slate-900 dark:bg-gray-950 dark:text-gray-100"
+>
   <div class="flex h-screen min-w-0 overflow-hidden">
-    <section class="flex min-w-0 flex-1 flex-col border-r border-gray-200 dark:border-gray-800">
-      <header class="shrink-0 border-b border-gray-200 bg-white px-6 py-5 dark:border-gray-800 dark:bg-gray-950">
-        <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+    <section
+      class="flex min-w-0 flex-1 flex-col border-r border-gray-200 dark:border-gray-800"
+    >
+      <header
+        class="shrink-0 border-b border-gray-200 bg-white px-6 py-5 dark:border-gray-800 dark:bg-gray-950"
+      >
+        <div
+          class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between"
+        >
           <div>
-            <p class="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">
+            <p
+              class="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400"
+            >
               Workspace test repository
             </p>
-            <h1 class="mt-1 text-2xl font-black tracking-tight text-slate-800 dark:text-white">
+            <h1
+              class="mt-1 text-2xl font-black tracking-tight text-slate-800 dark:text-white"
+            >
               {workspaceLabel} repository
             </h1>
             <p class="mt-1 text-sm font-medium text-slate-500">
-              {caseCount} cases ({caseCount}) | {suiteCount} suites ({suiteCount}) · {workspaceId}
+              {caseCount} cases ({caseCount}) | {suiteCount} suites ({suiteCount})
+              · {workspaceId}
             </p>
           </div>
 
           <div class="flex flex-wrap items-center gap-2">
-            <div class="flex h-9 min-w-[280px] overflow-hidden rounded-lg border border-slate-300 bg-white dark:border-gray-700 dark:bg-gray-900">
+            <div
+              class="flex h-9 min-w-[280px] overflow-hidden rounded-lg border border-slate-300 bg-white dark:border-gray-700 dark:bg-gray-900"
+            >
               <label class="flex min-w-0 flex-1 items-center gap-2 px-3">
                 <Search size={16} class="shrink-0 text-slate-400" />
                 <input
@@ -462,7 +683,9 @@
                 />
               </div>
             </div>
-            <button class="h-9 rounded-lg px-3 text-sm font-black text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/10">
+            <button
+              class="h-9 rounded-lg px-3 text-sm font-black text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/10"
+            >
               Add filter
             </button>
           </div>
@@ -470,14 +693,21 @@
       </header>
 
       <div class="flex min-h-0 flex-1">
-        <aside class="hidden w-64 shrink-0 border-r border-gray-200 bg-white p-4 lg:block dark:border-gray-800 dark:bg-gray-950">
+        <aside
+          class="hidden w-64 shrink-0 border-r border-gray-200 bg-white p-4 lg:block dark:border-gray-800 dark:bg-gray-950"
+        >
           <div class="mb-3 flex items-center gap-2">
-            <button class="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-slate-500 dark:bg-gray-800 dark:text-gray-300" title="Toggle suites">
+            <button
+              class="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-slate-500 dark:bg-gray-800 dark:text-gray-300"
+              title="Toggle suites"
+            >
               <ChevronsUpDown size={16} />
             </button>
-            <h2 class="text-lg font-black text-slate-800 dark:text-white">Suites</h2>
-            <button 
-              class="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800" 
+            <h2 class="text-lg font-black text-slate-800 dark:text-white">
+              Suites
+            </h2>
+            <button
+              class="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
               title="Add suite"
               on:click={() => (showCreateSuiteModal = true)}
             >
@@ -488,26 +718,38 @@
           <div class="space-y-1">
             {#each suites as suite}
               <button
-                class="group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors {selectedSuiteId === suite.id
+                class="group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors {selectedSuiteId ===
+                suite.id
                   ? 'bg-slate-100 font-black text-slate-800 dark:bg-gray-800 dark:text-white'
                   : 'font-bold text-slate-600 hover:bg-slate-50 dark:text-gray-400 dark:hover:bg-gray-900'}"
                 on:click={() => selectSuite(suite)}
               >
                 <ChevronDown size={14} class="shrink-0 text-slate-500" />
                 <span class="min-w-0 flex-1 truncate">{suite.title}</span>
-                <span class="text-xs font-black text-slate-500">{suite.cases?.length || 0}</span>
-                <MoreHorizontal size={14} class="text-slate-400 opacity-0 transition-opacity group-hover:opacity-100" />
+                <span class="text-xs font-black text-slate-500"
+                  >{suite.cases?.length || 0}</span
+                >
+                <MoreHorizontal
+                  size={14}
+                  class="text-slate-400 opacity-0 transition-opacity group-hover:opacity-100"
+                />
               </button>
             {/each}
           </div>
         </aside>
 
-        <main class="min-w-0 flex-1 overflow-y-auto bg-white p-4 dark:bg-gray-950">
+        <main
+          class="min-w-0 flex-1 overflow-y-auto bg-white p-4 dark:bg-gray-950"
+        >
           <div class="space-y-7">
             {#each filteredSuites as suite}
               <section>
-                <div class="flex min-h-12 items-center gap-3 rounded-t-lg bg-slate-100 px-5 dark:bg-gray-900">
-                  <h3 class="min-w-0 flex-1 truncate text-base font-black text-slate-700 dark:text-white">
+                <div
+                  class="flex min-h-12 items-center gap-3 rounded-t-lg bg-slate-100 px-5 dark:bg-gray-900"
+                >
+                  <h3
+                    class="min-w-0 flex-1 truncate text-base font-black text-slate-700 dark:text-white"
+                  >
                     {suite.title}
                   </h3>
                   <button
@@ -517,41 +759,106 @@
                   >
                     <Plus size={16} />
                   </button>
-                  <button class="grid h-8 w-8 place-items-center rounded-md text-slate-400 hover:bg-white hover:text-slate-700 dark:hover:bg-gray-800 dark:hover:text-white" title="Edit suite">
+                  <button
+                    class="grid h-8 w-8 place-items-center rounded-md text-slate-400 hover:bg-white hover:text-slate-700 dark:hover:bg-gray-800 dark:hover:text-white"
+                    title="Edit suite"
+                    on:click={() => (editingSuite = { ...suite })}
+                  >
                     <Edit3 size={15} />
                   </button>
-                  <button class="grid h-8 w-8 place-items-center rounded-md text-slate-400 hover:bg-white hover:text-rose-600 dark:hover:bg-gray-800 dark:hover:text-rose-400" title="Delete suite">
+                  <button
+                    class="grid h-8 w-8 place-items-center rounded-md text-slate-400 hover:bg-white hover:text-rose-600 dark:hover:bg-gray-800 dark:hover:text-rose-400"
+                    title="Delete suite"
+                    on:click={() => {
+                      suiteToDelete = suite;
+                      showDeleteSuiteModal = true;
+                    }}
+                  >
                     <Trash2 size={15} />
                   </button>
                 </div>
-                <p class="px-3 py-1 text-sm font-medium text-slate-400">{suite.description}</p>
 
                 <div class="divide-y divide-slate-200 dark:divide-gray-800">
                   {#each suite.cases || [] as testCase}
                     <button
-                      class="grid w-full grid-cols-[24px_52px_minmax(0,1fr)_auto] items-center gap-3 rounded-md px-3 py-2 text-left transition-colors {selectedCaseId === testCase.id
-                        ? 'bg-slate-100 dark:bg-gray-900'
+                      class="grid w-full grid-cols-[24px_52px_minmax(0,1fr)_auto] items-center gap-3 rounded-md px-3 py-2 text-left transition-colors {selectedCaseId ===
+                      testCase.id
+                        ? 'bg-slate-100 dark:bg-transparent'
                         : 'hover:bg-slate-50 dark:hover:bg-gray-900/70'}"
                       on:click={() => selectCase(suite, testCase)}
                     >
                       <span class="grid h-5 w-5 place-items-center">
-                        <span class="h-2.5 w-2.5 rounded-full border-2 {testCase.priority === 'high' ? 'border-rose-500' : 'border-slate-300'}"></span>
+                        <span
+                          class="h-2.5 w-2.5 rounded-full border-2 {testCase.priority ===
+                          'high'
+                            ? 'border-rose-500'
+                            : 'border-slate-300'}"
+                        ></span>
                       </span>
-                      <span class="font-mono text-sm font-bold text-slate-400">TC-{testCase.test_no}</span>
-                      <span class="min-w-0 truncate text-sm font-bold text-slate-700 dark:text-gray-200">{testCase.title}</span>
-                      <span class="hidden rounded-md border px-2 py-0.5 text-[11px] font-black uppercase tracking-wide sm:inline-flex {priorityColor(testCase.priority)}">
+                      <span class="font-mono text-sm font-bold text-slate-400"
+                        >TC-{testCase.test_no}</span
+                      >
+                      <span
+                        class="min-w-0 truncate text-sm font-bold text-slate-700 dark:text-gray-200"
+                        >{testCase.title}</span
+                      >
+                      <span
+                        class="hidden rounded-md border px-2 py-0.5 text-[11px] font-black uppercase tracking-wide sm:inline-flex {priorityColor(
+                          testCase.priority,
+                        )}"
+                      >
                         {testCase.priority}
                       </span>
                     </button>
                   {/each}
+
+                  {#if suite.cases.length === 0}
+                    <div
+                      class="flex flex-col items-center justify-center py-10 text-center"
+                    >
+                      <div
+                        class="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-300 dark:bg-gray-900"
+                      >
+                        <ClipboardList size={24} />
+                      </div>
+                      <p class="text-sm font-medium text-slate-400">
+                        No test cases in this suite
+                      </p>
+                    </div>
+                  {/if}
                 </div>
 
-                <button
-                  class="mt-2 px-10 py-1.5 text-sm font-medium text-slate-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400"
-                  on:click={() => openTestCaseEditor(suite.id)}
+                <div
+                  class="flex items-center justify-between px-3 py-3 border-t border-slate-100 dark:border-gray-800"
                 >
-                  + Create quick test
-                </button>
+                  <div class="flex gap-2">
+                    {#if suite.page > 1 || suite.hasMore}
+                      <button
+                        class="flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-30 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-900"
+                        disabled={suite.page <= 1}
+                        on:click={() => loadSuitePage(suite.id, suite.page - 1)}
+                      >
+                        <ChevronLeft size={14} />
+                        Previous
+                      </button>
+                      <button
+                        class="flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-30 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-900"
+                        disabled={!suite.hasMore}
+                        on:click={() => loadSuitePage(suite.id, suite.page + 1)}
+                      >
+                        Next
+                        <ChevronRight size={14} />
+                      </button>
+                    {/if}
+                  </div>
+
+                  <button
+                    class="px-3 py-1.5 text-sm font-black text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+                    on:click={() => openTestCaseEditor(suite.id)}
+                  >
+                    + Quick Test
+                  </button>
+                </div>
               </section>
             {/each}
           </div>
@@ -570,16 +877,28 @@
           title="Resize details panel"
           on:pointerdown={startPanelResize}
         ></button>
-        <div class="sticky top-0 z-10 border-b border-gray-200 bg-white px-5 py-4 dark:border-gray-800 dark:bg-gray-950">
+        <div
+          class="sticky top-0 z-10 border-b border-gray-200 bg-white px-5 py-4 dark:border-gray-800 dark:bg-gray-950"
+        >
           <div class="flex items-start gap-3">
             <div class="min-w-0 flex-1">
-              <p class="font-mono text-sm font-bold text-slate-400">TC-{selectedCase.test_no}</p>
-              <h2 class="mt-1 truncate text-2xl font-black text-slate-800 dark:text-white">
+              <p class="font-mono text-sm font-bold text-slate-400">
+                TC-{selectedCase.test_no}
+              </p>
+              <h2
+                class="mt-1 truncate text-2xl font-black text-slate-800 dark:text-white"
+              >
                 {selectedCase.title}
               </h2>
-              <p class="mt-1 text-sm font-semibold text-slate-500">{selectedSuite.title}</p>
+              <p class="mt-1 text-sm font-semibold text-slate-500">
+                {selectedSuite.title}
+              </p>
             </div>
-            <button class="grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800" title="Close details" on:click={() => (showDetail = false)}>
+            <button
+              class="grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
+              title="Close details"
+              on:click={() => (showDetail = false)}
+            >
               <X size={18} />
             </button>
           </div>
@@ -588,41 +907,66 @@
             <button
               class="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-gray-800 dark:text-gray-200"
               title="Edit"
-              on:click={() => openTestCaseEditor(selectedSuite.id, selectedCase.id)}
+              on:click={() =>
+                openTestCaseEditor(selectedSuite.id, selectedCase.id)}
             >
               <Edit3 size={17} />
             </button>
-            <button class="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-gray-800 dark:text-gray-200" title="Delete">
+            <button
+              class="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-gray-800 dark:text-gray-200"
+              title="Delete"
+            >
               <Trash2 size={17} />
             </button>
           </div>
 
-          <div class="mt-4 flex gap-6 border-b border-gray-200 text-sm font-black text-slate-500 dark:border-gray-800">
-            <span class="border-b-2 border-indigo-600 pb-2 text-slate-800 dark:text-white">General</span>
+          <div
+            class="mt-4 flex gap-6 border-b border-gray-200 text-sm font-black text-slate-500 dark:border-gray-800"
+          >
+            <span
+              class="border-b-2 border-indigo-600 pb-2 text-slate-800 dark:text-white"
+              >General</span
+            >
           </div>
         </div>
 
         <div class="space-y-7 px-5 py-6">
           <section>
-            <h3 class="text-sm font-black text-slate-700 dark:text-gray-200">Description</h3>
-            <p class="mt-2 text-sm leading-6 text-slate-700 dark:text-gray-300">{selectedCase.description}</p>
+            <h3 class="text-sm font-black text-slate-700 dark:text-gray-200">
+              Description
+            </h3>
+            <p class="mt-2 text-sm leading-6 text-slate-700 dark:text-gray-300">
+              {selectedCase.description}
+            </p>
           </section>
 
           <section class="grid grid-cols-1 gap-5">
             <div>
-              <h3 class="text-sm font-black text-slate-700 dark:text-gray-200">Pre-conditions</h3>
-              <p class="mt-2 text-sm font-medium text-slate-500">{selectedCase.preconditions || "Not set"}</p>
+              <h3 class="text-sm font-black text-slate-700 dark:text-gray-200">
+                Pre-conditions
+              </h3>
+              <p class="mt-2 text-sm font-medium text-slate-500">
+                {selectedCase.preconditions || "Not set"}
+              </p>
             </div>
             <div>
-              <h3 class="text-sm font-black text-slate-700 dark:text-gray-200">Post-conditions</h3>
-              <p class="mt-2 text-sm font-medium text-slate-500">{selectedCase.postconditions || "Not set"}</p>
+              <h3 class="text-sm font-black text-slate-700 dark:text-gray-200">
+                Post-conditions
+              </h3>
+              <p class="mt-2 text-sm font-medium text-slate-500">
+                {selectedCase.postconditions || "Not set"}
+              </p>
             </div>
           </section>
 
           <section>
             <div class="mb-4 flex items-center justify-between">
-              <h3 class="text-sm font-black text-slate-700 dark:text-gray-200">Steps</h3>
-              <button class="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-black text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/10">
+              <h3 class="text-sm font-black text-slate-700 dark:text-gray-200">
+                Steps
+              </h3>
+              <button
+                class="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-black text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/10"
+              >
                 <Plus size={14} />
                 Add step
               </button>
@@ -631,23 +975,39 @@
             <div class="space-y-5">
               {#each selectedCase.steps || [] as step, index}
                 <div class="grid grid-cols-[28px_minmax(0,1fr)_76px] gap-3">
-                  <div class="pt-2 text-center text-sm font-bold text-slate-600 dark:text-gray-300">{index + 1}</div>
+                  <div
+                    class="pt-2 text-center text-sm font-bold text-slate-600 dark:text-gray-300"
+                  >
+                    {index + 1}
+                  </div>
                   <div class="space-y-3">
-                    <div class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-800 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200">
+                    <div
+                      class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-800 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                    >
                       {step.action}
                     </div>
-                    <div class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-500 dark:border-gray-700 dark:bg-gray-900">
+                    <div
+                      class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-500 dark:border-gray-700 dark:bg-gray-900"
+                    >
                       {step.data}
                     </div>
-                    <div class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-500 dark:border-gray-700 dark:bg-gray-900">
+                    <div
+                      class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-500 dark:border-gray-700 dark:bg-gray-900"
+                    >
                       {step.expected}
                     </div>
                   </div>
                   <div class="flex items-start gap-2 pt-1">
-                    <button class="grid h-8 w-8 place-items-center rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-gray-800 dark:text-gray-200" title="Attach image">
+                    <button
+                      class="grid h-8 w-8 place-items-center rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-gray-800 dark:text-gray-200"
+                      title="Attach image"
+                    >
                       <Image size={15} />
                     </button>
-                    <button class="grid h-8 w-8 place-items-center rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-gray-800 dark:text-gray-200" title="More">
+                    <button
+                      class="grid h-8 w-8 place-items-center rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-gray-800 dark:text-gray-200"
+                      title="More"
+                    >
                       <MoreHorizontal size={15} />
                     </button>
                   </div>
@@ -674,8 +1034,12 @@
       on:submit|preventDefault={submitTestCase}
     >
       <div class="flex items-center justify-between px-5 py-4 shrink-0">
-        <div class="flex min-w-0 items-center gap-2 text-[13px] font-medium text-gray-500">
-          <span class="truncate hover:text-gray-300 transition-colors">{workspaceLabel}</span>
+        <div
+          class="flex min-w-0 items-center gap-2 text-[13px] font-medium text-gray-500"
+        >
+          <span class="truncate hover:text-gray-300 transition-colors"
+            >{workspaceLabel}</span
+          >
           <span class="text-gray-600">›</span>
           <span class="text-gray-400">Create test case</span>
         </div>
@@ -744,7 +1108,10 @@
           <div class="border-t border-white/5 pt-5">
             <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
               <label>
-                <span class="text-[12px] font-black uppercase tracking-widest text-gray-500">Pre-conditions</span>
+                <span
+                  class="text-[12px] font-black uppercase tracking-widest text-gray-500"
+                  >Pre-conditions</span
+                >
                 <textarea
                   bind:value={testCaseForm.preconditions}
                   class="mt-3 min-h-28 w-full resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20"
@@ -753,7 +1120,10 @@
               </label>
 
               <label>
-                <span class="text-[12px] font-black uppercase tracking-widest text-gray-500">Post-conditions</span>
+                <span
+                  class="text-[12px] font-black uppercase tracking-widest text-gray-500"
+                  >Post-conditions</span
+                >
                 <textarea
                   bind:value={testCaseForm.postconditions}
                   class="mt-3 min-h-28 w-full resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20"
@@ -766,7 +1136,9 @@
           <div class="border-t border-white/5 pt-5">
             <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div class="flex items-center gap-2">
-                <h3 class="text-sm font-black text-gray-200">Test Case Steps</h3>
+                <h3 class="text-sm font-black text-gray-200">
+                  Test Case Steps
+                </h3>
                 <div class="property-select min-w-[96px]">
                   <SearchableSelect
                     id="test-case-step-format"
@@ -778,7 +1150,9 @@
                 </div>
               </div>
               {#if stepFormat === "gherkin"}
-                <div class="flex items-center gap-4 text-xs font-black text-gray-500">
+                <div
+                  class="flex items-center gap-4 text-xs font-black text-gray-500"
+                >
                   <span>Raw</span>
                   <span class="text-indigo-400">Steps</span>
                 </div>
@@ -788,8 +1162,14 @@
             {#if stepFormat === "classic"}
               <div class="space-y-4">
                 {#each classicSteps as step, index}
-                  <div class="grid grid-cols-[28px_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_72px] items-start gap-3">
-                    <div class="pt-2 text-center text-sm font-black text-gray-400">{index + 1}</div>
+                  <div
+                    class="grid grid-cols-[28px_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_72px] items-start gap-3"
+                  >
+                    <div
+                      class="pt-2 text-center text-sm font-black text-gray-400"
+                    >
+                      {index + 1}
+                    </div>
                     <textarea
                       bind:value={step.action}
                       class="min-h-9 w-full resize-y rounded-lg border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-5 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20"
@@ -846,8 +1226,12 @@
             {:else}
               <div class="space-y-3">
                 {#each testCaseSteps as step, index}
-                  <div class="grid grid-cols-[28px_104px_minmax(0,1fr)_32px] items-center gap-3">
-                    <div class="text-center text-sm font-black text-gray-400">{index + 1}</div>
+                  <div
+                    class="grid grid-cols-[28px_104px_minmax(0,1fr)_32px] items-center gap-3"
+                  >
+                    <div class="text-center text-sm font-black text-gray-400">
+                      {index + 1}
+                    </div>
                     <div class="property-select">
                       <SearchableSelect
                         id={`test-case-step-keyword-${index}`}
@@ -887,7 +1271,9 @@
         </div>
       </div>
 
-      <div class="flex items-center justify-end gap-2 border-t border-white/5 px-5 py-4">
+      <div
+        class="flex items-center justify-end gap-2 border-t border-white/5 px-5 py-4"
+      >
         <button
           type="button"
           class="h-10 rounded-lg px-4 text-sm font-black text-gray-400 hover:!bg-transparent hover:text-white"
@@ -908,16 +1294,31 @@
 {/if}
 
 {#if showCreateSuiteModal}
-  <div class="fixed inset-0 z-[9999] flex items-center justify-center p-4" transition:fade={{ duration: 150 }}>
+  <div
+    class="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+    transition:fade={{ duration: 150 }}
+  >
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <!-- svelte-ignore a11y-no-static-element-interactions -->
-    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" on:click={() => (showCreateSuiteModal = false)}></div>
-    <div class="relative w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-800 dark:bg-gray-900">
-      <h3 class="text-lg font-black text-slate-800 dark:text-white">Create New Suite</h3>
-      <p class="mt-1 text-sm text-slate-500">Enter a name for the new test suite.</p>
+    <div
+      class="absolute inset-0 bg-black/60 backdrop-blur-sm"
+      on:click={() => (showCreateSuiteModal = false)}
+    ></div>
+    <div
+      class="relative w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-800 dark:bg-gray-900"
+    >
+      <h3 class="text-lg font-black text-slate-800 dark:text-white">
+        Create New Suite
+      </h3>
+      <p class="mt-1 text-sm text-slate-500">
+        Enter a name for the new test suite.
+      </p>
 
       <div class="mt-6">
-        <label for="new-suite-name" class="block text-[12px] font-black uppercase tracking-widest text-slate-500">
+        <label
+          for="new-suite-name"
+          class="block text-[12px] font-black uppercase tracking-widest text-slate-500"
+        >
           Suite Name
         </label>
         <input
@@ -951,6 +1352,75 @@
     </div>
   </div>
 {/if}
+
+{#if editingSuite}
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" transition:fade={{ duration: 150 }}>
+    <div class="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900">
+      <h2 class="text-xl font-black text-slate-800 dark:text-white">Edit Suite</h2>
+      <div class="mt-6">
+        <label for="edit-suite-name" class="block text-[12px] font-black uppercase tracking-widest text-slate-500">Suite Name</label>
+        <input
+          id="edit-suite-name"
+          type="text"
+          bind:value={editingSuite.title}
+          class="mt-3 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 outline-none focus:border-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:border-indigo-400"
+          autofocus
+          on:keydown={(e) => e.key === "Enter" && handleUpdateSuite()}
+        />
+      </div>
+      <div class="mt-8 flex items-center justify-end gap-3">
+        <button class="rounded-xl px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800" on:click={() => (editingSuite = null)}>Cancel</button>
+        <button class="rounded-xl bg-indigo-600 px-6 py-2 text-sm font-black text-white hover:bg-indigo-500 disabled:opacity-50" disabled={!editingSuite.title.trim()} on:click={handleUpdateSuite}>Save Changes</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if showDeleteSuiteModal && suiteToDelete}
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" transition:fade={{ duration: 150 }}>
+    <div class="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900">
+      <h2 class="text-xl font-black text-slate-800 dark:text-white">Delete Suite</h2>
+      <p class="mt-2 text-sm text-slate-500">
+        Are you sure you want to delete <span class="font-bold text-indigo-500">"{suiteToDelete.title}"</span>?
+      </p>
+      
+      <div class="mt-6 space-y-3">
+        <p class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Handle associated cases</p>
+        <button 
+          class="flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all {deleteMode === 'move' ? 'border-indigo-500 bg-indigo-500/5 ring-1 ring-indigo-500' : 'border-slate-200 hover:border-slate-300 dark:border-gray-700'}"
+          on:click={() => deleteMode = 'move'}
+        >
+          <div class="grid h-8 w-8 shrink-0 place-items-center rounded-lg {deleteMode === 'move' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 dark:bg-gray-800'}">
+            <Folder size={16} />
+          </div>
+          <div>
+            <p class="text-sm font-bold {deleteMode === 'move' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-gray-200'}">Move to Unassigned</p>
+            <p class="text-[11px] text-slate-500">Keep test cases but remove them from this suite</p>
+          </div>
+        </button>
+        
+        <button 
+          class="flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all {deleteMode === 'delete' ? 'border-rose-500 bg-rose-500/5 ring-1 ring-rose-500' : 'border-slate-200 hover:border-slate-300 dark:border-gray-700'}"
+          on:click={() => deleteMode = 'delete'}
+        >
+          <div class="grid h-8 w-8 shrink-0 place-items-center rounded-lg {deleteMode === 'delete' ? 'bg-rose-600 text-white' : 'bg-slate-100 text-slate-500 dark:bg-gray-800'}">
+            <Trash2 size={16} />
+          </div>
+          <div>
+            <p class="text-sm font-bold {deleteMode === 'delete' ? 'text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-gray-200'}">Delete Everything</p>
+            <p class="text-[11px] text-slate-500">Permanently remove this suite and all its test cases</p>
+          </div>
+        </button>
+      </div>
+
+      <div class="mt-8 flex items-center justify-end gap-3">
+        <button class="rounded-xl px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800" on:click={() => (showDeleteSuiteModal = false)}>Cancel</button>
+        <button class="rounded-xl bg-rose-600 px-6 py-2 text-sm font-black text-white hover:bg-rose-500" on:click={handleDeleteSuite}>Delete Suite</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 
 <style>
   .custom-scrollbar::-webkit-scrollbar {

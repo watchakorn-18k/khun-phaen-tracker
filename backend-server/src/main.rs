@@ -16,7 +16,7 @@ use crate::state::AppState;
 use axum::{
     extract::State,
     response::IntoResponse,
-    routing::{delete, get, post, put},
+    routing::{delete, get, patch, post, put},
     Router,
 };
 use bcrypt::hash;
@@ -409,6 +409,14 @@ async fn main() {
         .route(
             "/api/workspaces/:ws_id/test-suites",
             post(handlers::test_case_handler::create_suite),
+        )
+        .route(
+            "/api/test-suites/:id",
+            patch(handlers::test_case_handler::update_suite),
+        )
+        .route(
+            "/api/test-suites/:id",
+            delete(handlers::test_case_handler::delete_suite),
         )
         // Test case routes
         .route(
