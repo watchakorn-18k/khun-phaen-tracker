@@ -232,6 +232,7 @@
     `/workspace/${MY_TASKS_WORKSPACE_ID}`,
   );
   $: isSettingsPage = $page.url.pathname.includes("/settings");
+  $: isProfilePage = $page.url.pathname.includes("/profile");
   $: isUsersPage = $page.url.pathname.includes("/settings/users");
   $: isErrorPage = $page.status >= 400;
   $: containerWidth =
@@ -316,7 +317,7 @@
     <main class="w-full h-screen overflow-hidden">
       <slot />
     </main>
-  {:else if isWorkspacePage || isDashboard || isSettingsPage}
+  {:else if isWorkspacePage || isDashboard || isSettingsPage || isProfilePage}
     <slot />
 
     {#if whiteboardMessage}

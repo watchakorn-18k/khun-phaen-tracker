@@ -33,7 +33,8 @@
     LayoutDashboard,
     Search,
     SquarePen,
-    X
+    X,
+    UserCircle2
   } from "lucide-svelte";
   import SidebarUtilityTools from "$lib/components/SidebarUtilityTools.svelte";
   import { createUIActions } from "$lib/stores/uiActions";
@@ -641,7 +642,7 @@
 
   <!-- Footer -->
   <div
-    class="p-4 border-t border-gray-200 dark:border-gray-800 flex items-center {isSidebarCollapsed ? 'flex-col gap-6' : 'gap-1'}"
+    class="p-4 border-t border-gray-200 dark:border-gray-800 flex items-center relative {isSidebarCollapsed ? 'flex-col gap-6' : 'gap-1'}"
   >
     {#if !isSidebarCollapsed}
       <!-- Theme Toggle -->
@@ -711,7 +712,7 @@
 
     <!-- User Avatar -->
     {#if $user}
-      <div class="relative">
+      <div>
         <button
           type="button"
           on:click|stopPropagation={() => {
@@ -727,7 +728,7 @@
 
         {#if showAccountDropdown}
           <div
-            class="absolute bottom-full {isSidebarCollapsed ? 'left-full ml-4' : 'right-0'} mb-2 w-64 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 py-1.5 z-50 overflow-hidden animate-fade-in"
+            class="absolute bottom-full mb-2 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 py-1.5 z-50 overflow-hidden animate-fade-in {isSidebarCollapsed ? 'left-full ml-2 w-52' : 'left-0 w-full'}"
           >
             <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
               <p class="text-sm font-black text-gray-900 dark:text-white truncate">
@@ -738,6 +739,14 @@
               </p>
             </div>
             <div class="p-1">
+              <a
+                href="{base}/profile"
+                on:click={closeAllDropdowns}
+                class="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors font-semibold"
+              >
+                <UserCircle2 size={16} />
+                <span>{$_("layout__profile_settings")}</span>
+              </a>
               <button
                 on:click={() => {
                   closeAllDropdowns();
