@@ -34,6 +34,7 @@
     Search,
     SquarePen,
     X,
+    ClipboardCheck,
     UserCircle2
   } from "lucide-svelte";
   import SidebarUtilityTools from "$lib/components/SidebarUtilityTools.svelte";
@@ -130,6 +131,13 @@
     return (
       activeWorkspaceId !== MY_TASKS_WORKSPACE_ID &&
       !activeWorkspaceSection
+    );
+  }
+
+  function isWorkspaceTestCasesActive(): boolean {
+    return (
+      activeWorkspaceId !== MY_TASKS_WORKSPACE_ID &&
+      activeWorkspaceSection === "test-cases"
     );
   }
 
@@ -601,6 +609,21 @@
             <ListTodo size={isSidebarCollapsed ? 22 : 18} class="shrink-0 transition-transform group-hover:scale-110" />
             {#if !isSidebarCollapsed}
               <span>{$_("sidebar__issues")}</span>
+            {/if}
+          </a>
+          <a
+            href="{base}/workspace/{sidebarWorkspaceId}/test-cases{$page.url.search}"
+            title={$_("sidebar__test_cases")}
+            class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isWorkspaceTestCasesActive()
+              ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-black shadow-[inset_0_0_12px_rgba(99,102,241,0.05)]'
+              : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white'} {isSidebarCollapsed ? 'justify-center px-0' : ''}"
+          >
+            {#if isWorkspaceTestCasesActive()}
+              <div class="absolute left-0 w-1 h-4 bg-indigo-500 rounded-r-full"></div>
+            {/if}
+            <ClipboardCheck size={isSidebarCollapsed ? 22 : 18} class="shrink-0 transition-transform group-hover:scale-110" />
+            {#if !isSidebarCollapsed}
+              <span>{$_("sidebar__test_cases")}</span>
             {/if}
           </a>
         </div>
