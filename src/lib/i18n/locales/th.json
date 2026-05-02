@@ -454,6 +454,8 @@
 	"projectManager__edit_name": "แก้ไขชื่อโปรเจกต์",
 	"projectManager__name_label": "ชื่อโปรเจกต์",
 	"projectManager__name_placeholder": "เช่น โปรเจกต์ A, งานลูกค้า XYZ...",
+	"projectManager__short_name_label": "ชื่อย่อ (Short Name)",
+	"projectManager__short_name_placeholder": "เช่น PROJ",
 	"projectManager__list_title": "รายชื่อโปรเจกต์",
 	"projectManager__no_projects": "ยังไม่มีโปรเจกต์",
 	"projectManager__add_hint": "คลิกปุ่มด้านบนเพื่อเพิ่ม",

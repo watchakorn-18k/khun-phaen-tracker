@@ -198,6 +198,8 @@ pub struct ProjectDocument {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub repo_url: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub short_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub created_at: Option<String>,
 }
 
@@ -205,12 +207,15 @@ pub struct ProjectDocument {
 pub struct CreateProjectRequest {
     pub name: String,
     #[serde(default)]
+    pub short_name: Option<String>,
+    #[serde(default)]
     pub repo_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct UpdateProjectRequest {
     pub name: Option<String>,
+    pub short_name: Option<Option<String>>,
     pub repo_url: Option<Option<String>>,
 }
 

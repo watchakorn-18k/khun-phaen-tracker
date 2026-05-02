@@ -186,6 +186,7 @@ function docToProject(doc: any): Project {
   return {
     id: extractId(doc),
     name: doc.name || "",
+    short_name: doc.short_name || undefined,
     repo_url: doc.repo_url || undefined,
     created_at: doc.created_at || "",
   };
@@ -303,7 +304,8 @@ export async function updateTask(
   if (!res.ok) {
     throw new Error(data.error || "Failed to update task");
   }
-  const taskFromServer = data?.task ? docToTask(data.task) : null;
+  const raw = data?.task || data;
+  const taskFromServer = raw ? docToTask(raw) : null;
   if (taskFromServer) {
     broadcastChange("task", "update", String(id), taskFromServer);
   }

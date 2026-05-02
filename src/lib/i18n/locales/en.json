@@ -455,6 +455,8 @@
 	"projectManager__edit_name": "Edit Project Name",
 	"projectManager__name_label": "Project Name",
 	"projectManager__name_placeholder": "e.g., Project A, Client XYZ...",
+	"projectManager__short_name_label": "Short Name",
+	"projectManager__short_name_placeholder": "e.g., PROJ",
 	"projectManager__list_title": "Project List",
 	"projectManager__no_projects": "No projects yet",
 	"projectManager__add_hint": "Click button above to add",

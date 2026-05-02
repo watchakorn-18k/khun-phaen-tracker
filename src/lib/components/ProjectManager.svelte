@@ -16,8 +16,8 @@
 
   const dispatch = createEventDispatcher<{
     close: void;
-    add: { name: string; repo_url?: string };
-    update: { id: string | number; name: string; repo_url?: string };
+    add: { name: string; short_name?: string; repo_url?: string };
+    update: { id: string | number; name: string; short_name?: string; repo_url?: string };
     delete: string | number;
   }>();
 
@@ -28,6 +28,7 @@
   let showAddForm = false;
   let editingProject: Project | null = null;
   let newProjectName = "";
+  let newShortName = "";
   let newRepoUrl = "";
   let deleteConfirmId: string | number | null = null;
 
@@ -35,6 +36,7 @@
     showAddForm = true;
     editingProject = null;
     newProjectName = "";
+    newShortName = "";
     newRepoUrl = "";
   }
 
@@ -42,6 +44,7 @@
     editingProject = project;
     showAddForm = true;
     newProjectName = project.name;
+    newShortName = project.short_name || "";
     newRepoUrl = project.repo_url || "";
   }
 
@@ -49,6 +52,7 @@
     showAddForm = false;
     editingProject = null;
     newProjectName = "";
+    newShortName = "";
     newRepoUrl = "";
   }
 
@@ -59,11 +63,13 @@
       dispatch("update", {
         id: editingProject.id!,
         name: newProjectName.trim(),
+        short_name: newShortName.trim() || undefined,
         repo_url: newRepoUrl.trim() || undefined,
       });
     } else {
       dispatch("add", {
         name: newProjectName.trim(),
+        short_name: newShortName.trim() || undefined,
         repo_url: newRepoUrl.trim() || undefined,
       });
     }
@@ -157,6 +163,22 @@
 
           <div>
             <label
+              for="project-short-name-input"
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
+              {$_("projectManager__short_name_label")}
+            </label>
+            <input
+              id="project-short-name-input"
+              type="text"
+              bind:value={newShortName}
+              placeholder={$_("projectManager__short_name_placeholder")}
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white uppercase"
+            />
+          </div>
+
+          <div>
+            <label
               for="project-repo-input"
               class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >
@@ -239,8 +261,13 @@
 
               <!-- Info -->
               <div class="flex-1 min-w-0">
-                <h4 class="font-medium text-gray-900 dark:text-white truncate">
-                  {project.name}
+                <h4 class="font-medium text-gray-900 dark:text-white truncate flex items-center gap-2">
+                  <span>{project.name}</span>
+                  {#if project.short_name}
+                    <span class="px-1.5 py-0.5 text-[10px] bg-primary/10 text-primary rounded font-bold border border-primary/20">
+                      {project.short_name}
+                    </span>
+                  {/if}
                 </h4>
                 <div
                   class="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400"

@@ -52,6 +52,7 @@ pub async fn create_project(
         workspace_id: ws_oid,
         name: payload.name,
         repo_url: payload.repo_url,
+        short_name: payload.short_name,
         created_at: None,
     };
 
@@ -102,6 +103,16 @@ pub async fn update_project(
             }
             None => {
                 updates.insert("repo_url", mongodb::bson::Bson::Null);
+            }
+        }
+    }
+    if let Some(v) = payload.short_name {
+        match v {
+            Some(sn) => {
+                updates.insert("short_name", sn);
+            }
+            None => {
+                updates.insert("short_name", mongodb::bson::Bson::Null);
             }
         }
     }

@@ -111,6 +111,8 @@
 
   let editedDescription = "";
   $: isDescriptionDirty = task && editedDescription !== (task.notes || "");
+  $: currentProject = projects.find(p => p.name === task?.project);
+  $: projectShortName = currentProject?.short_name || "";
 
   let isBranchDialogOpen = false;
 
@@ -413,8 +415,8 @@
     try {
       // Explicitly include workspace_id to ensure correct API routing
       const updated = await updateTask(task.id, {
+        workspace_id: task.workspace_id || workspaceId,
         ...updates,
-        workspace_id: workspaceId,
       });
 
       if (updated) {
@@ -638,22 +640,17 @@
     </div>
 
     <div class="flex items-center gap-1 shrink-0">
-      <button
-        class="p-2 rounded-lg transition-all duration-200 {task?.status ===
-        'done'
-          ? 'text-emerald-500/40 dark:text-emerald-400/30 cursor-default'
-          : 'text-slate-500 dark:text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10'}"
-        on:click={() =>
-          task &&
-          task.status !== "done" &&
-          handleUpdateTask({ status: "done" })}
-        disabled={task?.status === "done"}
-        title={task?.status === "done"
-          ? $_("taskForm__status_done")
-          : "Mark as done"}
-      >
-        <CheckCircle2 size={18} />
-      </button>
+      {#if task?.status !== 'done'}
+        <button
+          class="p-2 rounded-lg transition-all duration-200 text-slate-500 dark:text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10"
+          on:click={() =>
+            task &&
+            handleUpdateTask({ status: "done" })}
+          title="Mark as done"
+        >
+          <CheckCircle2 size={18} />
+        </button>
+      {/if}
       <button
         on:click={openBranchDialog}
         class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500 dark:text-slate-400"
@@ -1430,7 +1427,7 @@
     <BranchDialog
       show={isBranchDialogOpen}
       title={task.title}
-      workspaceShortName={task.workspace_short_name || ""}
+      workspaceShortName={projectShortName || task.workspace_short_name || ""}
       taskNumber={task.task_number || null}
       on:close={closeBranchDialog}
     />

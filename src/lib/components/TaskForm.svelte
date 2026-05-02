@@ -181,7 +181,9 @@
   ];
 
   $: activeSprint = sprints.find((s) => s.status === "active");
+  $: currentProjectObj = projects.find((p) => p.name === project);
   $: workspaceBadgePrefix = (
+    currentProjectObj?.short_name ||
     editingTask?.workspace_short_name ||
     editingTask?.workspace_name ||
     $currentWorkspaceShortName ||

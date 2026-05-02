@@ -32,7 +32,8 @@
     Undo2,
     LayoutDashboard,
     Search,
-    SquarePen
+    SquarePen,
+    X
   } from "lucide-svelte";
   import SidebarUtilityTools from "$lib/components/SidebarUtilityTools.svelte";
   import { createUIActions } from "$lib/stores/uiActions";
@@ -74,6 +75,7 @@
 
   let pinnedTasks: any[] = [];
   let isPinnedSectionOpen = true;
+  $: pinnedTaskItems = pinnedTasks.filter(t => t && typeof t === 'object' && t.id);
 
   function loadPinnedTasks() {
     try {
@@ -135,6 +137,20 @@
   function getPinnedTaskTitle(task: any): string {
     const taskNumber = getPinnedTaskNumber(task);
     return taskNumber ? `${taskNumber} ${task.title || ""}` : task.title || "";
+  }
+
+  function removePinnedTask(task: any) {
+    pinnedTasks = pinnedTasks.filter(
+      (item) =>
+        !(
+          item &&
+          typeof item === "object" &&
+          String(item.id) === String(task.id) &&
+          String(item.workspace_id) === String(task.workspace_id)
+        ),
+    );
+    localStorage.setItem("pinned-tasks", JSON.stringify(pinnedTasks));
+    window.dispatchEvent(new CustomEvent("pinnedTasksChanged"));
   }
 
   async function loadWorkspaces() {
@@ -244,11 +260,11 @@
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 {#if showWorkspaceSwitcher || showLanguageDropdown || showAccountDropdown}
-  <div class="fixed inset-0 z-10" on:click={closeAllDropdowns}></div>
+  <div class="fixed inset-0 z-30" on:click={closeAllDropdowns}></div>
 {/if}
 
 <aside
-  class="flex flex-col shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 z-20 transition-all duration-300 ease-in-out {isSidebarCollapsed ? 'w-20' : 'w-64'} h-screen"
+  class="flex flex-col shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 z-40 transition-all duration-300 ease-in-out {isSidebarCollapsed ? 'w-20' : 'w-64'} h-screen"
 >
   <!-- Sidebar Header -->
   <div class="p-3 border-b border-gray-200 dark:border-gray-800 relative">
@@ -305,7 +321,7 @@
 
         {#if showWorkspaceSwitcher}
           <div
-            class="absolute left-0 top-full mt-2 w-64 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 py-2 z-40 overflow-hidden"
+            class="absolute left-0 top-full mt-2 w-full min-w-[240px] bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 py-2 z-50 overflow-hidden animate-fade-in"
           >
             <p class="px-4 pt-2 pb-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">
               {$_("sidebar__workspaces_switcher")}
@@ -478,7 +494,7 @@
     </div>
 
     <!-- Pinned Tasks -->
-    {#if pinnedTasks.length > 0}
+    {#if pinnedTaskItems.length > 0}
       <div>
         {#if !isSidebarCollapsed}
           <button
@@ -487,31 +503,47 @@
           >
             <span>Pinned</span>
             <ChevronDown size={12} class="transition-transform duration-200 {isPinnedSectionOpen ? '' : '-rotate-90'}" />
+            <span class="ml-auto text-[10px] font-bold tracking-normal text-gray-400 dark:text-gray-500">{pinnedTaskItems.length}</span>
           </button>
         {/if}
         {#if isPinnedSectionOpen || isSidebarCollapsed}
           <div class="space-y-1">
-            {#each pinnedTasks.filter(t => t && typeof t === 'object' && t.id) as task (`${task.workspace_id}:${task.id}`)}
-              <a
-                href="{base}/workspace/{task.workspace_id}/task/{task.id}?pinned=true"
-                title={getPinnedTaskTitle(task)}
-                class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isPinnedTaskActive(task)
+            {#each pinnedTaskItems as task (`${task.workspace_id}:${task.id}`)}
+              <div
+                class="group flex items-center gap-2 rounded-xl text-sm transition-all duration-300 relative {isPinnedTaskActive(task)
                   ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-black shadow-[inset_0_0_12px_rgba(99,102,241,0.05)]'
                   : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white'} {isSidebarCollapsed ? 'justify-center px-0' : ''}"
               >
                 {#if isPinnedTaskActive(task)}
                   <div class="absolute left-0 w-1 h-4 bg-indigo-500 rounded-r-full"></div>
                 {/if}
-                <div class="w-2 h-2 rounded-full border border-gray-400 shrink-0"></div>
+                <a
+                  href="{base}/workspace/{task.workspace_id}/task/{task.id}?pinned=true"
+                  title={getPinnedTaskTitle(task)}
+                  class="min-w-0 flex-1 flex items-center gap-2.5 py-2 {isSidebarCollapsed ? 'justify-center px-0' : 'pl-3'}"
+                >
+                  <div class="w-2 h-2 rounded-full border border-gray-400 shrink-0"></div>
+                  {#if !isSidebarCollapsed}
+                    <span class="truncate">
+                      {#if getPinnedTaskNumber(task)}
+                        <span class="text-gray-400 font-normal mr-1">{getPinnedTaskNumber(task)}</span>
+                      {/if}
+                      {task.title}
+                    </span>
+                  {/if}
+                </a>
                 {#if !isSidebarCollapsed}
-                  <span class="truncate">
-                    {#if getPinnedTaskNumber(task)}
-                      <span class="text-gray-400 font-normal mr-1">{getPinnedTaskNumber(task)}</span>
-                    {/if}
-                    {task.title}
-                  </span>
+                  <button
+                    type="button"
+                    on:click|stopPropagation={() => removePinnedTask(task)}
+                    class="mr-2 p-1 rounded-md text-gray-400 opacity-0 transition-all hover:bg-gray-200/60 hover:text-gray-700 group-hover:opacity-100 dark:hover:bg-gray-700/70 dark:hover:text-gray-200"
+                    title="Unpin"
+                    aria-label="Unpin {getPinnedTaskTitle(task)}"
+                  >
+                    <X size={14} />
+                  </button>
                 {/if}
-              </a>
+              </div>
             {/each}
           </div>
         {/if}
@@ -630,7 +662,7 @@
 
         {#if showLanguageDropdown}
           <div
-            class="absolute bottom-full left-0 mb-2 w-32 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 py-1 z-40 overflow-hidden"
+            class="absolute bottom-full left-0 mb-2 w-40 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 py-1.5 z-50 overflow-hidden animate-fade-in"
           >
             <button
               class="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 flex items-center gap-2 {$locale ===
@@ -682,7 +714,7 @@
 
         {#if showAccountDropdown}
           <div
-            class="absolute bottom-full {isSidebarCollapsed ? 'left-full ml-4' : 'right-0'} mb-2 w-56 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 py-1 z-40 overflow-hidden"
+            class="absolute bottom-full {isSidebarCollapsed ? 'left-full ml-4' : 'right-0'} mb-2 w-64 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 py-1.5 z-50 overflow-hidden animate-fade-in"
           >
             <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
               <p class="text-sm font-black text-gray-900 dark:text-white truncate">
@@ -710,4 +742,3 @@
     {/if}
   </div>
 </aside>
-
