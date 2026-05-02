@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, tick } from "svelte";
+  import { onMount, tick, onDestroy } from "svelte";
   import { browser } from "$app/environment";
   import { page } from "$app/stores";
   import { goto, afterNavigate } from "$app/navigation";
@@ -65,6 +65,8 @@
     GitBranch,
     Trash2,
     AlertTriangle,
+    FileText,
+    Image as ImageIcon,
   } from "lucide-svelte";
   import ConfirmModal from "$lib/components/ConfirmModal.svelte";
   import BranchDialog from "$lib/components/BranchDialog.svelte";
@@ -97,6 +99,12 @@
   let isEditingTitle = false;
   let editedTitle = "";
   let titleInputRef: any;
+  
+  onDestroy(() => {
+    attachedFiles.forEach(af => {
+      if (af.preview) URL.revokeObjectURL(af.preview);
+    });
+  });
 
   let projects: Project[] = [];
   let assignees: Assignee[] = [];
@@ -462,16 +470,18 @@
 
     const files: File[] = [];
     for (let i = 0; i < items.length; i++) {
-      if (items[i].type.indexOf("image") !== -1) {
+      if (items[i].kind === "file") {
         const file = items[i].getAsFile();
         if (file) files.push(file);
       }
     }
 
     if (files.length > 0) {
-      const newFiles = files.map(file => ({
+      const newFiles = files.map((file) => ({
         file,
-        preview: URL.createObjectURL(file)
+        preview: file.type.startsWith("image/")
+          ? URL.createObjectURL(file)
+          : undefined,
       }));
       attachedFiles = [...attachedFiles, ...newFiles];
     }
@@ -1027,7 +1037,11 @@
                       {#each attachedFiles as af, i}
                         <div class="group relative flex items-center gap-2 p-1 bg-slate-100 dark:bg-white/[0.05] rounded-lg border border-slate-200 dark:border-white/10 text-[11px] text-slate-600 dark:text-slate-400">
                           {#if af.preview}
-                            <img src={af.preview} alt="preview" class="w-8 h-8 rounded object-cover border border-white/10" />
+                            <img src={af.preview} alt="preview" class="w-8 h-8 rounded object-cover border border-white/10 shadow-sm" />
+                          {:else}
+                            <div class="w-8 h-8 rounded bg-slate-200 dark:bg-white/10 flex items-center justify-center text-slate-400">
+                              <FileText size={12} />
+                            </div>
                           {/if}
                           <span class="truncate max-w-[100px] px-1">{af.file.name}</span>
                           <button 
