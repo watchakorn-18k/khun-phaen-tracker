@@ -123,9 +123,9 @@
     <button
       bind:this={filterButtonEl}
       on:click={toggleFilters}
-      class="flex items-center justify-center w-12 h-12 shrink-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all shadow-sm {isFiltersOpen
+      class="flex items-center justify-center w-12 h-12 shrink-0 border rounded-xl transition-all shadow-sm {isFiltersOpen
         ? 'bg-primary/10 border-primary text-primary'
-        : ''}"
+        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'}"
       title={$_("page__filters")}
     >
       <Filter size={20} />
@@ -135,9 +135,9 @@
       <button
         bind:this={buttonEl}
         on:click={toggleColumnSettings}
-        class="flex items-center justify-center w-12 h-12 shrink-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all shadow-sm {showColumnSettings
+        class="flex items-center justify-center w-12 h-12 shrink-0 border rounded-xl transition-all shadow-sm {showColumnSettings
           ? 'bg-primary/10 border-primary text-primary'
-          : ''}"
+          : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'}"
         title={$_("page__display_settings")}
       >
         <SlidersHorizontal size={20} />
