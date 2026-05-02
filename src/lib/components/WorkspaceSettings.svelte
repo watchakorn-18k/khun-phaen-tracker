@@ -32,6 +32,38 @@
     Loader,
     FlaskConical,
     CircleCheckBig,
+    Calendar,
+    FileText,
+    FolderOpen,
+    ListChecks,
+    Users,
+    Building2,
+    Table2,
+    Inbox,
+    Database,
+    Monitor,
+    Server,
+    Terminal,
+    GitBranch,
+    Cpu,
+    Cloud,
+    Wifi,
+    Smartphone,
+    Palette,
+    Paintbrush,
+    Pen,
+    Feather,
+    Layers,
+    Wand2,
+    Sparkles,
+    Star,
+    Trophy,
+    Flame,
+    Crown,
+    Leaf,
+    Sun,
+    Moon,
+    Compass,
   } from "lucide-svelte";
   import { fade, scale, slide } from "svelte/transition";
 
@@ -71,21 +103,72 @@
     { name: "Rose", value: "#f43f5e" },
   ];
 
-  const ICONS = [
-    { key: "LayoutTemplate", component: LayoutTemplate },
-    { key: "Briefcase", component: Briefcase },
-    { key: "Code2", component: Code2 },
-    { key: "Rocket", component: Rocket },
-    { key: "Zap", component: Zap },
-    { key: "Heart", component: Heart },
-    { key: "Target", component: Target },
-    { key: "Globe", component: Globe },
-    { key: "Book", component: Book },
-    { key: "Camera", component: Camera },
-    { key: "Coffee", component: Coffee },
-    { key: "Music", component: Music },
-    { key: "Smile", component: Smile },
+  const CATEGORIES = [
+    { key: "all", label: "ทั้งหมด" },
+    { key: "work", label: "งาน" },
+    { key: "tech", label: "เทค" },
+    { key: "creative", label: "สร้างสรรค์" },
+    { key: "fun", label: "สนุก" },
   ];
+
+  let selectedCategory = "all";
+
+  const ICONS = [
+    // Work
+    { key: "LayoutTemplate", component: LayoutTemplate, category: "work" },
+    { key: "Briefcase", component: Briefcase, category: "work" },
+    { key: "Calendar", component: Calendar, category: "work" },
+    { key: "FileText", component: FileText, category: "work" },
+    { key: "FolderOpen", component: FolderOpen, category: "work" },
+    { key: "ListChecks", component: ListChecks, category: "work" },
+    { key: "Users", component: Users, category: "work" },
+    { key: "Building2", component: Building2, category: "work" },
+    { key: "Table2", component: Table2, category: "work" },
+    { key: "Inbox", component: Inbox, category: "work" },
+    // Tech
+    { key: "Code2", component: Code2, category: "tech" },
+    { key: "Database", component: Database, category: "tech" },
+    { key: "Monitor", component: Monitor, category: "tech" },
+    { key: "Server", component: Server, category: "tech" },
+    { key: "Terminal", component: Terminal, category: "tech" },
+    { key: "GitBranch", component: GitBranch, category: "tech" },
+    { key: "Cpu", component: Cpu, category: "tech" },
+    { key: "Cloud", component: Cloud, category: "tech" },
+    { key: "Wifi", component: Wifi, category: "tech" },
+    { key: "Smartphone", component: Smartphone, category: "tech" },
+    // Creative
+    { key: "Camera", component: Camera, category: "creative" },
+    { key: "Palette", component: Palette, category: "creative" },
+    { key: "Paintbrush", component: Paintbrush, category: "creative" },
+    { key: "Pen", component: Pen, category: "creative" },
+    { key: "Feather", component: Feather, category: "creative" },
+    { key: "Layers", component: Layers, category: "creative" },
+    { key: "Wand2", component: Wand2, category: "creative" },
+    { key: "Sparkles", component: Sparkles, category: "creative" },
+    // Fun
+    { key: "Rocket", component: Rocket, category: "fun" },
+    { key: "Zap", component: Zap, category: "fun" },
+    { key: "Heart", component: Heart, category: "fun" },
+    { key: "Star", component: Star, category: "fun" },
+    { key: "Coffee", component: Coffee, category: "fun" },
+    { key: "Music", component: Music, category: "fun" },
+    { key: "Trophy", component: Trophy, category: "fun" },
+    { key: "Flame", component: Flame, category: "fun" },
+    { key: "Crown", component: Crown, category: "fun" },
+    { key: "Leaf", component: Leaf, category: "fun" },
+    { key: "Sun", component: Sun, category: "fun" },
+    { key: "Moon", component: Moon, category: "fun" },
+    { key: "Compass", component: Compass, category: "fun" },
+    { key: "Target", component: Target, category: "fun" },
+    { key: "Globe", component: Globe, category: "fun" },
+    { key: "Book", component: Book, category: "fun" },
+    { key: "Smile", component: Smile, category: "fun" },
+  ];
+
+  $: filteredIcons =
+    selectedCategory === "all"
+      ? ICONS
+      : ICONS.filter((i) => i.category === selectedCategory);
 
   onMount(async () => {
     shortName = generateShortName(name);
@@ -285,216 +368,200 @@
             </div>
           </div>
 
-          <div class="space-y-4">
-            <span
-              class="block text-sm font-bold text-slate-700 dark:text-gray-300"
-              >{$_("workspaceSettings__icon_label")}</span
-            >
-            <div class="grid grid-cols-4 gap-3 sm:grid-cols-6 md:grid-cols-7">
-              {#each ICONS as ico}
+          <div class="space-y-3 md:col-span-2 py-4">
+            <span class="block text-sm font-bold text-slate-700 dark:text-gray-300">
+              {$_("workspaceSettings__icon_label")}
+            </span>
+
+            <!-- Category Filter -->
+            <div class="flex flex-wrap gap-1.5">
+              {#each CATEGORIES as cat}
                 <button
-                  on:click={() => (icon = ico.key)}
-                  class="flex items-center justify-center rounded-2xl border p-3 transition-all hover:bg-slate-50 dark:hover:bg-gray-800 {icon ===
-                  ico.key
-                    ? 'border-primary bg-primary/10 text-primary shadow-[0_10px_24px_rgba(79,70,229,0.15)] dark:border-primary dark:bg-primary/10'
-                    : 'border-slate-200 text-slate-400 dark:border-gray-700 dark:text-gray-400'}"
+                  on:click={() => (selectedCategory = cat.key)}
+                  class="rounded-lg px-3 py-1 text-xs font-bold transition-all {selectedCategory === cat.key
+                    ? 'bg-primary text-white shadow-sm shadow-primary/30'
+                    : 'border border-slate-200 bg-white text-slate-500 hover:border-slate-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-500'}"
                 >
-                  <svelte:component this={ico.component} size={24} />
+                  {cat.label}
                 </button>
               {/each}
+            </div>
+
+            <!-- Icon Grid -->
+            <div class="max-h-[200px] overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/50 p-2 dark:border-gray-700 dark:bg-gray-800/30">
+              <div class="grid grid-cols-8 gap-1.5 sm:grid-cols-9 md:grid-cols-10">
+                {#each filteredIcons as ico (ico.key)}
+                  <button
+                    on:click={() => (icon = ico.key)}
+                    title={ico.key}
+                    class="flex items-center justify-center rounded-xl p-2.5 transition-all {icon === ico.key
+                      ? 'bg-primary/10 text-primary ring-2 ring-primary/40 dark:bg-primary/15'
+                      : 'text-slate-400 hover:bg-white hover:text-slate-700 hover:shadow-sm dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-200'}"
+                  >
+                    <svelte:component this={ico.component} size={20} />
+                  </button>
+                {/each}
+              </div>
             </div>
           </div>
         </section>
 
         <!-- Notification Section -->
-        <section class="mt-8 rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_12px_36px_rgba(15,23,42,0.06)] dark:border-gray-700/80 dark:bg-slate-950/40 dark:shadow-none">
-          <div
-            class="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500"
-          >
+        <section class="mt-6 space-y-4">
+          <div class="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
             <span class="h-px w-8 bg-slate-200 dark:bg-gray-700"></span>
             {$_("workspaceSettings__channels_title")}
           </div>
 
-          <div class="mt-6 space-y-4">
-            <div class="flex flex-col gap-2">
-              <label
-                for="discord-url"
-                class="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-gray-300"
-              >
-                <Globe size={16} class="text-[#5865F2]" />
-                {$_("workspaceSettings__discord_webhook_label")}
-              </label>
-              <input
-                id="discord-url"
-                type="text"
-                bind:value={webhookUrl}
-                class="w-full rounded-2xl border border-slate-200 bg-slate-100/80 px-4 py-3 text-sm font-medium text-slate-900 transition-all focus:border-[#5865F2]/40 focus:bg-white focus:ring-2 focus:ring-[#5865F2]/20 dark:border-gray-700 dark:bg-gray-800/90 dark:text-white dark:focus:bg-gray-800"
-                placeholder={$_(
-                  "workspaceSettings__discord_webhook_placeholder",
-                )}
-              />
+          <!-- Channel Inputs -->
+          <div class="grid grid-cols-1 gap-3">
+            <!-- Discord / Slack -->
+            <div class="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-4 transition-all hover:border-[#5865F2]/30 hover:shadow-sm dark:border-gray-700 dark:bg-gray-900/40">
+              <div class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#5865F2]/10">
+                <Globe size={20} class="text-[#5865F2]" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <label for="discord-url" class="mb-1.5 block text-sm font-bold text-slate-700 dark:text-gray-300">
+                  {$_("workspaceSettings__discord_webhook_label")}
+                </label>
+                <input
+                  id="discord-url"
+                  type="text"
+                  bind:value={webhookUrl}
+                  class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 transition-all focus:border-[#5865F2]/40 focus:bg-white focus:ring-2 focus:ring-[#5865F2]/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                  placeholder={$_("workspaceSettings__discord_webhook_placeholder")}
+                />
+              </div>
             </div>
 
-            <div class="flex flex-col gap-2">
-              <label
-                for="line-token"
-                class="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-gray-300"
-              >
-                <Bell size={16} class="text-[#06C755]" />
-                {$_("workspaceSettings__line_notify_token_label")}
-              </label>
-              <input
-                id="line-token"
-                type="password"
-                bind:value={lineNotifyToken}
-                class="w-full rounded-2xl border border-slate-200 bg-slate-100/80 px-4 py-3 text-sm font-medium text-slate-900 transition-all focus:border-[#06C755]/40 focus:bg-white focus:ring-2 focus:ring-[#06C755]/20 dark:border-gray-700 dark:bg-gray-800/90 dark:text-white dark:focus:bg-gray-800"
-                placeholder={$_(
-                  "workspaceSettings__line_notify_token_placeholder",
-                )}
-              />
+            <!-- LINE Notify -->
+            <div class="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-4 transition-all hover:border-[#06C755]/30 hover:shadow-sm dark:border-gray-700 dark:bg-gray-900/40">
+              <div class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#06C755]/10">
+                <Bell size={20} class="text-[#06C755]" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <label for="line-token" class="mb-1.5 block text-sm font-bold text-slate-700 dark:text-gray-300">
+                  {$_("workspaceSettings__line_notify_token_label")}
+                </label>
+                <input
+                  id="line-token"
+                  type="password"
+                  bind:value={lineNotifyToken}
+                  class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 transition-all focus:border-[#06C755]/40 focus:bg-white focus:ring-2 focus:ring-[#06C755]/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                  placeholder={$_("workspaceSettings__line_notify_token_placeholder")}
+                />
+              </div>
             </div>
           </div>
 
-          <div class="rounded-3xl border border-slate-200 bg-slate-50/80 p-6 dark:border-gray-700 dark:bg-gray-800/35">
-            <div class="flex items-center justify-between">
-              <div>
-                <h4
-                  class="flex items-center gap-2 text-sm font-black text-slate-900 dark:text-white"
-                >
-                  <RefreshCcw size={16} class="text-amber-500" />
-                  {$_("workspaceSettings__auto_title")}
-                </h4>
-                <p
-                  class="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400"
-                >
-                  {$_("workspaceSettings__auto_subtitle")}
-                </p>
+          <!-- Daily Summary Automation -->
+          <div class="overflow-hidden rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/60 to-white dark:border-amber-500/20 dark:from-amber-500/5 dark:to-transparent">
+            <div class="flex items-center justify-between border-b border-amber-100 px-5 py-4 dark:border-amber-500/10">
+              <div class="flex items-center gap-3">
+                <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/15">
+                  <RefreshCcw size={17} class="text-amber-500" />
+                </div>
+                <div>
+                  <p class="text-sm font-black text-slate-900 dark:text-white">{$_("workspaceSettings__auto_title")}</p>
+                  <p class="text-[10px] font-bold uppercase tracking-widest text-amber-600/60 dark:text-amber-400/50">
+                    {$_("workspaceSettings__auto_subtitle")}
+                  </p>
+                </div>
               </div>
-              <label class="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  bind:checked={autoEnabled}
-                  class="sr-only peer"
-                />
-                <div
-                  class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-amber-500"
-                ></div>
+              <label class="relative inline-flex cursor-pointer items-center">
+                <input type="checkbox" bind:checked={autoEnabled} class="sr-only peer" />
+                <div class="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-amber-500 peer-checked:after:translate-x-full peer-checked:after:border-white dark:bg-gray-700 dark:border-gray-600"></div>
               </label>
             </div>
 
             {#if autoEnabled}
-              <div
-                class="grid grid-cols-1 md:grid-cols-2 gap-6"
-                transition:slide
-              >
-                <div class="space-y-3">
-                  <span
-                    class="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500"
-                    >{$_("workspaceSettings__auto_days_label")}</span
-                  >
+              <div class="grid grid-cols-1 gap-5 p-5 md:grid-cols-2" transition:slide>
+                <div class="space-y-2.5">
+                  <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                    {$_("workspaceSettings__auto_days_label")}
+                  </p>
                   <div class="flex flex-wrap gap-1.5">
                     {#each [1, 2, 3, 4, 5, 6, 0] as d}
                       <button
                         on:click={() => {
-                          if (autoDays.includes(d))
-                            autoDays = autoDays.filter((day) => day !== d);
+                          if (autoDays.includes(d)) autoDays = autoDays.filter((day) => day !== d);
                           else autoDays = [...autoDays, d].sort();
                         }}
-                        class="px-2.5 py-1.5 rounded-lg text-[10px] font-black transition-all {autoDays.includes(
-                          d,
-                        )
-                          ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
-                          : 'border border-slate-200 bg-white text-slate-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400'}"
+                        class="min-w-[38px] rounded-lg px-2.5 py-1.5 text-[11px] font-black transition-all {autoDays.includes(d)
+                          ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/30'
+                          : 'border border-slate-200 bg-white text-slate-500 hover:border-amber-300/60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400'}"
                       >
-                        {$_(
-                          `calendarView__day_${["sun", "mon", "tue", "wed", "thu", "fri", "sat"][d]}`,
-                        )}
+                        {$_(`calendarView__day_${["sun", "mon", "tue", "wed", "thu", "fri", "sat"][d]}`)}
                       </button>
                     {/each}
                   </div>
                 </div>
-                <div class="space-y-3">
-                  <span
-                    class="text-[10px] font-black uppercase tracking-widest text-gray-400"
-                    >{$_("workspaceSettings__auto_time_label")}</span
-                  >
+                <div class="space-y-2.5">
+                  <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                    {$_("workspaceSettings__auto_time_label")}
+                  </p>
                   <input
                     type="time"
                     bind:value={autoTime}
-                    class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xl font-black text-slate-800 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                    class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-2xl font-black text-slate-800 transition-all focus:border-amber-400/50 focus:ring-2 focus:ring-amber-400/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                   />
                 </div>
               </div>
             {/if}
           </div>
 
-          <div class="mt-6 rounded-3xl border border-slate-200 bg-slate-50/80 p-6 dark:border-gray-700 dark:bg-gray-800/35">
-            <div class="flex items-center justify-between">
+          <!-- Instant Alerts -->
+          <div class="overflow-hidden rounded-2xl border border-primary/20 bg-primary/5 dark:border-primary/20 dark:bg-primary/5">
+            <div class="flex items-center gap-3 border-b border-primary/10 px-5 py-4">
+              <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15">
+                <CheckCircle2 size={17} class="text-primary" />
+              </div>
               <div>
-                <h4
-                  class="flex items-center gap-2 text-sm font-black text-slate-900 dark:text-white"
-                >
-                  <CheckCircle2 size={16} class="text-primary" />
-                  {$_("workspaceSettings__alerts_title")}
-                </h4>
-                <p
-                  class="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400"
-                >
+                <p class="text-sm font-black text-slate-900 dark:text-white">{$_("workspaceSettings__alerts_title")}</p>
+                <p class="text-[10px] font-bold uppercase tracking-widest text-primary/50">
                   {$_("workspaceSettings__alerts_subtitle")}
                 </p>
               </div>
             </div>
 
-            <div class="space-y-4">
-              <div
-                class="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
-              >
-                <div class="flex items-center gap-3">
-                  <div
-                    class="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 flex items-center justify-center"
-                  >
-                    <Rocket size={16} />
+            <div class="space-y-4 p-5">
+              <!-- Notify on Create -->
+              <div class="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-800/50">
+                <div class="flex items-center gap-2.5">
+                  <div class="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20">
+                    <Rocket size={14} />
                   </div>
-                  <span
-                    class="text-sm font-bold text-slate-700 dark:text-gray-200"
-                    >{$_("workspaceSettings__alerts_create_label")}</span
-                  >
+                  <span class="text-sm font-bold text-slate-700 dark:text-gray-200">
+                    {$_("workspaceSettings__alerts_create_label")}
+                  </span>
                 </div>
-                <label class="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    bind:checked={notifyOnCreate}
-                    class="sr-only peer"
-                  />
-                  <div
-                    class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"
-                  ></div>
+                <label class="relative inline-flex cursor-pointer items-center">
+                  <input type="checkbox" bind:checked={notifyOnCreate} class="sr-only peer" />
+                  <div class="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-white dark:bg-gray-700 dark:border-gray-600"></div>
                 </label>
               </div>
 
-              <div class="space-y-3">
-                <span
-                  class="ml-1 text-xs font-bold text-slate-500 dark:text-gray-400"
-                  >{$_("workspaceSettings__alerts_status_label")}</span
-                >
+              <!-- Status Chips -->
+              <div class="space-y-2.5">
+                <p class="text-xs font-bold text-slate-500 dark:text-gray-400">
+                  {$_("workspaceSettings__alerts_status_label")}
+                </p>
                 <div class="flex flex-wrap gap-2">
                   {#each ["todo", "in-progress", "in-test", "done"] as status}
                     <button
                       on:click={() => toggleStatus(status)}
-                      class="px-4 py-2 rounded-xl text-xs font-bold transition-all border-2 flex items-center gap-1.5 {notifyOnStatusChange.includes(
-                        status,
-                      )
-                        ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20'
-                        : 'bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 text-slate-500 dark:text-gray-400 hover:border-slate-300 dark:hover:border-gray-600'}"
+                      class="flex items-center gap-1.5 rounded-xl border-2 px-4 py-2 text-xs font-bold transition-all {notifyOnStatusChange.includes(status)
+                        ? 'border-primary bg-primary text-white shadow-md shadow-primary/20'
+                        : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600'}"
                     >
                       {#if status === "todo"}
-                        <ClipboardList size={14} />
+                        <ClipboardList size={13} />
                       {:else if status === "in-progress"}
-                        <Loader size={14} />
+                        <Loader size={13} />
                       {:else if status === "in-test"}
-                        <FlaskConical size={14} />
+                        <FlaskConical size={13} />
                       {:else}
-                        <CircleCheckBig size={14} />
+                        <CircleCheckBig size={13} />
                       {/if}
                       {$_(`page__filter_status_${status.replace("-", "_")}`)}
                     </button>
