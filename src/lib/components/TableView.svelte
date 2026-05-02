@@ -746,7 +746,7 @@
                   {#if task.assignees && task.assignees.length > 0}
                     {#each task.assignees.slice(0, 3) as assignee}
                       <div
-                        class="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full ring-2 ring-white dark:ring-gray-900 text-[10px] font-bold text-white"
+                        class="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full text-[10px] font-bold text-white"
                         style="background-color: {assignee.color || '#6366f1'}"
                         title={assignee.name}
                       >
@@ -763,7 +763,7 @@
                     {/each}
                     {#if task.assignees.length > 3}
                       <div
-                        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full ring-2 ring-white dark:ring-gray-900 bg-gray-200 dark:bg-gray-700 text-[10px] font-bold text-gray-700 dark:text-gray-200"
+                        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 text-[10px] font-bold text-gray-700 dark:text-gray-200"
                       >
                         +{task.assignees.length - 3}
                       </div>

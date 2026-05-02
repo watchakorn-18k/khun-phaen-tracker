@@ -91,6 +91,9 @@
   let suppressTaskAutoOpen = false;
   let activeWorkspaceKey = "";
   let workspaceInitRun = 0;
+  let filterDropdownEl: HTMLDivElement | null = null;
+  let filterPanelEl: HTMLDivElement | null = null;
+  let filterDropdownPos = { top: 0, left: 0 };
   type SavedMyTasksFilter = {
     enabled: boolean;
     assignee_id: string | number | null;
@@ -133,6 +136,28 @@
     const urlRoom = $page.url.searchParams.get("room");
     const roomParam = urlRoom ? `?room=${urlRoom}` : "";
     goto(`${base}/workspace/${wsId}/task/${task.id}${roomParam}`);
+  }
+
+  function handleWindowClick(event: MouseEvent) {
+    if (!$modals.filters) return;
+    const target = event.target as Node;
+    if (filterDropdownEl?.contains(target)) return;
+    if (filterPanelEl?.contains(target)) return;
+    uiActions.closeModal("filters");
+  }
+
+  function portal(node: HTMLElement) {
+    document.body.appendChild(node);
+    return {
+      destroy() {
+        if (node.parentNode) node.parentNode.removeChild(node);
+      },
+    };
+  }
+
+  function handleToggleFilters(event: CustomEvent<{ top: number; left: number } | null>) {
+    if (event.detail) filterDropdownPos = event.detail;
+    uiActions.toggleModal("filters");
   }
 
   // Auto-redirect task from old URL format to new page
@@ -336,6 +361,8 @@
   }
 </script>
 
+<svelte:window on:click={handleWindowClick} />
+
 <div class="px-4 sm:px-6 space-y-6 pb-24 pt-4">
   {#if $checkingAccess}
     <WorkspaceLoading />
@@ -383,40 +410,52 @@
       on:exportDatabase={(e) => exportActions.handleExportDatabase(e)}
       on:importCSV={(e) => exportActions.handleImportCSV(e)}
     />
-    <SearchAndActions
-      isFiltersOpen={$modals.filters}
-      {isOwner}
-      {isMyTasksActive}
-      showTeam={!isMyTasksWorkspace}
-      showProjects={!isMyTasksWorkspace}
-      showSprints={!isMyTasksWorkspace}
-      showWorkspaceSettings={!isMyTasksWorkspace}
-      showMilestones={!isMyTasksWorkspace}
-      on:toggleFilters={() => uiActions.toggleModal("filters")}
-      on:openWorkerManager={() => uiActions.openModal("workerManager")}
-      on:openProjectManager={() => uiActions.openModal("projectManager")}
-      on:openSprintManager={() => uiActions.openModal("sprintManager")}
-      on:openMonthlySummary={() => uiActions.openModal("monthlySummary")}
-      on:openDailyReflect={() => uiActions.openModal("dailyReflect")}
-      on:openMilestoneManager={() => uiActions.openModal("milestoneManager")}
-      on:openWorkspaceSettings={() => uiActions.openModal("workspaceSettings")}
-      on:toggleMyTasks={toggleMyTasksFilter}
-    />
-
-    {#if $modals.filters}
-      <FilterPanel
-        bind:filters={$filters}
-        categories={$categories}
-        projects={$projects}
-        assignees={$assignees}
-        sprints={$sprints}
-        {myAssigneeId}
-        on:clearFilters={() => {
-          filters.set({ ...DEFAULT_FILTERS });
-          clearSavedFilters();
-        }}
+    <div class="relative z-40" bind:this={filterDropdownEl}>
+      <SearchAndActions
+        isFiltersOpen={$modals.filters}
+        {isOwner}
+        {isMyTasksActive}
+        showTeam={!isMyTasksWorkspace}
+        showProjects={!isMyTasksWorkspace}
+        showSprints={!isMyTasksWorkspace}
+        showWorkspaceSettings={!isMyTasksWorkspace}
+        showMilestones={!isMyTasksWorkspace}
+        on:toggleFilters={handleToggleFilters}
+        on:closeFilters={() => uiActions.closeModal("filters")}
+        on:openWorkerManager={() => uiActions.openModal("workerManager")}
+        on:openProjectManager={() => uiActions.openModal("projectManager")}
+        on:openSprintManager={() => uiActions.openModal("sprintManager")}
+        on:openMonthlySummary={() => uiActions.openModal("monthlySummary")}
+        on:openDailyReflect={() => uiActions.openModal("dailyReflect")}
+        on:openMilestoneManager={() => uiActions.openModal("milestoneManager")}
+        on:openWorkspaceSettings={() => uiActions.openModal("workspaceSettings")}
+        on:toggleMyTasks={toggleMyTasksFilter}
       />
-    {/if}
+
+      {#if $modals.filters}
+        <div
+          use:portal
+          bind:this={filterPanelEl}
+          class="fixed z-[9999]"
+          style="top: {filterDropdownPos.top}px; left: {filterDropdownPos.left}px;"
+        >
+          <FilterPanel
+            bind:filters={$filters}
+            categories={$categories}
+            projects={$projects}
+            assignees={$assignees}
+            sprints={$sprints}
+            tasks={$allTasksIncludingArchived}
+            {myAssigneeId}
+            dropdown
+            on:clearFilters={() => {
+              filters.set({ ...DEFAULT_FILTERS });
+              clearSavedFilters();
+            }}
+          />
+        </div>
+      {/if}
+    </div>
 
     <ViewSelector
       currentView={$currentView}

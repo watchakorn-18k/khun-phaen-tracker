@@ -30,6 +30,7 @@
   const dispatch = createEventDispatcher();
 
   let buttonEl: HTMLButtonElement;
+  let filterButtonEl: HTMLButtonElement;
   let dropdownEl: HTMLDivElement;
   let dropdownPos = { top: 0, left: 0 };
 
@@ -39,7 +40,9 @@
   }
 
   function toggleColumnSettings() {
-    showColumnSettings = !showColumnSettings;
+    const nextOpen = !showColumnSettings;
+    if (nextOpen) dispatch("closeFilters");
+    showColumnSettings = nextOpen;
   }
 
   function closeColumnSettings() {
@@ -68,7 +71,9 @@
   }
 
   function toggleFilters() {
-    dispatch("toggleFilters");
+    closeColumnSettings();
+    const rect = filterButtonEl?.getBoundingClientRect();
+    dispatch("toggleFilters", rect ? { top: rect.bottom + 8, left: rect.left } : null);
   }
 
   function openWorkerManager() {
@@ -116,6 +121,7 @@
   >
     <!-- Filter Toggle -->
     <button
+      bind:this={filterButtonEl}
       on:click={toggleFilters}
       class="flex items-center justify-center w-12 h-12 shrink-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all shadow-sm {isFiltersOpen
         ? 'bg-primary/10 border-primary text-primary'

@@ -427,7 +427,7 @@
               <SquarePen size={16} class="shrink-0" />
               <span class="font-medium">{$_("sidebar__new_issue")}</span>
             </div>
-            <kbd class="px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700/50 bg-white dark:bg-gray-800/50 text-[10px] font-medium text-gray-500 dark:text-gray-400">C</kbd>
+            <kbd class="px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700/50 bg-white dark:bg-gray-800/50 text-[10px] font-medium text-gray-500 dark:text-gray-400">N</kbd>
           </button>
         {/if}
       </div>

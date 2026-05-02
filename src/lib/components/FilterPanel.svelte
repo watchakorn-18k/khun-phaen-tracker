@@ -1,10 +1,43 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
   import { _ } from "svelte-i18n";
-  import SearchableSelect from "./SearchableSelect.svelte";
-  import SearchableSprintSelect from "./SearchableSprintSelect.svelte";
-  import type { FilterOptions, Assignee } from "$lib/types";
+  import {
+    ArchiveX,
+    Calendar,
+    Check,
+    CheckCircle2,
+    ChevronRight,
+    Circle,
+    CircleDot,
+    Clock3,
+    Folder,
+    ListFilter,
+    PlayCircle,
+    Tag,
+    Trash2,
+    User,
+    Zap,
+  } from "lucide-svelte";
+  import type { FilterOptions, Assignee, Task } from "$lib/types";
   import type { Sprint } from "$lib/stores/sprintStore";
+
+  type FilterGroup =
+    | "status"
+    | "priority"
+    | "assignee"
+    | "project"
+    | "label"
+    | "dueDate"
+    | "sprint";
+  type FilterValue = string | number | null;
+  type MenuOption = {
+    value: FilterValue;
+    label: string;
+    count: number;
+    icon?: any;
+    iconClass?: string;
+    dotColor?: string;
+  };
 
   export let filters: FilterOptions;
   export let categories: string[] = [];
@@ -12,214 +45,298 @@
   export let assignees: Assignee[] = [];
   export let sprints: Sprint[] = [];
   export let myAssigneeId: string | number | undefined = undefined;
+  export let tasks: Task[] = [];
+  export let dropdown: boolean = false;
 
   const dispatch = createEventDispatcher();
+  let activeGroup: FilterGroup | null = null;
+  let activeOptions: MenuOption[] = [];
+  let activeValue: FilterValue = "all";
 
   function clearFilters() {
     dispatch("clearFilters");
   }
+
+  function sameValue(a: FilterValue | undefined, b: FilterValue) {
+    if (a === null || b === null) return a === b;
+    if (a === undefined) return b === "all";
+    return String(a) === String(b);
+  }
+
+  function countTasks(predicate: (task: Task) => boolean) {
+    return tasks.filter(predicate).length;
+  }
+
+  function assigneeMatches(task: Task, value: FilterValue) {
+    if (value === "all") return true;
+    if (value === null) {
+      return !(task.assignees?.length || task.assignee_id || task.assignee);
+    }
+    return (
+      task.assignees?.some((assignee) => String(assignee.id) === String(value)) ||
+      String(task.assignee_id || "") === String(value)
+    );
+  }
+
+  function sprintMatches(task: Task, value: FilterValue) {
+    if (value === "all") return true;
+    if (value === null) return !task.sprint_id;
+    return String(task.sprint_id || "") === String(value);
+  }
+
+  function dueDateMatches(task: Task, value: FilterValue) {
+    if (value === "all") return true;
+    const dueDate = task.due_date || task.end_date || "";
+    if (value === "no_dates") return !dueDate;
+    if (!dueDate) return false;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(dueDate);
+    due.setHours(0, 0, 0, 0);
+
+    if (value === "overdue") return due < today && task.status !== "done";
+    const days = value === "next_day" ? 1 : value === "next_week" ? 7 : 30;
+    const limit = new Date(today);
+    limit.setDate(limit.getDate() + days);
+    return due >= today && due <= limit;
+  }
+
+  $: statusOptions = [
+    {
+      value: "all",
+      label: $_("page__filter_status_all"),
+      count: tasks.length,
+      icon: ListFilter,
+      iconClass: "text-gray-400",
+    },
+    {
+      value: "pending",
+      label: $_("page__filter_status_pending"),
+      count: countTasks((task) => task.status === "pending" && !task.is_archived),
+      icon: Circle,
+      iconClass: "text-slate-400",
+    },
+    {
+      value: "todo",
+      label: $_("page__filter_status_todo"),
+      count: countTasks((task) => task.status === "todo" && !task.is_archived),
+      icon: CircleDot,
+      iconClass: "text-gray-400",
+    },
+    {
+      value: "in-progress",
+      label: $_("page__filter_status_in_progress"),
+      count: countTasks((task) => task.status === "in-progress" && !task.is_archived),
+      icon: PlayCircle,
+      iconClass: "text-amber-400",
+    },
+    {
+      value: "in-test",
+      label: $_("page__filter_status_in_test"),
+      count: countTasks((task) => task.status === "in-test" && !task.is_archived),
+      icon: CircleDot,
+      iconClass: "text-green-400",
+    },
+    {
+      value: "done",
+      label: $_("page__filter_status_done"),
+      count: countTasks((task) => task.status === "done" && !task.is_archived),
+      icon: CheckCircle2,
+      iconClass: "text-blue-400",
+    },
+    {
+      value: "archived",
+      label: $_("page__filter_status_archived"),
+      count: countTasks((task) => !!task.is_archived),
+      icon: ArchiveX,
+      iconClass: "text-gray-400",
+    },
+  ] satisfies MenuOption[];
+
+  $: priorityOptions = [
+    { value: "all", label: "All priorities", count: tasks.length, icon: ListFilter, iconClass: "text-gray-400" },
+    { value: "urgent", label: "Urgent", count: countTasks((task) => task.priority === "urgent"), dotColor: "#ef4444" },
+    { value: "high", label: "High", count: countTasks((task) => task.priority === "high"), dotColor: "#f97316" },
+    { value: "medium", label: "Medium", count: countTasks((task) => task.priority === "medium"), dotColor: "#eab308" },
+    { value: "low", label: "Low", count: countTasks((task) => task.priority === "low"), dotColor: "#22c55e" },
+    { value: "none", label: "None", count: countTasks((task) => !task.priority || task.priority === "none"), dotColor: "#64748b" },
+  ] satisfies MenuOption[];
+
+  $: assigneeOptions = [
+    {
+      value: "all",
+      label: $_("page__filter_assignee_all"),
+      count: tasks.length,
+      icon: User,
+      iconClass: "text-gray-400",
+    },
+    ...(myAssigneeId !== undefined && myAssigneeId !== null
+      ? [
+          {
+            value: myAssigneeId,
+            label: $_("page__filter_assignee_me"),
+            count: countTasks((task) => assigneeMatches(task, myAssigneeId)),
+            dotColor: "#14b8a6",
+          },
+        ]
+      : []),
+    {
+      value: null,
+      label: $_("page__unassigned"),
+      count: countTasks((task) => assigneeMatches(task, null)),
+      dotColor: "#64748b",
+    },
+    ...assignees
+      .filter((assignee) => assignee.id !== undefined && String(assignee.id) !== String(myAssigneeId))
+      .map((assignee) => ({
+        value: assignee.id!,
+        label: assignee.name,
+        count: countTasks((task) => assigneeMatches(task, assignee.id!)),
+        dotColor: assignee.color || "#94a3b8",
+      })),
+  ] satisfies MenuOption[];
+
+  $: projectOptions = [
+    { value: "all", label: $_("page__filter_project_all"), count: tasks.length, icon: Folder, iconClass: "text-gray-400" },
+    ...projects.map((project) => ({
+      value: project,
+      label: project,
+      count: countTasks((task) => task.project === project),
+      icon: Folder,
+      iconClass: "text-purple-400",
+    })),
+  ] satisfies MenuOption[];
+
+  $: labelOptions = [
+    { value: "all", label: $_("page__filter_category_all"), count: tasks.length, icon: Tag, iconClass: "text-gray-400" },
+    ...categories.map((category) => ({
+      value: category,
+      label: category,
+      count: countTasks((task) => task.category === category),
+      icon: Tag,
+      iconClass: "text-indigo-400",
+    })),
+  ] satisfies MenuOption[];
+
+  $: dueDateOptions = [
+    { value: "all", label: $_("page__filter_due_date_all"), count: tasks.length, icon: Calendar, iconClass: "text-gray-400" },
+    { value: "no_dates", label: $_("page__filter_due_date_no_dates"), count: countTasks((task) => dueDateMatches(task, "no_dates")), icon: Calendar, iconClass: "text-slate-400" },
+    { value: "overdue", label: $_("page__filter_due_date_overdue"), count: countTasks((task) => dueDateMatches(task, "overdue")), icon: Clock3, iconClass: "text-red-400" },
+    { value: "next_day", label: $_("page__filter_due_date_next_day"), count: countTasks((task) => dueDateMatches(task, "next_day")), icon: Calendar, iconClass: "text-blue-400" },
+    { value: "next_week", label: $_("page__filter_due_date_next_week"), count: countTasks((task) => dueDateMatches(task, "next_week")), icon: Calendar, iconClass: "text-blue-400" },
+    { value: "next_month", label: $_("page__filter_due_date_next_month"), count: countTasks((task) => dueDateMatches(task, "next_month")), icon: Calendar, iconClass: "text-blue-400" },
+  ] satisfies MenuOption[];
+
+  $: sprintOptions = [
+    { value: "all", label: $_("page__filter_sprint_all"), count: tasks.length, icon: Zap, iconClass: "text-gray-400" },
+    { value: null, label: $_("page__filter_sprint_none"), count: countTasks((task) => sprintMatches(task, null)), icon: Zap, iconClass: "text-slate-400" },
+    ...sprints
+      .filter((sprint) => sprint.id !== undefined)
+      .map((sprint) => ({
+        value: sprint.id!,
+        label: sprint.name,
+        count: countTasks((task) => sprintMatches(task, sprint.id!)),
+        icon: Zap,
+        iconClass: sprint.status === "active" ? "text-green-400" : "text-amber-400",
+      })),
+  ] satisfies MenuOption[];
+
+  $: groups = [
+    { id: "status", label: $_("page__filter_status"), icon: CircleDot, value: filters.status ?? "all", options: statusOptions },
+    { id: "priority", label: "Priority", icon: Zap, value: filters.priority ?? "all", options: priorityOptions },
+    { id: "assignee", label: $_("page__filter_assignee"), icon: User, value: filters.assignee_id ?? "all", options: assigneeOptions },
+    { id: "project", label: $_("page__filter_project"), icon: Folder, value: filters.project ?? "all", options: projectOptions },
+    { id: "label", label: "Label", icon: Tag, value: filters.category ?? "all", options: labelOptions },
+    { id: "dueDate", label: $_("page__filter_due_date"), icon: Calendar, value: filters.dueDatePreset ?? "all", options: dueDateOptions },
+    { id: "sprint", label: $_("page__filter_sprint"), icon: Zap, value: filters.sprint_id ?? "all", options: sprintOptions },
+  ] as Array<{
+    id: FilterGroup;
+    label: string;
+    icon: any;
+    value: FilterValue;
+    options: MenuOption[];
+  }>;
+
+  $: activeOptions = activeGroup
+    ? groups.find((group) => group.id === activeGroup)?.options || []
+    : [];
+  $: activeValue = activeGroup
+    ? groups.find((group) => group.id === activeGroup)?.value ?? "all"
+    : "all";
+
+  function selectOption(value: FilterValue) {
+    filters = {
+      ...filters,
+      ...(activeGroup === "status" ? { status: value as FilterOptions["status"] } : {}),
+      ...(activeGroup === "priority" ? { priority: value as FilterOptions["priority"] } : {}),
+      ...(activeGroup === "assignee" ? { assignee_id: value as FilterOptions["assignee_id"] } : {}),
+      ...(activeGroup === "project" ? { project: value as FilterOptions["project"] } : {}),
+      ...(activeGroup === "label" ? { category: value as FilterOptions["category"] } : {}),
+      ...(activeGroup === "dueDate" ? { dueDatePreset: value as FilterOptions["dueDatePreset"] } : {}),
+      ...(activeGroup === "sprint" ? { sprint_id: value as FilterOptions["sprint_id"] } : {}),
+    };
+  }
 </script>
 
+<!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
-  class="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 space-y-3 transition-colors"
+  on:mouseleave={() => (activeGroup = null)}
+  class="{dropdown
+    ? 'inline-flex overflow-hidden rounded-xl border border-gray-700/80 bg-gray-950 text-gray-100 shadow-2xl'
+    : 'inline-flex overflow-hidden rounded-xl border border-gray-700/80 bg-gray-950 text-gray-100 shadow-2xl'}"
 >
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-    <div>
-      <label
-        for="dueDatePreset"
-        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-        >{$_("page__filter_due_date")}</label
+  <div class="w-36 py-2 border-r border-gray-800">
+    {#each groups as group}
+      <button
+        type="button"
+        on:mouseenter={() => (activeGroup = group.id)}
+        on:focus={() => (activeGroup = group.id)}
+        on:click={() => (activeGroup = group.id)}
+        class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-white/5 {activeGroup === group.id ? 'bg-white/5 text-white' : 'text-gray-200'}"
       >
-      <SearchableSelect
-        id="dueDatePreset"
-        bind:value={filters.dueDatePreset}
-        options={[
-          { value: "all", label: $_("page__filter_due_date_all") },
-          {
-            value: "no_dates",
-            label: $_("page__filter_due_date_no_dates"),
-          },
-          {
-            value: "overdue",
-            label: $_("page__filter_due_date_overdue"),
-          },
-          {
-            value: "next_day",
-            label: $_("page__filter_due_date_next_day"),
-          },
-          {
-            value: "next_week",
-            label: $_("page__filter_due_date_next_week"),
-          },
-          {
-            value: "next_month",
-            label: $_("page__filter_due_date_next_month"),
-          },
-        ]}
-        showSearch={false}
-      />
-    </div>
+        <svelte:component this={group.icon} size={14} class="shrink-0 text-gray-300" />
+        <span class="min-w-0 flex-1 truncate">{group.label}</span>
+        {#if !sameValue(group.value, "all")}
+          <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-primary"></span>
+        {/if}
+        <ChevronRight size={14} class="shrink-0 text-gray-400" />
+      </button>
+    {/each}
 
-    <div>
-      <label
-        for="status"
-        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-        >{$_("page__filter_status")}</label
-      >
-      <SearchableSelect
-        id="status"
-        bind:value={filters.status}
-        options={[
-          { value: "all", label: $_("page__filter_status_all") },
-          {
-            value: "today",
-            label: $_("page__filter_status_today"),
-            badge: true,
-            badgeColor: "bg-indigo-500",
-          },
-          {
-            value: "pending",
-            label: $_("page__filter_status_pending"),
-            badge: true,
-            badgeColor: "bg-slate-500",
-          },
-          {
-            value: "todo",
-            label: $_("page__filter_status_todo"),
-            badge: true,
-            badgeColor: "bg-gray-400",
-          },
-          {
-            value: "in-progress",
-            label: $_("page__filter_status_in_progress"),
-            badge: true,
-            badgeColor: "bg-blue-500",
-          },
-          {
-            value: "in-test",
-            label: $_("page__filter_status_in_test"),
-            badge: true,
-            badgeColor: "bg-purple-500",
-          },
-          {
-            value: "done",
-            label: $_("page__filter_status_done"),
-            badge: true,
-            badgeColor: "bg-green-500",
-          },
-          {
-            value: "archived",
-            label: $_("page__filter_status_archived"),
-            badge: true,
-            badgeColor: "bg-gray-600",
-          },
-        ]}
-        placeholder="ค้นหาสถานะ..."
-        showSearch={false}
-      />
-    </div>
-
-    <div>
-      <label
-        for="category"
-        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-        >{$_("page__filter_category")}</label
-      >
-      <SearchableSelect
-        id="category"
-        bind:value={filters.category}
-        options={[
-          { value: "all", label: $_("page__filter_category_all") },
-          ...categories.map((cat) => ({ value: cat, label: cat })),
-        ]}
-        placeholder="ค้นหาหมวดหมู่..."
-      />
-    </div>
-
-    <div>
-      <label
-        for="project"
-        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-        >{$_("page__filter_project")}</label
-      >
-      <SearchableSelect
-        id="project"
-        bind:value={filters.project}
-        options={[
-          { value: "all", label: $_("page__filter_project_all") },
-          ...projects.map((proj) => ({ value: proj, label: proj })),
-        ]}
-        placeholder="ค้นหาโปรเจกต์..."
-      />
-    </div>
-
-    <div>
-      <label
-        for="assignee"
-        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-        >{$_("page__filter_assignee")}</label
-      >
-      <SearchableSelect
-        id="assignee"
-        bind:value={filters.assignee_id}
-        options={[
-          {
-            value: "me",
-            label: `${$_("page__filter_assignee_me")}`,
-            badge: true,
-            badgeColor: "bg-primary",
-          },
-          { value: "all", label: $_("page__filter_assignee_all") },
-          { value: null, label: `⚪ ${$_("page__unassigned")}` },
-          ...assignees
-            .filter(
-              (a) =>
-                a.id !== undefined && String(a.id) !== String(myAssigneeId),
-            )
-            .map((a) => ({
-              value: a.id!,
-              label: a.name,
-              badge: true,
-              badgeColor: a.color || "#94A3B8",
-            })),
-        ]}
-        placeholder="ค้นหาผู้รับผิดชอบ..."
-      />
-    </div>
-
-    <div>
-      <label
-        for="sprint"
-        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-        >{$_("page__filter_sprint")}</label
-      >
-      <SearchableSprintSelect
-        id="sprint"
-        {sprints}
-        bind:value={filters.sprint_id}
-      />
-    </div>
-  </div>
-
-  <div class="flex justify-end pt-2">
+    <div class="mx-2 my-2 h-px bg-gray-800"></div>
     <button
+      type="button"
       on:click={clearFilters}
-      class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
+      class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-gray-300 transition-colors hover:bg-white/5 hover:text-white"
     >
-      <svg
-        class="w-4 h-4"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-        />
-      </svg>
-      {$_("page__btn_clear")}
+      <Trash2 size={14} class="shrink-0 text-gray-400" />
+      <span class="flex-1 truncate">{$_("page__btn_clear")}</span>
     </button>
   </div>
+
+  {#if activeGroup}
+    <div class="w-48 max-h-80 overflow-y-auto py-2">
+      {#each activeOptions as option}
+        <button
+          type="button"
+          on:click={() => selectOption(option.value)}
+          class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-white/5 {sameValue(activeValue, option.value) ? 'text-white' : 'text-gray-200'}"
+        >
+          <span class="flex h-4 w-4 shrink-0 items-center justify-center">
+            {#if option.dotColor}
+              <span class="h-2.5 w-2.5 rounded-full" style="background-color: {option.dotColor}"></span>
+            {:else if option.icon}
+              <svelte:component this={option.icon} size={15} class={option.iconClass || "text-gray-400"} />
+            {/if}
+          </span>
+          <span class="min-w-0 flex-1 truncate">{option.label}</span>
+          <span class="shrink-0 text-xs tabular-nums text-gray-500">{option.count}</span>
+          {#if sameValue(activeValue, option.value)}
+            <Check size={13} class="shrink-0 text-gray-400" />
+          {/if}
+        </button>
+      {/each}
+    </div>
+  {/if}
 </div>

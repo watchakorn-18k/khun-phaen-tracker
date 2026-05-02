@@ -85,8 +85,6 @@ export function createKeyboardHandler(deps: KeyboardActionDeps) {
         break;
       case "n":
       case "N":
-      case "c":
-      case "C":
         event.preventDefault();
         deps.setShowForm(true);
         deps.setEditingTask(null);

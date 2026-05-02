@@ -12,10 +12,10 @@
 </script>
 
 <div
-  class="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 py-2 z-50 animate-in fade-in zoom-in duration-200 origin-top-left"
+  class="w-64 overflow-hidden rounded-xl border border-gray-700/80 bg-gray-950 py-2 text-gray-100 shadow-2xl animate-in fade-in zoom-in duration-150 origin-top-left"
 >
-  <div class="px-4 py-2 border-b border-gray-100 dark:border-gray-800 mb-1 flex justify-between items-center">
-    <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+  <div class="mb-2 border-b border-gray-800 px-4 pb-2 pt-1 flex justify-between items-center">
+    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider">
       {$_("columnSettings__title", { default: "Card properties" })}
     </h3>
   </div>
@@ -24,9 +24,9 @@
     {#each $columnSettings as setting}
       <button
         on:click={() => columnSettings.toggle(setting.id)}
-        class="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group"
+        class="w-full flex items-center justify-between px-3 py-1.5 text-left text-sm transition-colors hover:bg-white/5 group"
       >
-        <span class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white">
+        <span class="font-medium text-gray-200 group-hover:text-white">
           {$_(`columnSettings__label_${setting.id}`, { default: setting.label })}
         </span>
         
@@ -42,10 +42,10 @@
     {/each}
   </div>
 
-  <div class="mt-2 pt-2 px-2 border-t border-gray-100 dark:border-gray-800">
+  <div class="mt-2 border-t border-gray-800 px-2 pt-2">
     <button
       on:click={() => columnSettings.reset()}
-      class="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-all"
+      class="w-full flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-400 transition-colors hover:bg-white/5 hover:text-white"
     >
       <RotateCcw size={14} />
       {$_("columnSettings__reset", { default: "Reset to defaults" })}

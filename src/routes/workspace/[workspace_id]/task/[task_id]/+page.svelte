@@ -210,7 +210,7 @@
       e.preventDefault();
       await goto(`${base}/workspace/${workspaceId}`);
       modals.update((m) => ({ ...m, commandPalette: true }));
-    } else if (e.key.toLowerCase() === "c") {
+    } else if (e.key.toLowerCase() === "n") {
       if (workspaceId === MY_TASKS_WORKSPACE_ID) return;
       e.preventDefault();
       await goto(`${base}/workspace/${workspaceId}`);

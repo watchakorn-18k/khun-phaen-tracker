@@ -160,28 +160,28 @@
 	}
 </script>
 
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 w-full max-w-sm">
-	<div class="flex items-center justify-between mb-4">
-		<h3 class="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+<div class="w-72 overflow-hidden rounded-xl border border-gray-700/80 bg-gray-950 p-3 text-gray-100 shadow-2xl">
+	<div class="flex items-center justify-between mb-3">
+		<h3 class="font-semibold text-white flex items-center gap-2">
 			<Settings2 size={18} />
 			{$_('tabSettings__title')}
 		</h3>
 		<button
 			on:click={handleCancel}
-			class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+			class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors"
 		>
 			<X size={18} />
 		</button>
 	</div>
 
-	<p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+	<p class="text-sm text-gray-400 mb-3">
         <!-- Hack to replace <icon /> since simple-i18n doesn't support components in strings easily -->
 		<span>{$_('tabSettings__subtitle').split('<icon />')[0]}</span>
         <GripVertical size={14} class="inline" />
         <span>{$_('tabSettings__subtitle').split('<icon />')[1]}</span>
 	</p>
 
-	<div class="space-y-2 mb-4">
+	<div class="space-y-2 mb-3">
 		{#each editingTabs as tab, index (tab.id)}
 			<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
 			<div
@@ -198,22 +198,22 @@
 				on:touchstart={() => handlePressStart(index)}
 				on:touchend={handlePressEnd}
 				role="listitem"
-				class="tab-item flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border-2 cursor-move select-none {draggedIndex === index ? 'dragging' : 'border-gray-200 dark:border-gray-600'} {isPressing && pressingIndex === index ? 'pressing' : ''} {tab.enabled ? 'opacity-100' : 'opacity-45'}"
+				class="tab-item flex items-center gap-2 rounded-lg border px-3 py-2 cursor-move select-none transition-colors {draggedIndex === index ? 'dragging' : 'border-gray-700 bg-white/[0.03] hover:bg-white/5'} {isPressing && pressingIndex === index ? 'pressing' : ''} {tab.enabled ? 'opacity-100' : 'opacity-45'}"
 			>
-				<div class="drag-handle text-gray-400 hover:text-primary transition-colors">
-					<GripVertical size={18} />
+				<div class="drag-handle text-gray-500 hover:text-gray-300 transition-colors">
+					<GripVertical size={16} />
 				</div>
 				
-				<svelte:component this={getIcon(tab.icon)} size={18} class="text-gray-600 dark:text-gray-300" />
+				<svelte:component this={getIcon(tab.icon)} size={17} class="text-gray-300" />
 				
-				<span class="flex-1 font-medium text-gray-700 dark:text-gray-200">
+				<span class="flex-1 font-medium text-gray-200">
 					{$_(`tabs__${tab.id}`)}
 				</span>
 				
 				<div class="flex items-center gap-1">
 					<button
 						on:click={() => toggleTabEnabled(tab.id)}
-						class="p-1.5 rounded-md border transition-colors {tab.enabled ? 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-300 dark:bg-emerald-600/10 dark:border-emerald-700/40' : 'text-gray-500 bg-white border-gray-200 dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600'}"
+						class="p-1.5 rounded-md border transition-colors {tab.enabled ? 'text-emerald-300 bg-emerald-600/10 border-emerald-700/40' : 'text-gray-400 bg-white/[0.03] border-gray-700'}"
 						title={tab.enabled ? 'Hide tab' : 'Show tab'}
 						aria-label={tab.enabled ? 'Hide tab' : 'Show tab'}
 					>
@@ -226,7 +226,7 @@
 					<button
 						on:click={() => moveUp(index)}
 						disabled={index === 0}
-						class="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+						class="p-1.5 text-gray-400 hover:text-white hover:bg-white/5 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-all"
 						title={$_('tabSettings__move_up')}
 					>
 						<ChevronUp size={16} />
@@ -234,7 +234,7 @@
 					<button
 						on:click={() => moveDown(index)}
 						disabled={index === editingTabs.length - 1}
-						class="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+						class="p-1.5 text-gray-400 hover:text-white hover:bg-white/5 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-all"
 						title={$_('tabSettings__move_down')}
 					>
 						<ChevronDown size={16} />
@@ -244,10 +244,10 @@
 		{/each}
 	</div>
 
-	<div class="flex items-center gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
+	<div class="flex items-center gap-2 pt-3 border-t border-gray-800">
 		<button
 			on:click={handleReset}
-			class="px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg flex items-center gap-1.5 transition-all"
+			class="px-2.5 py-1.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 rounded-lg flex items-center gap-1.5 transition-all"
 		>
 			<RotateCcw size={16} />
 			{$_('tabSettings__btn_reset')}
@@ -257,7 +257,7 @@
 		
 		<button
 			on:click={handleCancel}
-			class="px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-all"
+			class="px-2.5 py-1.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-all"
 		>
 			{$_('tabSettings__btn_cancel')}
 		</button>
@@ -265,7 +265,7 @@
 		<button
 			on:click={handleSave}
 			disabled={!hasChanges}
-			class="px-3 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 transition-all"
+			class="px-2.5 py-1.5 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 transition-all"
 		>
 			<Check size={16} />
 			{$_('tabSettings__btn_save')}
