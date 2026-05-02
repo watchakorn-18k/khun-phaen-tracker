@@ -237,4 +237,12 @@ impl TestCaseRepository {
         ).await?;
         Ok(res.modified_count)
     }
+
+    pub async fn delete(&self, id: &str) -> mongodb::error::Result<bool> {
+        let res = self
+            .collection
+            .delete_one(doc! { "_id": Self::build_id_filter(id) }, None)
+            .await?;
+        Ok(res.deleted_count > 0)
+    }
 }

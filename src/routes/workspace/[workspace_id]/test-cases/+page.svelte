@@ -166,6 +166,43 @@
     assign_dev: [],
   };
 
+  let editingField: string | null = null;
+  let tempFieldValue = "";
+  let isSavingField = false;
+
+  function startEditing(field: string, value: string) {
+    if (!isAuthorized) return;
+    editingField = field;
+    tempFieldValue = value || "";
+  }
+
+  async function saveField(field: string) {
+    if (!selectedCase || !workspaceId) return;
+    isSavingField = true;
+    try {
+      const dbField = field === "title" ? "name" : field;
+      const resp = await api.data.testCases.update(selectedCase.id, {
+        [dbField]: tempFieldValue,
+      });
+      if (resp.ok) {
+        suites = suites.map((s) => ({
+          ...s,
+          cases: s.cases.map((c) =>
+            c.id === selectedCase.id ? { ...c, [field]: tempFieldValue } : c,
+          ),
+        }));
+        editingField = null;
+        ui.showMessage("Field updated", "success");
+      } else {
+        ui.showMessage("Failed to update field", "error");
+      }
+    } catch (e) {
+      ui.showMessage("An error occurred", "error");
+    } finally {
+      isSavingField = false;
+    }
+  }
+
   const filterProperties = [
     { id: "priority", label: "Priority" },
     { id: "status", label: "Status" },
@@ -201,6 +238,31 @@
       return opt ? opt.label : value;
     }
     return value;
+  }
+
+  async function deleteTestCase(id: string) {
+    if (!confirm("Are you sure you want to delete this test case?")) return;
+    try {
+      const resp = await api.data.testCases.delete(id);
+      if (resp.ok) {
+        suites = suites.map((s) => ({
+          ...s,
+          cases: s.cases.filter((c) => c.id !== id),
+        }));
+        if (selectedCaseId === id) {
+          selectedCaseId = "";
+        }
+        ui.showMessage("Test case deleted", "success");
+      } else {
+        ui.showMessage("Failed to delete test case", "error");
+      }
+    } catch (e) {
+      ui.showMessage("An error occurred", "error");
+    }
+  }
+
+  function focusOnInit(node: HTMLElement) {
+    node.focus();
   }
 
   $: if (selectedCase && selectedCase.id !== lastLoadedCaseId) {
@@ -1776,16 +1838,30 @@
                           />
                         </div>
                       </div>
-                      {#if isAuthorized}
+                      <div class="flex items-center gap-1">
                         <button
-                          class="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-white hover:text-indigo-600 dark:hover:bg-gray-800 dark:hover:text-indigo-400"
-                          title="Edit Case"
+                          class="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-900/30 dark:hover:text-indigo-400 transition-colors"
+                          title={isAuthorized ? "Edit Case" : "View Case"}
                           on:click={() =>
                             openTestCaseEditor(suite.id, testCase.id)}
                         >
-                          <Edit3 size={16} />
+                          {#if isAuthorized}
+                            <Edit3 size={16} />
+                          {:else}
+                            <Eye size={16} />
+                          {/if}
                         </button>
-                      {/if}
+
+                        {#if isAuthorized}
+                          <button
+                            class="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/30 dark:hover:text-rose-400 transition-colors"
+                            title="Delete Case"
+                            on:click={() => deleteTestCase(testCase.id)}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        {/if}
+                      </div>
                     </div>
                   {/each}
 
@@ -1959,37 +2035,296 @@
 
         {#if sidebarTab === "general"}
           <div class="space-y-7 px-5 py-6">
+            <!-- Description -->
             <section>
-              <h3 class="text-sm font-black text-slate-700 dark:text-gray-200">
-                Description
-              </h3>
-              <p
-                class="mt-2 text-sm leading-6 text-slate-700 dark:text-gray-300"
-              >
-                {selectedCase.description}
-              </p>
+              <div class="flex items-center justify-between group">
+                <h3 class="text-sm font-black text-slate-700 dark:text-gray-200">
+                  Description
+                </h3>
+                {#if isAuthorized && editingField !== "description"}
+                  <button
+                    class="p-1 text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
+                    on:click={() =>
+                      startEditing("description", selectedCase.description)}
+                  >
+                    <Edit3 size={14} />
+                  </button>
+                {/if}
+              </div>
+              {#if editingField === "description"}
+                <div class="mt-2 space-y-2">
+                  <textarea
+                    class="w-full rounded-lg border border-indigo-500 bg-transparent p-2 text-sm text-slate-700 dark:text-gray-200 focus:ring-1 focus:ring-indigo-500 outline-none"
+                    rows="3"
+                    bind:value={tempFieldValue}
+                    use:focusOnInit
+                  ></textarea>
+                  <div class="flex justify-end gap-2">
+                    <button
+                      class="p-1 text-slate-400 hover:text-rose-500"
+                      on:click={() => (editingField = null)}
+                      ><X size={16} /></button
+                    >
+                    <button
+                      class="p-1 text-indigo-600 hover:text-indigo-500"
+                      on:click={() => saveField("description")}
+                      disabled={isSavingField}><Check size={16} /></button
+                    >
+                  </div>
+                </div>
+              {:else}
+                <p
+                  class="mt-2 text-sm leading-6 text-slate-700 dark:text-gray-300"
+                >
+                  {selectedCase.description || "No description"}
+                </p>
+              {/if}
             </section>
 
+            <!-- Pre & Post Conditions -->
             <section class="grid grid-cols-1 gap-5">
+              <!-- Pre-conditions -->
               <div>
-                <h3
-                  class="text-sm font-black text-slate-700 dark:text-gray-200"
-                >
-                  Pre-conditions
-                </h3>
-                <p class="mt-2 text-sm font-medium text-slate-500">
-                  {selectedCase.preconditions || "Not set"}
-                </p>
+                <div class="flex items-center justify-between group">
+                  <h3
+                    class="text-sm font-black text-slate-700 dark:text-gray-200"
+                  >
+                    Pre-conditions
+                  </h3>
+                  {#if isAuthorized && editingField !== "preconditions"}
+                    <button
+                      class="p-1 text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
+                      on:click={() =>
+                        startEditing(
+                          "preconditions",
+                          selectedCase.preconditions || "",
+                        )}
+                    >
+                      <Edit3 size={14} />
+                    </button>
+                  {/if}
+                </div>
+                {#if editingField === "preconditions"}
+                  <div class="mt-2 space-y-2">
+                    <textarea
+                      class="w-full rounded-lg border border-indigo-500 bg-transparent p-2 text-sm text-slate-700 dark:text-gray-200 focus:ring-1 focus:ring-indigo-500 outline-none"
+                      rows="2"
+                      bind:value={tempFieldValue}
+                      use:focusOnInit
+                    ></textarea>
+                    <div class="flex justify-end gap-2">
+                      <button
+                        class="p-1 text-slate-400 hover:text-rose-500"
+                        on:click={() => (editingField = null)}
+                        ><X size={16} /></button
+                      >
+                      <button
+                        class="p-1 text-indigo-600 hover:text-indigo-500"
+                        on:click={() => saveField("preconditions")}
+                        disabled={isSavingField}><Check size={16} /></button
+                      >
+                    </div>
+                  </div>
+                {:else}
+                  <p class="mt-2 text-sm font-medium text-slate-500">
+                    {selectedCase.preconditions || "Not set"}
+                  </p>
+                {/if}
               </div>
+
+              <!-- Post-conditions -->
               <div>
-                <h3
-                  class="text-sm font-black text-slate-700 dark:text-gray-200"
-                >
-                  Post-conditions
-                </h3>
-                <p class="mt-2 text-sm font-medium text-slate-500">
-                  {selectedCase.postconditions || "Not set"}
-                </p>
+                <div class="flex items-center justify-between group">
+                  <h3
+                    class="text-sm font-black text-slate-700 dark:text-gray-200"
+                  >
+                    Post-conditions
+                  </h3>
+                  {#if isAuthorized && editingField !== "postconditions"}
+                    <button
+                      class="p-1 text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
+                      on:click={() =>
+                        startEditing(
+                          "postconditions",
+                          selectedCase.postconditions || "",
+                        )}
+                    >
+                      <Edit3 size={14} />
+                    </button>
+                  {/if}
+                </div>
+                {#if editingField === "postconditions"}
+                  <div class="mt-2 space-y-2">
+                    <textarea
+                      class="w-full rounded-lg border border-indigo-500 bg-transparent p-2 text-sm text-slate-700 dark:text-gray-200 focus:ring-1 focus:ring-indigo-500 outline-none"
+                      rows="2"
+                      bind:value={tempFieldValue}
+                      use:focusOnInit
+                    ></textarea>
+                    <div class="flex justify-end gap-2">
+                      <button
+                        class="p-1 text-slate-400 hover:text-rose-500"
+                        on:click={() => (editingField = null)}
+                        ><X size={16} /></button
+                      >
+                      <button
+                        class="p-1 text-indigo-600 hover:text-indigo-500"
+                        on:click={() => saveField("postconditions")}
+                        disabled={isSavingField}><Check size={16} /></button
+                      >
+                    </div>
+                  </div>
+                {:else}
+                  <p class="mt-2 text-sm font-medium text-slate-500">
+                    {selectedCase.postconditions || "Not set"}
+                  </p>
+                {/if}
+              </div>
+            </section>
+
+            <!-- Input, Expected, Actual Results -->
+            <section class="space-y-5">
+              <!-- Input -->
+              <div>
+                <div class="flex items-center justify-between group">
+                  <h3
+                    class="text-sm font-black text-slate-700 dark:text-gray-200"
+                  >
+                    Input
+                  </h3>
+                  {#if isAuthorized && editingField !== "input"}
+                    <button
+                      class="p-1 text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
+                      on:click={() => startEditing("input", selectedCase.input || "")}
+                    >
+                      <Edit3 size={14} />
+                    </button>
+                  {/if}
+                </div>
+                {#if editingField === "input"}
+                  <div class="mt-2 space-y-2">
+                    <textarea
+                      class="w-full rounded-lg border border-indigo-500 bg-transparent p-2 text-sm text-slate-700 dark:text-gray-200 focus:ring-1 focus:ring-indigo-500 outline-none"
+                      rows="2"
+                      bind:value={tempFieldValue}
+                      use:focusOnInit
+                    ></textarea>
+                    <div class="flex justify-end gap-2">
+                      <button
+                        class="p-1 text-slate-400 hover:text-rose-500"
+                        on:click={() => (editingField = null)}
+                        ><X size={16} /></button
+                      >
+                      <button
+                        class="p-1 text-indigo-600 hover:text-indigo-500"
+                        on:click={() => saveField("input")}
+                        disabled={isSavingField}><Check size={16} /></button
+                      >
+                    </div>
+                  </div>
+                {:else}
+                  <p class="mt-2 text-sm font-medium text-slate-500 whitespace-pre-wrap">
+                    {selectedCase.input || "No input data"}
+                  </p>
+                {/if}
+              </div>
+
+              <!-- Expected Result -->
+              <div>
+                <div class="flex items-center justify-between group">
+                  <h3
+                    class="text-sm font-black text-slate-700 dark:text-gray-200"
+                  >
+                    Expected Result
+                  </h3>
+                  {#if isAuthorized && editingField !== "expected_result"}
+                    <button
+                      class="p-1 text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
+                      on:click={() =>
+                        startEditing(
+                          "expected_result",
+                          selectedCase.expected_result || "",
+                        )}
+                    >
+                      <Edit3 size={14} />
+                    </button>
+                  {/if}
+                </div>
+                {#if editingField === "expected_result"}
+                  <div class="mt-2 space-y-2">
+                    <textarea
+                      class="w-full rounded-lg border border-indigo-500 bg-transparent p-2 text-sm text-slate-700 dark:text-gray-200 focus:ring-1 focus:ring-indigo-500 outline-none"
+                      rows="2"
+                      bind:value={tempFieldValue}
+                      use:focusOnInit
+                    ></textarea>
+                    <div class="flex justify-end gap-2">
+                      <button
+                        class="p-1 text-slate-400 hover:text-rose-500"
+                        on:click={() => (editingField = null)}
+                        ><X size={16} /></button
+                      >
+                      <button
+                        class="p-1 text-indigo-600 hover:text-indigo-500"
+                        on:click={() => saveField("expected_result")}
+                        disabled={isSavingField}><Check size={16} /></button
+                      >
+                    </div>
+                  </div>
+                {:else}
+                  <p class="mt-2 text-sm font-medium text-slate-500 whitespace-pre-wrap">
+                    {selectedCase.expected_result || "No expected result"}
+                  </p>
+                {/if}
+              </div>
+
+              <!-- Actual Result -->
+              <div>
+                <div class="flex items-center justify-between group">
+                  <h3
+                    class="text-sm font-black text-slate-700 dark:text-gray-200"
+                  >
+                    Actual Result
+                  </h3>
+                  {#if isAuthorized && editingField !== "actual_result"}
+                    <button
+                      class="p-1 text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
+                      on:click={() =>
+                        startEditing(
+                          "actual_result",
+                          selectedCase.actual_result || "",
+                        )}
+                    >
+                      <Edit3 size={14} />
+                    </button>
+                  {/if}
+                </div>
+                {#if editingField === "actual_result"}
+                  <div class="mt-2 space-y-2">
+                    <textarea
+                      class="w-full rounded-lg border border-indigo-500 bg-transparent p-2 text-sm text-slate-700 dark:text-gray-200 focus:ring-1 focus:ring-indigo-500 outline-none"
+                      rows="2"
+                      bind:value={tempFieldValue}
+                      use:focusOnInit
+                    ></textarea>
+                    <div class="flex justify-end gap-2">
+                      <button
+                        class="p-1 text-slate-400 hover:text-rose-500"
+                        on:click={() => (editingField = null)}
+                        ><X size={16} /></button
+                      >
+                      <button
+                        class="p-1 text-indigo-600 hover:text-indigo-500"
+                        on:click={() => saveField("actual_result")}
+                        disabled={isSavingField}><Check size={16} /></button
+                      >
+                    </div>
+                  </div>
+                {:else}
+                  <p class="mt-2 text-sm font-medium text-slate-500 whitespace-pre-wrap">
+                    {selectedCase.actual_result || "No actual result"}
+                  </p>
+                {/if}
               </div>
             </section>
 

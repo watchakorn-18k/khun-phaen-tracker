@@ -50,7 +50,17 @@
   type ClassicStep = { action: string; data: string; expected: string };
 
   let suiteOptions: any[] = [];
-  $: canSeeStatus = $user?.role === "admin" || $user?.profile?.position === "QA Tester";
+  $: isAuthorized = $user?.role === "admin" || $user?.profile?.position === "QA Tester";
+  $: availableAssigneeOptions = isAuthorized
+    ? assigneeOptions
+    : assigneeOptions
+        .filter(
+          (o) =>
+            o.value === "unassigned" || String(o.user_id) === String($user?.id),
+        )
+        .map((o) =>
+          String(o.user_id) === String($user?.id) ? { ...o, label: "me" } : o,
+        );
 
   const statusOptions = [
     { value: "draft", label: "Draft", icon: CircleDashed, iconClass: "text-gray-400" },
@@ -69,10 +79,11 @@
 
   let workspaceAssignees: Assignee[] = [];
   $: assigneeOptions = [
-    { value: "unassigned", label: "Unassigned", avatarColor: "#64748b" },
+    { value: "unassigned", label: "Unassigned", user_id: undefined, avatarColor: "#64748b" },
     ...workspaceAssignees.map((a) => ({ 
       value: String(a.id || ""), 
       label: a.name,
+      user_id: a.user_id,
       avatarUrl: a.avatar_url,
       avatarColor: a.color
     })),
@@ -440,15 +451,17 @@
 
         <input
           bind:value={name}
-          class="mt-4 w-full !bg-transparent px-0 py-2 text-2xl font-black text-white placeholder:text-gray-600 border-none outline-none"
+          readonly={!isAuthorized}
+          class="mt-4 w-full !bg-transparent px-0 py-2 text-2xl font-black text-white placeholder:text-gray-600 border-none outline-none {isAuthorized ? '' : 'cursor-default focus:ring-0'}"
           placeholder="Example: Validate invite-link signup flow..."
         />
 
         <label class="mt-6 block">
           <textarea
             bind:value={description}
+            readonly={!isAuthorized}
             use:autoGrow
-            class="min-h-[38px] w-full overflow-hidden resize-none !bg-transparent px-0 text-[15px] leading-relaxed text-gray-300 placeholder:text-gray-600 border-none outline-none"
+            class="min-h-[38px] w-full overflow-hidden resize-none !bg-transparent px-0 text-[15px] leading-relaxed text-gray-300 placeholder:text-gray-600 border-none outline-none {isAuthorized ? '' : 'cursor-default'}"
             placeholder="Additional details..."
           ></textarea>
         </label>
@@ -460,7 +473,7 @@
               Assign Dev
             </span>
             <div class="property-select">
-              <SearchableSelect id="editor-assign-dev" bind:value={assignDev} options={assigneeOptions} minimal={true} />
+              <SearchableSelect id="editor-assign-dev" bind:value={assignDev} options={availableAssigneeOptions} minimal={true} />
             </div>
           </label>
 
@@ -470,13 +483,19 @@
               Assign Tester
             </span>
             <div class="property-select">
-              <SearchableSelect id="editor-assign-tester" bind:value={assignTester} options={assigneeOptions} minimal={true} />
+              {#if isAuthorized}
+                <SearchableSelect id="editor-assign-tester" bind:value={assignTester} options={assigneeOptions} minimal={true} />
+              {:else}
+                <div class="pointer-events-none opacity-80">
+                  <SearchableSelect id="editor-assign-tester" bind:value={assignTester} options={assigneeOptions} minimal={true} />
+                </div>
+              {/if}
             </div>
           </label>
         </div>
 
         <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
-          {#if canSeeStatus}
+          {#if isAuthorized}
             <label class="space-y-2">
               <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
                 <ClipboardCheck size={14} />
@@ -504,7 +523,13 @@
               Priority
             </span>
             <div class="property-select">
-              <SearchableSelect id="editor-priority" bind:value={priority} options={priorityOptions} showSearch={false} minimal={true} />
+              {#if isAuthorized}
+                <SearchableSelect id="editor-priority" bind:value={priority} options={priorityOptions} showSearch={false} minimal={true} />
+              {:else}
+                <div class="pointer-events-none opacity-80">
+                  <SearchableSelect id="editor-priority" bind:value={priority} options={priorityOptions} showSearch={false} minimal={true} />
+                </div>
+              {/if}
             </div>
           </label>
 
@@ -524,17 +549,25 @@
                 <ListChecks size={14} />
                 Suite
               </span>
-              <button
-                type="button"
-                on:click={() => (showCreateSuiteModal = true)}
-                class="flex h-5 w-5 items-center justify-center rounded-md text-gray-500 hover:bg-white/10 hover:text-white"
-                title="Create new suite"
-              >
-                <Plus size={12} />
-              </button>
+              {#if isAuthorized}
+                <button
+                  type="button"
+                  on:click={() => (showCreateSuiteModal = true)}
+                  class="flex h-5 w-5 items-center justify-center rounded-md text-gray-500 hover:bg-white/10 hover:text-white"
+                  title="Create new suite"
+                >
+                  <Plus size={12} />
+                </button>
+              {/if}
             </span>
             <div class="property-select">
-              <SearchableSelect id="editor-suite" bind:value={suiteId} options={suiteOptions} minimal={true} />
+              {#if isAuthorized}
+                <SearchableSelect id="editor-suite" bind:value={suiteId} options={suiteOptions} minimal={true} />
+              {:else}
+                <div class="pointer-events-none opacity-80">
+                  <SearchableSelect id="editor-suite" bind:value={suiteId} options={suiteOptions} minimal={true} />
+                </div>
+              {/if}
             </div>
           </label>
         </div>
@@ -548,9 +581,10 @@
           </span>
           <textarea
             bind:value={preconditions}
+            readonly={!isAuthorized}
             use:autoGrow
             rows="1"
-            class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20"
+            class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20 {isAuthorized ? '' : 'cursor-default focus:ring-0'}"
             placeholder="Conditions required before this test starts..."
           ></textarea>
         </label>
@@ -561,9 +595,10 @@
           </span>
           <textarea
             bind:value={postconditions}
+            readonly={!isAuthorized}
             use:autoGrow
             rows="1"
-            class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20"
+            class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20 {isAuthorized ? '' : 'cursor-default focus:ring-0'}"
             placeholder="Expected state after this test finishes..."
           ></textarea>
         </label>
@@ -577,9 +612,10 @@
           </span>
           <textarea
             bind:value={input}
+            readonly={!isAuthorized}
             use:autoGrow
             rows="1"
-            class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20"
+            class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20 {isAuthorized ? '' : 'cursor-default focus:ring-0'}"
             placeholder="Data that tester must enter..."
           ></textarea>
         </label>
@@ -592,9 +628,10 @@
             </span>
             <textarea
               bind:value={expectedResult}
+              readonly={!isAuthorized}
               use:autoGrow
               rows="1"
-              class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20"
+              class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20 {isAuthorized ? '' : 'cursor-default focus:ring-0'}"
               placeholder="Expected behavior after running the step..."
             ></textarea>
           </label>
@@ -606,9 +643,10 @@
             </span>
             <textarea
               bind:value={actualResult}
+              readonly={!isAuthorized}
               use:autoGrow
               rows="1"
-              class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20"
+              class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20 {isAuthorized ? '' : 'cursor-default focus:ring-0'}"
               placeholder="Actual behavior found during testing..."
             ></textarea>
           </label>
@@ -638,9 +676,10 @@
           </span>
           <textarea
             bind:value={testNote}
+            readonly={!isAuthorized}
             use:autoGrow
             rows="1"
-            class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20"
+            class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20 {isAuthorized ? '' : 'cursor-default focus:ring-0'}"
             placeholder="Tester note..."
           ></textarea>
         </label>
@@ -665,14 +704,16 @@
                   <p class="truncate text-xs font-medium text-gray-300">{att.file.name}</p>
                   <div class="flex items-center justify-between">
                     <span class="text-[11px] text-gray-500">{formatFileSize(att.file.size)}</span>
-                    <button
-                      type="button"
-                      class="grid h-5 w-5 place-items-center rounded text-gray-500 hover:text-rose-400 transition-colors"
-                      title="Remove"
-                      on:click={() => removeAttachment(index)}
-                    >
-                      <X size={13} />
-                    </button>
+                      {#if isAuthorized}
+                        <button
+                          type="button"
+                          class="grid h-5 w-5 place-items-center rounded text-gray-500 hover:text-rose-400 transition-colors"
+                          title="Remove"
+                          on:click={() => removeAttachment(index)}
+                        >
+                          <X size={13} />
+                        </button>
+                      {/if}
                   </div>
                 </div>
               </div>
@@ -680,7 +721,7 @@
           </div>
         {/if}
 
-        {#if attachments.length < MAX_ATTACHMENTS}
+        {#if isAuthorized && attachments.length < MAX_ATTACHMENTS}
           <input
             bind:this={attachmentInput}
             type="file"
@@ -698,7 +739,7 @@
             Add attachment
           </button>
           <span class="ml-2 text-xs text-gray-600">({attachments.length}/{MAX_ATTACHMENTS})</span>
-        {:else}
+        {:else if isAuthorized}
           <p class="mt-4 text-xs text-gray-500">Maximum {MAX_ATTACHMENTS} attachments reached.</p>
         {/if}
       </section>
@@ -723,13 +764,13 @@
           <TestCaseStepList
             bind:steps={classicSteps}
             format="classic"
-            readOnly={false}
+            readOnly={!isAuthorized}
           />
         {:else}
           <TestCaseStepList
             bind:steps={gherkinSteps}
             format="gherkin"
-            readOnly={false}
+            readOnly={!isAuthorized}
             bind:gherkinView
             bind:gherkinRaw
           />

@@ -428,7 +428,8 @@ async fn main() {
         .route(
             "/api/test-cases/:id",
             get(handlers::test_case_handler::get_test_case)
-                .patch(handlers::test_case_handler::update_test_case),
+                .patch(handlers::test_case_handler::update_test_case)
+                .delete(handlers::test_case_handler::delete_test_case),
         )
         .route(
             "/api/test-cases/:id/steps",

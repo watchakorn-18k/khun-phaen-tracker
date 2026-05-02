@@ -874,3 +874,31 @@ pub async fn update_test_case_notes(
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
+
+/// DELETE /api/test-cases/:id
+pub async fn delete_test_case(
+    State(state): State<Arc<AppState>>,
+    jar: CookieJar,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    let claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
+        Some(c) => c,
+        None => return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response(),
+    };
+
+    let user_repo = UserRepository::new(&state.db);
+    let profile_repo = ProfileRepository::new(&state.db);
+
+    if !AuthService::can_mutate_test_cases(&user_repo, &profile_repo, &claims).await {
+        return (StatusCode::FORBIDDEN, "Permission denied").into_response();
+    }
+
+    let repo = TestCaseRepository::new(&state.db);
+
+    match repo.delete(&id).await {
+        Ok(true) => (StatusCode::OK, "Test case deleted").into_response(),
+        Ok(false) => (StatusCode::NOT_FOUND, "Test case not found").into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}

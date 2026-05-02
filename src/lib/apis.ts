@@ -1002,6 +1002,13 @@ export const api = {
           body: JSON.stringify(testCase),
         });
       },
+      delete: (id: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/test-cases/${id}`, {
+          method: "DELETE",
+          headers: api.data._headers(),
+          credentials: "include",
+        });
+      },
       update: (id: string, testCase: Record<string, any>): Promise<Response> => {
         return fetch(`${API_BASE_URL}/test-cases/${id}`, {
           method: "PATCH",
