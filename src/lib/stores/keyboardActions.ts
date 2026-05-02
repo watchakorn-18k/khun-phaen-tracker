@@ -44,6 +44,9 @@ export function createKeyboardHandler(deps: KeyboardActionDeps) {
 
     if (isCommandPaletteOpen) return;
 
+    // Ignore single character shortcuts if a modifier key is pressed
+    if (event.metaKey || event.ctrlKey) return;
+
     // Ignore if user is typing in an input/textarea
     const target = event.target as HTMLElement;
     if (
