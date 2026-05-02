@@ -468,6 +468,7 @@ async fn main() {
                     axum::http::Method::POST,
                     axum::http::Method::PUT,
                     axum::http::Method::DELETE,
+                    axum::http::Method::PATCH,
                 ])
                 .allow_headers([
                     axum::http::header::CONTENT_TYPE,

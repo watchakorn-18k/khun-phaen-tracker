@@ -1231,7 +1231,7 @@
                               options={statusOptions}
                               showSearch={false}
                               minimal={true}
-                              on:change={(e) => updateStatus(testCase, e.detail)}
+                              on:select={(e) => updateStatus(testCase, e.detail)}
                             />
                           </div>
                         {/if}
@@ -1242,7 +1242,7 @@
                             options={fixedOptions}
                             showSearch={false}
                             minimal={true}
-                            on:change={(e) => updateFixed(testCase, e.detail)}
+                            on:select={(e) => updateFixed(testCase, e.detail)}
                           />
                         </div>
                         <span
@@ -1367,7 +1367,7 @@
                       options={statusOptions}
                       showSearch={false}
                       minimal={true}
-                      on:change={(e) => updateStatus(selectedCase, e.detail)}
+                      on:select={(e) => updateStatus(selectedCase, e.detail)}
                     />
                   </div>
                 {/if}
@@ -1378,7 +1378,7 @@
                     options={fixedOptions}
                     showSearch={false}
                     minimal={true}
-                    on:change={(e) => updateFixed(selectedCase, e.detail)}
+                    on:select={(e) => updateFixed(selectedCase, e.detail)}
                   />
                 </div>
               </div>
