@@ -26,6 +26,7 @@
     ChecklistItem,
   } from "$lib/types";
   import { get } from "svelte/store";
+  import { isImage, processFilesForPreview, revokePreview } from "$lib/utils/file";
   import { user } from "$lib/stores/auth";
   import {
     currentWorkspaceName,
@@ -101,9 +102,7 @@
   let titleInputRef: any;
   
   onDestroy(() => {
-    attachedFiles.forEach(af => {
-      if (af.preview) URL.revokeObjectURL(af.preview);
-    });
+    attachedFiles.forEach(af => revokePreview(af.preview));
   });
 
   let projects: Project[] = [];
@@ -452,9 +451,7 @@
       });
       
       // Cleanup previews
-      attachedFiles.forEach(af => {
-        if (af.preview) URL.revokeObjectURL(af.preview);
-      });
+      attachedFiles.forEach(af => revokePreview(af.preview));
       
       commentContent = "";
       attachedFiles = [];
@@ -477,12 +474,7 @@
     }
 
     if (files.length > 0) {
-      const newFiles = files.map((file) => ({
-        file,
-        preview: file.type.startsWith("image/")
-          ? URL.createObjectURL(file)
-          : undefined,
-      }));
+      const newFiles = processFilesForPreview(files);
       attachedFiles = [...attachedFiles, ...newFiles];
     }
   }
@@ -1023,10 +1015,7 @@
                     on:change={(e) => {
                       const files = Array.from((e.currentTarget as HTMLInputElement).files || []);
                       if (files.length) {
-                        const newFiles = files.map(file => ({
-                          file,
-                          preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined
-                        }));
+                        const newFiles = processFilesForPreview(files);
                         attachedFiles = [...attachedFiles, ...newFiles];
                         if (commentFileInputRef) commentFileInputRef.value = "";
                       }
@@ -1047,10 +1036,11 @@
                           <button 
                             type="button"
                             on:click={() => {
-                              if (af.preview) URL.revokeObjectURL(af.preview);
+                              revokePreview(af.preview);
                               attachedFiles = attachedFiles.filter((_, idx) => idx !== i);
                             }}
                             class="p-1 text-slate-400 hover:text-red-500 transition-colors"
+                            aria-label="Remove file"
                           >
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                           </button>
