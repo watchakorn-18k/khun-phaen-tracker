@@ -981,6 +981,12 @@ export const api = {
           credentials: "include",
         });
       },
+      get: (id: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/test-cases/${id}`, {
+          headers: api.data._headers(),
+          credentials: "include",
+        });
+      },
       nextNumber: (wsId: string): Promise<Response> => {
         return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-cases/next-number`, {
           headers: api.data._headers(),
@@ -990,6 +996,14 @@ export const api = {
       create: (wsId: string, testCase: Record<string, any>): Promise<Response> => {
         return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-cases`, {
           method: "POST",
+          headers: api.data._headers(true),
+          credentials: "include",
+          body: JSON.stringify(testCase),
+        });
+      },
+      update: (id: string, testCase: Record<string, any>): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/test-cases/${id}`, {
+          method: "PATCH",
           headers: api.data._headers(true),
           credentials: "include",
           body: JSON.stringify(testCase),

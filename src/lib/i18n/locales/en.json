@@ -1315,5 +1315,6 @@
 	"testCases__quick_create": "+ Create quick test",
 	"testCases__title_placeholder": "Test case title",
 	"testCases__created_success": "Test case created",
-	"testCases__created_error": "Failed to create test case"
+	"testCases__created_error": "Failed to create test case",
+	"testCases__empty_suite": "No test cases in this suite"
 }

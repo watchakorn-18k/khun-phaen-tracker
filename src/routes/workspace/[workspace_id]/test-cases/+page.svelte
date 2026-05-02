@@ -125,7 +125,16 @@
       });
       if (resp.ok) {
         const newSuite = await resp.json();
-        suites = [...suites, { ...newSuite, id: newSuite.id || newSuite._id, cases: [], page: 1, hasMore: false }];
+        suites = [
+          ...suites,
+          {
+            ...newSuite,
+            id: newSuite.id || newSuite._id,
+            cases: [],
+            page: 1,
+            hasMore: false,
+          },
+        ];
         newSuiteName = "";
         showCreateSuiteModal = false;
         ui.showMessage("Suite created successfully", "success");
@@ -141,9 +150,13 @@
   async function handleUpdateSuite() {
     if (!editingSuite || !editingSuite.title.trim()) return;
     try {
-      const resp = await api.data.testSuites.update(editingSuite.id, { title: editingSuite.title });
+      const resp = await api.data.testSuites.update(editingSuite.id, {
+        title: editingSuite.title,
+      });
       if (resp.ok) {
-        suites = suites.map(s => s.id === editingSuite?.id ? { ...s, title: editingSuite.title } : s);
+        suites = suites.map((s) =>
+          s.id === editingSuite?.id ? { ...s, title: editingSuite.title } : s,
+        );
         ui.showMessage("Suite updated", "success");
         editingSuite = null;
       } else {
@@ -157,19 +170,36 @@
   async function handleDeleteSuite() {
     if (!suiteToDelete) return;
     try {
-      const resp = await api.data.testSuites.delete(suiteToDelete.id, deleteMode);
+      const resp = await api.data.testSuites.delete(
+        suiteToDelete.id,
+        deleteMode,
+      );
       if (resp.ok) {
         if (deleteMode === "move") {
           // Move cases to unassigned
-          const unassignedSuite = suites.find(s => s.id === "unassigned");
+          const unassignedSuite = suites.find((s) => s.id === "unassigned");
           const movedCases = suiteToDelete.cases || [];
           if (unassignedSuite) {
-            suites = suites.map(s => s.id === "unassigned" ? { ...s, cases: [...s.cases, ...movedCases] } : s);
+            suites = suites.map((s) =>
+              s.id === "unassigned"
+                ? { ...s, cases: [...s.cases, ...movedCases] }
+                : s,
+            );
           } else {
-            suites = [...suites, { id: "unassigned", title: "Unassigned", description: "", cases: movedCases, page: 1, hasMore: false }];
+            suites = [
+              ...suites,
+              {
+                id: "unassigned",
+                title: "Unassigned",
+                description: "",
+                cases: movedCases,
+                page: 1,
+                hasMore: false,
+              },
+            ];
           }
         }
-        suites = suites.filter(s => s.id !== suiteToDelete?.id);
+        suites = suites.filter((s) => s.id !== suiteToDelete?.id);
         ui.showMessage("Suite deleted", "success");
         showDeleteSuiteModal = false;
         suiteToDelete = null;
@@ -183,7 +213,7 @@
 
   function mapBackendToFrontend(tc: any): TestCase {
     return {
-      id: tc.id,
+      id: tc.id || tc._id,
       test_no: tc.test_no,
       title: tc.name,
       type: "manual", // Default for now
@@ -625,6 +655,9 @@
   onDestroy(() => {
     stopPanelResize?.();
   });
+  function autofocus(node: HTMLElement) {
+    node.focus();
+  }
 </script>
 
 <svelte:head>
@@ -814,15 +847,10 @@
 
                   {#if suite.cases.length === 0}
                     <div
-                      class="flex flex-col items-center justify-center py-10 text-center"
+                      class="flex items-center justify-center py-4 opacity-50"
                     >
-                      <div
-                        class="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-300 dark:bg-gray-900"
-                      >
-                        <ClipboardList size={24} />
-                      </div>
-                      <p class="text-sm font-medium text-slate-400">
-                        No test cases in this suite
+                      <p class="text-[12px] font-medium text-slate-400">
+                        {$_("testCases__empty_suite")}
                       </p>
                     </div>
                   {/if}
@@ -831,33 +859,60 @@
                 <div
                   class="flex items-center justify-between px-3 py-3 border-t border-slate-100 dark:border-gray-800"
                 >
-                  <div class="flex gap-2">
-                    {#if suite.page > 1 || suite.hasMore}
+                  <div class="flex flex-1 items-center gap-4">
+                    {#if quickTestInputSuiteId === suite.id}
+                      <input
+                        bind:value={quickTestTitle}
+                        class="flex-1 border-0 !bg-transparent text-sm font-bold outline-none placeholder:text-slate-400 dark:text-white"
+                        placeholder={$_("testCases__title_placeholder")}
+                        on:keydown={(e) => {
+                          if (e.key === "Enter") handleQuickCreate(suite.id);
+                          if (e.key === "Escape") {
+                            quickTestInputSuiteId = "";
+                            quickTestTitle = "";
+                          }
+                        }}
+                        on:blur={() => {
+                          if (!quickTestTitle.trim())
+                            quickTestInputSuiteId = "";
+                        }}
+                        use:autofocus
+                      />
+                    {:else}
                       <button
-                        class="flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-30 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-900"
-                        disabled={suite.page <= 1}
-                        on:click={() => loadSuitePage(suite.id, suite.page - 1)}
+                        class="text-sm font-black text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+                        on:click={() => {
+                          quickTestInputSuiteId = suite.id;
+                          quickTestTitle = "";
+                        }}
                       >
-                        <ChevronLeft size={14} />
-                        Previous
-                      </button>
-                      <button
-                        class="flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-30 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-900"
-                        disabled={!suite.hasMore}
-                        on:click={() => loadSuitePage(suite.id, suite.page + 1)}
-                      >
-                        Next
-                        <ChevronRight size={14} />
+                        {$_("testCases__quick_create")}
                       </button>
                     {/if}
-                  </div>
 
-                  <button
-                    class="px-3 py-1.5 text-sm font-black text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
-                    on:click={() => openTestCaseEditor(suite.id)}
-                  >
-                    + Quick Test
-                  </button>
+                    <div class="flex gap-2">
+                      {#if suite.page > 1 || suite.hasMore}
+                        <button
+                          class="flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-30 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-900"
+                          disabled={suite.page <= 1}
+                          on:click={() =>
+                            loadSuitePage(suite.id, suite.page - 1)}
+                        >
+                          <ChevronLeft size={14} />
+                          Previous
+                        </button>
+                        <button
+                          class="flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-30 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-900"
+                          disabled={!suite.hasMore}
+                          on:click={() =>
+                            loadSuitePage(suite.id, suite.page + 1)}
+                        >
+                          Next
+                          <ChevronRight size={14} />
+                        </button>
+                      {/if}
+                    </div>
+                  </div>
                 </div>
               </section>
             {/each}
@@ -1354,11 +1409,22 @@
 {/if}
 
 {#if editingSuite}
-  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" transition:fade={{ duration: 150 }}>
-    <div class="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900">
-      <h2 class="text-xl font-black text-slate-800 dark:text-white">Edit Suite</h2>
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+    transition:fade={{ duration: 150 }}
+  >
+    <div
+      class="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900"
+    >
+      <h2 class="text-xl font-black text-slate-800 dark:text-white">
+        Edit Suite
+      </h2>
       <div class="mt-6">
-        <label for="edit-suite-name" class="block text-[12px] font-black uppercase tracking-widest text-slate-500">Suite Name</label>
+        <label
+          for="edit-suite-name"
+          class="block text-[12px] font-black uppercase tracking-widest text-slate-500"
+          >Suite Name</label
+        >
         <input
           id="edit-suite-name"
           type="text"
@@ -1369,58 +1435,115 @@
         />
       </div>
       <div class="mt-8 flex items-center justify-end gap-3">
-        <button class="rounded-xl px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800" on:click={() => (editingSuite = null)}>Cancel</button>
-        <button class="rounded-xl bg-indigo-600 px-6 py-2 text-sm font-black text-white hover:bg-indigo-500 disabled:opacity-50" disabled={!editingSuite.title.trim()} on:click={handleUpdateSuite}>Save Changes</button>
+        <button
+          class="rounded-xl px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
+          on:click={() => (editingSuite = null)}>Cancel</button
+        >
+        <button
+          class="rounded-xl bg-indigo-600 px-6 py-2 text-sm font-black text-white hover:bg-indigo-500 disabled:opacity-50"
+          disabled={!editingSuite.title.trim()}
+          on:click={handleUpdateSuite}>Save Changes</button
+        >
       </div>
     </div>
   </div>
 {/if}
 
 {#if showDeleteSuiteModal && suiteToDelete}
-  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" transition:fade={{ duration: 150 }}>
-    <div class="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900">
-      <h2 class="text-xl font-black text-slate-800 dark:text-white">Delete Suite</h2>
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+    transition:fade={{ duration: 150 }}
+  >
+    <div
+      class="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900"
+    >
+      <h2 class="text-xl font-black text-slate-800 dark:text-white">
+        Delete Suite
+      </h2>
       <p class="mt-2 text-sm text-slate-500">
-        Are you sure you want to delete <span class="font-bold text-indigo-500">"{suiteToDelete.title}"</span>?
+        Are you sure you want to delete <span class="font-bold text-indigo-500"
+          >"{suiteToDelete.title}"</span
+        >?
       </p>
-      
+
       <div class="mt-6 space-y-3">
-        <p class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Handle associated cases</p>
-        <button 
-          class="flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all {deleteMode === 'move' ? 'border-indigo-500 bg-indigo-500/5 ring-1 ring-indigo-500' : 'border-slate-200 hover:border-slate-300 dark:border-gray-700'}"
-          on:click={() => deleteMode = 'move'}
+        <p
+          class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400"
         >
-          <div class="grid h-8 w-8 shrink-0 place-items-center rounded-lg {deleteMode === 'move' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 dark:bg-gray-800'}">
+          Handle associated cases
+        </p>
+        <button
+          class="flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all {deleteMode ===
+          'move'
+            ? 'border-indigo-500 bg-indigo-500/5 ring-1 ring-indigo-500'
+            : 'border-slate-200 hover:border-slate-300 dark:border-gray-700'}"
+          on:click={() => (deleteMode = "move")}
+        >
+          <div
+            class="grid h-8 w-8 shrink-0 place-items-center rounded-lg {deleteMode ===
+            'move'
+              ? 'bg-indigo-600 text-white'
+              : 'bg-slate-100 text-slate-500 dark:bg-gray-800'}"
+          >
             <Folder size={16} />
           </div>
           <div>
-            <p class="text-sm font-bold {deleteMode === 'move' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-gray-200'}">Move to Unassigned</p>
-            <p class="text-[11px] text-slate-500">Keep test cases but remove them from this suite</p>
+            <p
+              class="text-sm font-bold {deleteMode === 'move'
+                ? 'text-indigo-600 dark:text-indigo-400'
+                : 'text-slate-700 dark:text-gray-200'}"
+            >
+              Move to Unassigned
+            </p>
+            <p class="text-[11px] text-slate-500">
+              Keep test cases but remove them from this suite
+            </p>
           </div>
         </button>
-        
-        <button 
-          class="flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all {deleteMode === 'delete' ? 'border-rose-500 bg-rose-500/5 ring-1 ring-rose-500' : 'border-slate-200 hover:border-slate-300 dark:border-gray-700'}"
-          on:click={() => deleteMode = 'delete'}
+
+        <button
+          class="flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all {deleteMode ===
+          'delete'
+            ? 'border-rose-500 bg-rose-500/5 ring-1 ring-rose-500'
+            : 'border-slate-200 hover:border-slate-300 dark:border-gray-700'}"
+          on:click={() => (deleteMode = "delete")}
         >
-          <div class="grid h-8 w-8 shrink-0 place-items-center rounded-lg {deleteMode === 'delete' ? 'bg-rose-600 text-white' : 'bg-slate-100 text-slate-500 dark:bg-gray-800'}">
+          <div
+            class="grid h-8 w-8 shrink-0 place-items-center rounded-lg {deleteMode ===
+            'delete'
+              ? 'bg-rose-600 text-white'
+              : 'bg-slate-100 text-slate-500 dark:bg-gray-800'}"
+          >
             <Trash2 size={16} />
           </div>
           <div>
-            <p class="text-sm font-bold {deleteMode === 'delete' ? 'text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-gray-200'}">Delete Everything</p>
-            <p class="text-[11px] text-slate-500">Permanently remove this suite and all its test cases</p>
+            <p
+              class="text-sm font-bold {deleteMode === 'delete'
+                ? 'text-rose-600 dark:text-rose-400'
+                : 'text-slate-700 dark:text-gray-200'}"
+            >
+              Delete Everything
+            </p>
+            <p class="text-[11px] text-slate-500">
+              Permanently remove this suite and all its test cases
+            </p>
           </div>
         </button>
       </div>
 
       <div class="mt-8 flex items-center justify-end gap-3">
-        <button class="rounded-xl px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800" on:click={() => (showDeleteSuiteModal = false)}>Cancel</button>
-        <button class="rounded-xl bg-rose-600 px-6 py-2 text-sm font-black text-white hover:bg-rose-500" on:click={handleDeleteSuite}>Delete Suite</button>
+        <button
+          class="rounded-xl px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
+          on:click={() => (showDeleteSuiteModal = false)}>Cancel</button
+        >
+        <button
+          class="rounded-xl bg-rose-600 px-6 py-2 text-sm font-black text-white hover:bg-rose-500"
+          on:click={handleDeleteSuite}>Delete Suite</button
+        >
       </div>
     </div>
   </div>
 {/if}
-
 
 <style>
   .custom-scrollbar::-webkit-scrollbar {

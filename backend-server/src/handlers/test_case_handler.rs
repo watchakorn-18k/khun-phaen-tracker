@@ -44,6 +44,53 @@ pub async fn list_test_cases(
     }
 }
 
+/// GET /api/test-cases/:id
+pub async fn get_test_case(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    let repo = TestCaseRepository::new(&state.db);
+
+    match repo.find_by_id(&id).await {
+        Ok(Some(tc)) => (StatusCode::OK, Json(tc)).into_response(),
+        Ok(None) => (StatusCode::NOT_FOUND, "Test case not found").into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+/// PATCH /api/test-cases/:id
+pub async fn update_test_case(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    Json(req): Json<serde_json::Value>,
+) -> impl IntoResponse {
+    let repo = TestCaseRepository::new(&state.db);
+
+    let tc = match repo.find_by_id(&id).await {
+        Ok(Some(tc)) => tc,
+        Ok(None) => return (StatusCode::NOT_FOUND, "Test case not found").into_response(),
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+
+    let mut updates = doc! {};
+    if let Some(obj) = req.as_object() {
+        for (k, v) in obj {
+            if k == "id" || k == "_id" || k == "workspace_id" {
+                continue;
+            }
+            if let Ok(bson) = mongodb::bson::to_bson(v) {
+                updates.insert(k, bson);
+            }
+        }
+    }
+
+    match repo.update(&id, &tc.workspace_id, updates).await {
+        Ok(true) => (StatusCode::OK, "Updated").into_response(),
+        Ok(false) => (StatusCode::NOT_FOUND, "Test case not found").into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
 /// GET /api/workspaces/:ws_id/test-suites
 pub async fn list_suites(
     State(state): State<Arc<AppState>>,

@@ -250,6 +250,41 @@
           testNo = `TC-${data.next_number}`;
         }
       }
+
+      // Fetch test case if editing
+      if (isEditing && caseId) {
+        const tcResp = await api.data.testCases.get(caseId);
+        if (tcResp.ok) {
+          const tc = await tcResp.json();
+          name = tc.name || "";
+          suiteId = tc.suite_id || "";
+          description = tc.description || "";
+          preconditions = tc.preconditions || "";
+          postconditions = tc.postconditions || "";
+          status = tc.status || "actual";
+          priority = tc.priority || "medium";
+          assignDev = tc.assign_dev || "unassigned";
+          assignTester = tc.assign_tester || "unassigned";
+          testNo = `TC-${tc.test_no}`;
+          input = tc.input || "";
+          expectedResult = tc.expected_result || "";
+          actualResult = tc.actual_result || "";
+          fixed = tc.fixed || "no";
+          devNote = tc.dev_note || "";
+          testNote = tc.test_note || "";
+          stepFormat = tc.step_format || "classic";
+          
+          if (tc.step_format === "gherkin") {
+            gherkinSteps = tc.gherkin_steps && tc.gherkin_steps.length > 0 ? tc.gherkin_steps : [
+              { keyword: "given", text: "" },
+              { keyword: "when", text: "" },
+              { keyword: "then", text: "" },
+            ];
+          } else if (tc.classic_steps && tc.classic_steps.length > 0) {
+            classicSteps = tc.classic_steps;
+          }
+        }
+      }
     } catch (e) {
       console.error("Failed to initialize editor:", e);
     }
@@ -365,10 +400,13 @@
       };
 
       if (!workspaceId) return;
-      const resp = await api.data.testCases.create(workspaceId, payload);
+      
+      const resp = isEditing && caseId
+        ? await api.data.testCases.update(caseId, payload)
+        : await api.data.testCases.create(workspaceId, payload);
       
       if (resp.ok) {
-        const result = await resp.json();
+        const result = isEditing ? { id: caseId } : await resp.json();
         const testCaseId = result.id;
 
         // Upload attachments if any
@@ -381,11 +419,11 @@
           await api.data.testCases.uploadAttachment(workspaceId, testCaseId, formData);
         }
 
-        ui.showMessage("Test case created successfully", "success");
+        ui.showMessage(isEditing ? "Test case updated successfully" : "Test case created successfully", "success");
         backToRepository();
       } else {
         const error = await resp.json();
-        ui.showMessage(error.error || "Failed to create test case", "error");
+        ui.showMessage(error.error || `Failed to ${isEditing ? 'update' : 'create'} test case`, "error");
       }
     } catch (e) {
       console.error("Save error:", e);

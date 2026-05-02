@@ -1327,5 +1327,6 @@
 	"testCases__quick_create": "+ สร้าง test case แบบด่วน",
 	"testCases__title_placeholder": "ชื่อ Test case",
 	"testCases__created_success": "สร้าง Test case สำเร็จ",
-	"testCases__created_error": "สร้าง Test case ไม่สำเร็จ"
+	"testCases__created_error": "สร้าง Test case ไม่สำเร็จ",
+	"testCases__empty_suite": "ยังไม่มี test case ในชุดนี้"
 }
