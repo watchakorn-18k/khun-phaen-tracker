@@ -662,17 +662,18 @@
             {/if}
             <td class="px-3 py-2 overflow-hidden">
               <div class="flex flex-col min-w-0 w-full gap-1">
-                <div
-                  class="font-semibold text-gray-900 dark:text-white text-sm truncate leading-tight"
-                  title={task.title}
-                >
-                  {#if task.task_number}
-                    <span class="text-gray-500 dark:text-gray-400 mr-1.5 text-[10px] font-bold">
-                      {task.workspace_short_name || $currentWorkspaceShortName || "TASK"}-{task.task_number}
-                    </span>
-                  {/if}
-                  {task.title}
-                </div>
+                <Tooltip text={task.title}>
+                  <div
+                    class="font-semibold text-gray-900 dark:text-white text-sm truncate leading-tight"
+                  >
+                    {#if task.task_number}
+                      <span class="text-gray-500 dark:text-gray-400 mr-1.5 text-[10px] font-bold">
+                        {task.workspace_short_name || $currentWorkspaceShortName || "TASK"}-{task.task_number}
+                      </span>
+                    {/if}
+                    {task.title}
+                  </div>
+                </Tooltip>
 
                 {#if enabledColumns.get('checklist') && task.checklist && task.checklist.length > 0}
                   {@const completed = task.checklist.filter(
@@ -746,30 +747,38 @@
               <td class="px-3 py-2">
                 <div class="flex items-center -space-x-2 overflow-visible">
                   {#if task.assignees && task.assignees.length > 0}
-                    {#each task.assignees.slice(0, 3) as assignee}
-                      <div
-                        class="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full text-[10px] font-bold text-white"
-                        style="background-color: {assignee.color || '#6366f1'}"
-                        title={assignee.name}
-                      >
-                        {#if assignee.avatar_url}
-                          <img
-                            src={assignee.avatar_url}
-                            alt={assignee.name}
-                            class="h-full w-full object-cover"
-                          />
-                        {:else}
-                          {assignee.name?.[0]?.toUpperCase() || "?"}
+                    <Tooltip>
+                      <div class="flex items-center -space-x-2">
+                        {#each task.assignees.slice(0, 3) as assignee}
+                          <div
+                            class="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full text-[10px] font-bold text-white"
+                            style="background-color: {assignee.color || '#6366f1'}"
+                          >
+                            {#if assignee.avatar_url}
+                              <img
+                                src={assignee.avatar_url}
+                                alt={assignee.name}
+                                class="h-full w-full object-cover"
+                              />
+                            {:else}
+                              {assignee.name?.[0]?.toUpperCase() || "?"}
+                            {/if}
+                          </div>
+                        {/each}
+                        {#if task.assignees.length > 3}
+                          <div
+                            class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 text-[10px] font-bold text-gray-700 dark:text-gray-200"
+                          >
+                            +{task.assignees.length - 3}
+                          </div>
                         {/if}
                       </div>
-                    {/each}
-                    {#if task.assignees.length > 3}
-                      <div
-                        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 text-[10px] font-bold text-gray-700 dark:text-gray-200"
-                      >
-                        +{task.assignees.length - 3}
-                      </div>
-                    {/if}
+                      <svelte:fragment slot="content">
+                        {#each task.assignees as assignee}
+                          <span class="block">{assignee.name}</span>
+                        {/each}
+                      </svelte:fragment>
+                    </Tooltip>
                   {:else}
                     <span class="text-gray-400 dark:text-gray-500 text-sm">-</span>
                   {/if}
@@ -940,17 +949,18 @@
                         <PriorityBadge priority={task.priority} />
                       </div>
                     {/if}
-                    <h3
-                      class="font-semibold text-gray-900 dark:text-white text-sm line-clamp-2"
-                      title={task.title}
-                    >
-                      {#if task.task_number}
-                        <span class="text-gray-500 dark:text-gray-400 mr-1.5 text-[10px] font-bold">
-                          {task.workspace_short_name || $currentWorkspaceShortName || "TASK"}-{task.task_number}
-                        </span>
-                      {/if}
-                      {task.title}
-                    </h3>
+                    <Tooltip text={task.title}>
+                      <h3
+                        class="font-semibold text-gray-900 dark:text-white text-sm line-clamp-2"
+                      >
+                        {#if task.task_number}
+                          <span class="text-gray-500 dark:text-gray-400 mr-1.5 text-[10px] font-bold">
+                            {task.workspace_short_name || $currentWorkspaceShortName || "TASK"}-{task.task_number}
+                          </span>
+                        {/if}
+                        {task.title}
+                      </h3>
+                    </Tooltip>
                   </div>
                   <div class="flex items-center gap-1 shrink-0">
                     <button

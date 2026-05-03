@@ -5,6 +5,7 @@ import { persistFilters } from "$lib/stores/filterActions";
 import { api } from "$lib/apis";
 import { get } from "svelte/store";
 import { page } from "$app/stores";
+import { currentWorkspaceName } from "$lib/stores/workspace";
 
 type NotifyType = "success" | "error";
 
@@ -90,11 +91,13 @@ export function createSprintActions(deps: SprintActionDeps) {
           })
         : [`- ${deps.t("sprintManager__markdown_no_tasks")}`];
 
+    const workspaceName = get(currentWorkspaceName);
     const body = {
       embeds: [
         {
           title: deps.t("sprintManager__webhook_embed_title"),
           description: [
+            ...(workspaceName ? [`Workspace: **${workspaceName}**`] : []),
             `${deps.t("sprintManager__webhook_sprint_label")}: **${sprintName}**`,
             `${deps.t("sprintManager__webhook_done_total", {
               values: { count: doneTasks.length },
@@ -104,7 +107,11 @@ export function createSprintActions(deps: SprintActionDeps) {
           ].join("\n"),
           color: parseInt("22C55E", 16),
           timestamp: new Date().toISOString(),
-          footer: { text: "Khun Phaen Task Tracker" },
+          footer: {
+            text: workspaceName
+              ? `Khun Phaen Task Tracker · ${workspaceName}`
+              : "Khun Phaen Task Tracker",
+          },
         },
       ],
     };

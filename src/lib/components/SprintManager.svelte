@@ -568,17 +568,28 @@
                 </span>
               </p>
             </div>
-            <div class="text-right">
-              <div
-                class="text-2xl font-bold text-green-700 dark:text-green-400"
-              >
-                {getTaskCount(activeSprint.id!).done}/{getTaskCount(
-                  activeSprint.id!,
-                ).total}
+            <div class="text-right flex flex-col items-end gap-2">
+              <div>
+                <div
+                  class="text-2xl font-bold text-green-700 dark:text-green-400"
+                >
+                  {getTaskCount(activeSprint.id!).done}/{getTaskCount(
+                    activeSprint.id!,
+                  ).total}
+                </div>
+                <div class="text-xs text-green-600 dark:text-green-500">
+                  {$_("sprintManager__tasks_done")}
+                </div>
               </div>
-              <div class="text-xs text-green-600 dark:text-green-500">
-                {$_("sprintManager__tasks_done")}
-              </div>
+              {#if isOwner}
+                <button
+                  on:click={() => startComplete(activeSprint.id!)}
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                >
+                  <CheckCircle2 size={13} />
+                  {$_("sprintManager__complete_hint")}
+                </button>
+              {/if}
             </div>
           </div>
         </div>
@@ -849,6 +860,7 @@
                         ></div>
                       </div>
                     {/if}
+
                   </div>
 
                   <!-- Actions -->
@@ -1229,38 +1241,44 @@
         {/if}
       </div>
 
-      <div class="space-y-2">
-        <div class="flex gap-3">
-          <button
-            on:click={confirmComplete}
-            class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-          >
-            <CheckCircle2 size={16} />
-            {$_("sprintManager__btn_confirm_complete")}
-          </button>
-          <button
-            on:click={cancelComplete}
-            class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          >
-            {$_("common.cancel")}
-          </button>
+      <div class="space-y-3">
+        <button
+          on:click={confirmComplete}
+          class="w-full bg-green-600 hover:bg-green-700 text-white py-2.5 px-4 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 text-base"
+        >
+          <CheckCircle2 size={18} />
+          {$_("sprintManager__btn_confirm_complete")}
+        </button>
+
+        <div class="relative flex items-center gap-3">
+          <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+          <span class="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">ส่งออกพร้อมจบ Sprint</span>
+          <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
         </div>
+
         <div class="grid grid-cols-2 gap-2">
           <button
             on:click={() => confirmCompleteWithExport("markdown")}
-            class="px-3 py-2 border border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors text-sm flex items-center justify-center gap-2"
+            class="px-3 py-2 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 rounded-lg hover:border-blue-300 hover:text-blue-600 dark:hover:border-blue-700 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors text-xs flex items-center justify-center gap-1.5"
           >
-            <FileCode size={14} />
+            <FileCode size={13} />
             {$_("sprintManager__btn_complete_export_md")}
           </button>
           <button
             on:click={() => confirmCompleteWithExport("video")}
-            class="px-3 py-2 border border-orange-200 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors text-sm flex items-center justify-center gap-2"
+            class="px-3 py-2 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 rounded-lg hover:border-orange-300 hover:text-orange-600 dark:hover:border-orange-700 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors text-xs flex items-center justify-center gap-1.5"
           >
-            <Video size={14} />
+            <Video size={13} />
             {$_("sprintManager__btn_complete_export_video")}
           </button>
         </div>
+
+        <button
+          on:click={cancelComplete}
+          class="w-full py-2 text-sm font-medium text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+        >
+          {$_("common.cancel")}
+        </button>
       </div>
     </div>
   </div>
