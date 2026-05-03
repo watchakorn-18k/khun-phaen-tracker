@@ -48,6 +48,7 @@
     Copy,
     RotateCcw,
     FileCheck,
+    MinusCircle,
   } from "lucide-svelte";
   import { _ } from "svelte-i18n";
   import TestCaseStepList from "$lib/components/TestCaseStepList.svelte";
@@ -75,7 +76,7 @@
     title: string;
     type: "manual" | "automated";
     priority: "high" | "medium" | "low";
-    status: "draft" | "actual" | "failed" | "blocked" | "deprecated" | "pass";
+    status: "draft" | "actual" | "failed" | "blocked" | "deprecated" | "passed";
     assignee?: string;
     description: string;
     preconditions?: string;
@@ -136,14 +137,49 @@
   };
 
   type TestRun = {
-    id: string;
+    _id: string;
     name: string;
-    description: string;
-    defaultAssignee: string;
-    operatingSystem: string;
-    testCaseIds: string[];
-    createdAt: string;
-    status: "pending" | "running" | "completed";
+    description: string | null;
+    default_assignee: string;
+    operating_system: string;
+    test_cases: { test_case_id: string; status: string }[];
+    created_at: string;
+    status: "running" | "completed" | "aborted";
+  };
+
+  type TestRunCaseDetail = {
+    test_case_id: string;
+    status: string;
+    test_case: {
+      id: string;
+      test_no: number;
+      name: string;
+      suite_id: string;
+      priority: string;
+      status: string;
+    } | null;
+  };
+
+  type TestRunDetail = {
+    id: string;
+    workspace_id: string;
+    name: string;
+    description: string | null;
+    default_assignee: string;
+    operating_system: string;
+    status: string;
+    test_cases: TestRunCaseDetail[];
+    stats: {
+      total: number;
+      pending: number;
+      passed: number;
+      failed: number;
+      blocked: number;
+      skipped: number;
+      invalid: number;
+    };
+    created_at: string | null;
+    updated_at: string | null;
   };
 
   type NewTestRunForm = {
@@ -207,6 +243,8 @@
   let showDetail = false;
   let detailPanelWidth = 420;
   let stopPanelResize: (() => void) | null = null;
+  let leftSidebarWidth = 256;
+  let stopSidebarResize: (() => void) | null = null;
   let showTestCaseModal = false;
   let testCaseForm: TestCaseForm = {
     name: "",
@@ -269,7 +307,15 @@
   let caseToDeleteId = "";
 
   let testRuns: TestRun[] = [];
+  let testRunsPage = 1;
+  let testRunsTotal = 0;
+  let testRunsLimit = 10;
+  let isLoadingMoreRuns = false;
   let showNewTestRunModal = false;
+  let viewMode: "suites" | "test-run" = "suites";
+  let selectedRunDetail: TestRunDetail | null = null;
+  let isLoadingRunDetail = false;
+  let updatingCaseId: string | null = null;
   let newTestRunForm: NewTestRunForm = {
     name: "",
     description: "",
@@ -280,6 +326,7 @@
   let testRunSearchQuery = "";
   let testRunSearchField = "all";
   let isTestRunsOpen = true;
+  let isSuitesOpen = true;
   let showTestRunFilterDropdown = false;
   let testRunActiveFilterProperty: string | null = null;
   let testRunActiveFilters: Record<string, string[]> = {
@@ -296,14 +343,21 @@
     if (!testRunActiveFilters[property]) testRunActiveFilters[property] = [];
     const idx = testRunActiveFilters[property].indexOf(value);
     if (idx >= 0) {
-      testRunActiveFilters[property] = testRunActiveFilters[property].filter(v => v !== value);
+      testRunActiveFilters[property] = testRunActiveFilters[property].filter(
+        (v) => v !== value,
+      );
     } else {
-      testRunActiveFilters[property] = [...testRunActiveFilters[property], value];
+      testRunActiveFilters[property] = [
+        ...testRunActiveFilters[property],
+        value,
+      ];
     }
     testRunActiveFilters = { ...testRunActiveFilters };
   }
 
-  $: hasTestRunFilters = Object.values(testRunActiveFilters).some(v => v.length > 0);
+  $: hasTestRunFilters = Object.values(testRunActiveFilters).some(
+    (v) => v.length > 0,
+  );
 
   const osOptions = [
     { value: "", label: "Select value" },
@@ -357,41 +411,222 @@
     selectedTestCaseIds = next;
   }
 
-  function handleCreateTestRun() {
-    if (!newTestRunForm.name.trim()) return;
-    const run: TestRun = {
-      id: crypto.randomUUID(),
-      name: newTestRunForm.name.trim(),
-      description: newTestRunForm.description.trim(),
-      defaultAssignee: newTestRunForm.defaultAssignee,
-      operatingSystem: newTestRunForm.operatingSystem,
-      testCaseIds: Array.from(selectedTestCaseIds),
-      createdAt: new Date().toISOString(),
-      status: "pending",
-    };
-    testRuns = [run, ...testRuns];
-    saveTestRunsToStorage();
-    showNewTestRunModal = false;
-    ui.showMessage("Test run created", "success");
-  }
-
-  function saveTestRunsToStorage() {
+  async function handleCreateTestRun() {
+    if (!newTestRunForm.name.trim() || !workspaceId) return;
     try {
-      localStorage.setItem(
-        `test-runs-${workspaceId}`,
-        JSON.stringify(testRuns),
-      );
-    } catch {}
-  }
-
-  function loadTestRunsFromStorage() {
-    try {
-      const raw = localStorage.getItem(`test-runs-${workspaceId}`);
-      testRuns = raw ? JSON.parse(raw) : [];
-    } catch {
-      testRuns = [];
+      const res = await api.testRuns.create(workspaceId, {
+        name: newTestRunForm.name.trim(),
+        description: newTestRunForm.description.trim() || undefined,
+        default_assignee: newTestRunForm.defaultAssignee,
+        operating_system: newTestRunForm.operatingSystem,
+        test_case_ids: Array.from(selectedTestCaseIds),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const created: TestRun = await res.json();
+      testRuns = [created, ...testRuns];
+      testRunsTotal++;
+      showNewTestRunModal = false;
+      isSuitesOpen = false;
+      openTestRun(created);
+      ui.showMessage("Test run created", "success");
+    } catch (e) {
+      ui.showMessage("Failed to create test run", "error");
     }
   }
+
+  async function loadTestRunsFromStorage() {
+    if (!workspaceId) return;
+    try {
+      testRunsPage = 1;
+      const res = await api.testRuns.list(workspaceId, 1, testRunsLimit);
+      if (res.ok) {
+        const body = await res.json();
+        testRuns = body.data;
+        testRunsTotal = body.total;
+      }
+    } catch {
+      testRuns = [];
+      testRunsTotal = 0;
+    }
+  }
+
+  async function loadMoreTestRuns() {
+    if (!workspaceId || isLoadingMoreRuns) return;
+    isLoadingMoreRuns = true;
+    try {
+      const nextPage = testRunsPage + 1;
+      const res = await api.testRuns.list(workspaceId, nextPage, testRunsLimit);
+      if (res.ok) {
+        const body = await res.json();
+        testRuns = [...testRuns, ...body.data];
+        testRunsTotal = body.total;
+        testRunsPage = nextPage;
+      }
+    } catch {
+      // ignore
+    } finally {
+      isLoadingMoreRuns = false;
+    }
+  }
+
+  async function openTestRun(run: TestRun) {
+    if (!workspaceId) return;
+    isLoadingRunDetail = true;
+    viewMode = "test-run";
+    selectedRunDetail = null;
+    try {
+      const res = await api.testRuns.get(workspaceId, run._id);
+      if (res.ok) selectedRunDetail = await res.json();
+    } catch {}
+    isLoadingRunDetail = false;
+  }
+
+  function closeTestRun() {
+    viewMode = "suites";
+    selectedRunDetail = null;
+  }
+
+  async function updateRunCaseStatus(tcId: string, status: string) {
+    if (!workspaceId || !selectedRunDetail) return;
+    updatingCaseId = tcId;
+    try {
+      const res = await api.testRuns.updateCaseStatus(
+        workspaceId,
+        selectedRunDetail.id,
+        tcId,
+        status,
+      );
+      if (res.ok) {
+        selectedRunDetail = {
+          ...selectedRunDetail,
+          test_cases: selectedRunDetail.test_cases.map((c) =>
+            c.test_case_id === tcId ? { ...c, status } : c,
+          ),
+        };
+        // recompute stats locally
+        const counts = {
+          pending: 0,
+          passed: 0,
+          failed: 0,
+          blocked: 0,
+          skipped: 0,
+          invalid: 0,
+        };
+        for (const c of selectedRunDetail.test_cases) {
+          const k = c.status as keyof typeof counts;
+          if (k in counts) counts[k]++;
+          else counts.pending++;
+        }
+        selectedRunDetail = {
+          ...selectedRunDetail,
+          stats: { total: selectedRunDetail.test_cases.length, ...counts },
+        };
+
+        // Sync main test case status on pass/fail
+        // Map test run statuses to test case statuses: "passed" → "passed", "failed" → "failed"
+        if (status === "passed" || status === "failed") {
+          const tcStatus = status === "passed" ? "passed" : "failed";
+          const tcRes = await api.data.testCases.updateStatus(tcId, tcStatus);
+          if (tcRes.ok) {
+            suites = suites.map((s) => ({
+              ...s,
+              cases: s.cases.map((c) =>
+                c.id === tcId ? { ...c, status: tcStatus as any } : c,
+              ),
+            }));
+          }
+        }
+      }
+    } catch {}
+    updatingCaseId = null;
+  }
+
+  async function updateRunStatus(status: string) {
+    if (!workspaceId || !selectedRunDetail) return;
+    const res = await api.testRuns.updateStatus(
+      workspaceId,
+      selectedRunDetail.id,
+      status,
+    );
+    if (res.ok) {
+      selectedRunDetail = { ...selectedRunDetail, status };
+      testRuns = testRuns.map((r) =>
+        r._id === selectedRunDetail!.id ? { ...r, status: status as any } : r,
+      );
+    }
+  }
+
+  let showDeleteRunModal = false;
+  let runToDelete: TestRun | null = null;
+  let suiteMenuId: string | null = null;
+  let runMenuId: string | null = null;
+  let contextMenuX = 0;
+  let contextMenuY = 0;
+
+  function openContextMenu(e: MouseEvent, type: "suite" | "run", id: string) {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    contextMenuX = rect.right + 2;
+    contextMenuY = rect.top - 4;
+    if (type === "suite") suiteMenuId = id;
+    else runMenuId = id;
+  }
+
+  async function confirmDeleteTestRun() {
+    const target =
+      runToDelete ??
+      (selectedRunDetail ? ({ _id: selectedRunDetail.id } as any) : null);
+    if (!workspaceId || !target) return;
+    const res = await api.testRuns.delete(workspaceId, target._id);
+    if (res.ok) {
+      testRuns = testRuns.filter((r) => r._id !== target._id);
+      testRunsTotal = Math.max(0, testRunsTotal - 1);
+      if (selectedRunDetail?.id === target._id) closeTestRun();
+      showDeleteRunModal = false;
+      runToDelete = null;
+      ui.showMessage("Test run deleted", "success");
+    } else {
+      ui.showMessage("Failed to delete test run", "error");
+    }
+  }
+
+  const RUN_CASE_STATUSES = [
+    {
+      value: "pending",
+      label: "Pending",
+      icon: CircleDashed,
+      iconClass: "text-slate-400",
+    },
+    {
+      value: "passed",
+      label: "Passed",
+      icon: CheckCircle2,
+      iconClass: "text-emerald-500",
+    },
+    {
+      value: "failed",
+      label: "Failed",
+      icon: XCircle,
+      iconClass: "text-red-500",
+    },
+    {
+      value: "blocked",
+      label: "Blocked",
+      icon: Ban,
+      iconClass: "text-orange-500",
+    },
+    {
+      value: "skipped",
+      label: "Skipped",
+      icon: MinusCircle,
+      iconClass: "text-blue-400",
+    },
+    {
+      value: "invalid",
+      label: "Invalid",
+      icon: AlertCircle,
+      iconClass: "text-purple-500",
+    },
+  ];
 
   let editingField: string | null = null;
   let tempFieldValue = "";
@@ -1622,22 +1857,22 @@
       iconClass: "text-blue-400",
     },
     {
-      value: "pass",
-      label: "Pass",
+      value: "passed",
+      label: "Passed",
       icon: CheckCircle2,
-      iconClass: "text-green-400",
+      iconClass: "text-emerald-500",
     },
     {
       value: "failed",
       label: "Failed",
       icon: XCircle,
-      iconClass: "text-rose-400",
+      iconClass: "text-red-500",
     },
     {
       value: "blocked",
       label: "Blocked",
       icon: Ban,
-      iconClass: "text-slate-500",
+      iconClass: "text-orange-500",
     },
     {
       value: "deprecated",
@@ -1694,17 +1929,31 @@
         );
 
   $: testRunAssigneeOptions = (() => {
-    const meEntry = assignees.find(a => String(a.user_id) === String($user?.id));
-    const rest = assigneeOptions.filter(o => o.value !== "unassigned" && String(o.user_id) !== String($user?.id));
+    const meEntry = assignees.find(
+      (a) => String(a.user_id) === String($user?.id),
+    );
+    const rest = assigneeOptions.filter(
+      (o) =>
+        o.value !== "unassigned" && String(o.user_id) !== String($user?.id),
+    );
     return [
-      { value: "unassigned", label: "Unassigned", user_id: null, avatarColor: "#64748b" },
-      ...(meEntry ? [{
-        value: String(meEntry.id),
-        label: "Me",
-        user_id: meEntry.user_id,
-        avatarUrl: meEntry.avatar_url || meEntry.avatarUrl,
-        avatarColor: meEntry.color || "#6366f1",
-      }] : []),
+      {
+        value: "unassigned",
+        label: "Unassigned",
+        user_id: null,
+        avatarColor: "#64748b",
+      },
+      ...(meEntry
+        ? [
+            {
+              value: String(meEntry.id),
+              label: "Me",
+              user_id: meEntry.user_id,
+              avatarUrl: meEntry.avatar_url || meEntry.avatarUrl,
+              avatarColor: meEntry.color || "#6366f1",
+            },
+          ]
+        : []),
       ...rest,
     ];
   })();
@@ -1945,6 +2194,42 @@
     };
   }
 
+  function clampSidebarWidth(w: number) {
+    return Math.min(Math.max(w, 180), 480);
+  }
+
+  function startSidebarResize(event: PointerEvent) {
+    if (!browser) return;
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = leftSidebarWidth;
+
+    const onMove = (e: PointerEvent) => {
+      leftSidebarWidth = clampSidebarWidth(startWidth + e.clientX - startX);
+    };
+    const onUp = () => {
+      localStorage.setItem(
+        "test-case-left-sidebar-width",
+        String(leftSidebarWidth),
+      );
+      stopSidebarResize?.();
+      stopSidebarResize = null;
+    };
+
+    stopSidebarResize?.();
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp, { once: true });
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    stopSidebarResize = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }
+
   onMount(() => {
     if (!browser) return;
     const savedWidth = Number(
@@ -1953,13 +2238,44 @@
     if (Number.isFinite(savedWidth) && savedWidth > 0) {
       detailPanelWidth = clampDetailWidth(savedWidth);
     }
+    const savedSidebarWidth = Number(
+      localStorage.getItem("test-case-left-sidebar-width"),
+    );
+    if (Number.isFinite(savedSidebarWidth) && savedSidebarWidth > 0) {
+      leftSidebarWidth = clampSidebarWidth(savedSidebarWidth);
+    }
+    document.addEventListener("click", handleGlobalClick, true);
   });
 
   onDestroy(() => {
     stopPanelResize?.();
+    stopSidebarResize?.();
+    document.removeEventListener("click", handleGlobalClick, true);
   });
   function autofocus(node: HTMLElement) {
     node.focus();
+  }
+
+  function clickOutside(node: HTMLElement, callback: () => void) {
+    const handler = (e: MouseEvent) => {
+      if (!node.contains(e.target as Node)) callback();
+    };
+    document.addEventListener("click", handler, true);
+    return {
+      destroy: () => document.removeEventListener("click", handler, true),
+    };
+  }
+
+  function closeContextMenus() {
+    suiteMenuId = null;
+    runMenuId = null;
+  }
+
+  function handleGlobalClick(e: MouseEvent) {
+    const target = e.target as HTMLElement;
+    if (!target.closest("[data-context-menu]")) {
+      closeContextMenus();
+    }
   }
 </script>
 
@@ -2315,329 +2631,711 @@
 
       <div class="flex min-h-0 flex-1">
         <aside
-          class="hidden w-64 shrink-0 border-r border-gray-200 bg-white p-4 lg:block dark:border-gray-800 dark:bg-gray-950"
+          class="relative hidden shrink-0 border-r border-gray-200 bg-white lg:block dark:border-gray-800 dark:bg-gray-950"
+          style="width: {leftSidebarWidth}px"
         >
-          <div class="mb-3 flex items-center gap-2">
-            <button
-              class="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-slate-500 dark:bg-gray-800 dark:text-gray-300"
-              title="Toggle suites"
-            >
-              <ChevronsUpDown size={16} />
-            </button>
-            <h2 class="text-lg font-black text-slate-800 dark:text-white">
-              Suites
-            </h2>
-            {#if isAuthorized}
-              <button
-                class="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
-                title="Add suite"
-                on:click={() => (showCreateSuiteModal = true)}
-              >
-                <Plus size={16} />
-              </button>
-            {/if}
-          </div>
-
-          <div class="space-y-1">
-            {#each suites as suite}
-              <button
-                class="group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors {selectedSuiteId ===
-                suite.id
-                  ? 'bg-slate-100 font-black text-slate-800 dark:bg-gray-800 dark:text-white'
-                  : 'font-bold text-slate-600 hover:bg-slate-50 dark:text-gray-400 dark:hover:bg-gray-900'}"
-                on:click={() => selectSuite(suite)}
-              >
-                <ChevronDown size={14} class="shrink-0 text-slate-500" />
-                <span class="min-w-0 flex-1 truncate">{suite.title}</span>
-                <span class="text-xs font-black text-slate-500"
-                  >{suite.totalCount ?? suite.cases?.length ?? 0}</span
-                >
-                <MoreHorizontal
-                  size={14}
-                  class="text-slate-400 opacity-0 transition-opacity group-hover:opacity-100"
-                />
-              </button>
-            {/each}
-          </div>
-
-          <!-- Test Runs Section -->
-          <div class="mt-6 border-t border-gray-100 dark:border-gray-800 pt-4">
+          <button
+            class="absolute right-0 top-0 z-20 h-full w-1.5 cursor-col-resize border-0 bg-transparent transition-colors hover:bg-indigo-500/20 focus:bg-indigo-500/20 focus:outline-none"
+            aria-label="Resize sidebar"
+            on:pointerdown={startSidebarResize}
+          ></button>
+          <div class="h-full overflow-y-auto pl-4 pr-3 pt-4 pb-4">
             <div class="mb-2 flex items-center gap-2">
               <button
                 class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors"
-                title="Toggle test runs"
-                on:click={() => (isTestRunsOpen = !isTestRunsOpen)}
+                title="Toggle suites"
+                on:click={() => (isSuitesOpen = !isSuitesOpen)}
               >
-                <ChevronDown size={16} class="transition-transform duration-200 {isTestRunsOpen ? '' : '-rotate-90'}" />
+                <ChevronDown
+                  size={16}
+                  class="transition-transform duration-200 {isSuitesOpen
+                    ? ''
+                    : '-rotate-90'}"
+                />
               </button>
-              <h2 class="text-lg font-black text-slate-800 dark:text-white flex-1">
-                Test Runs
+              <h2
+                class="text-lg font-black text-slate-800 dark:text-white flex-1"
+              >
+                Suites
               </h2>
-              <span class="text-xs font-black text-slate-400">{testRuns.length}</span>
               {#if isAuthorized}
                 <button
                   class="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
-                  title="New test run"
-                  on:click={openNewTestRunModal}
+                  title="Add suite"
+                  on:click={() => (showCreateSuiteModal = true)}
                 >
                   <Plus size={16} />
                 </button>
               {/if}
             </div>
 
-            {#if isTestRunsOpen}
-              {#if testRuns.length === 0}
-                <p class="px-2 py-2 text-xs text-slate-400 dark:text-gray-500">No test runs yet</p>
-              {:else}
-                <div class="space-y-1">
-                  {#each testRuns as run}
-                    <div class="group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm font-bold text-slate-600 hover:bg-slate-50 dark:text-gray-400 dark:hover:bg-gray-900 transition-colors">
-                      <div class="h-2 w-2 shrink-0 rounded-full {run.status === 'completed' ? 'bg-emerald-500' : run.status === 'running' ? 'bg-amber-400' : 'bg-slate-300 dark:bg-gray-600'}"></div>
-                      <span class="min-w-0 flex-1 truncate">{run.name}</span>
-                      <span class="text-xs font-black text-slate-400">{run.testCaseIds.length}</span>
-                    </div>
-                  {/each}
-                </div>
-              {/if}
+            {#if isSuitesOpen}
+              <div class="space-y-1">
+                {#each suites as suite}
+                  <div
+                    class="group relative flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors {selectedSuiteId ===
+                    suite.id
+                      ? 'bg-slate-100 dark:bg-gray-800'
+                      : 'hover:bg-slate-50 dark:hover:bg-gray-900'}"
+                  >
+                    <button
+                      class="flex flex-1 min-w-0 items-center gap-2 text-left {selectedSuiteId ===
+                      suite.id
+                        ? 'font-black text-slate-800 dark:text-white'
+                        : 'font-bold text-slate-600 dark:text-gray-400'}"
+                      on:click={() => selectSuite(suite)}
+                    >
+                      <ChevronDown size={14} class="shrink-0 text-slate-500" />
+                      <span class="min-w-0 flex-1 truncate">{suite.title}</span>
+                      <span class="text-xs font-black text-slate-500"
+                        >{suite.totalCount ?? suite.cases?.length ?? 0}</span
+                      >
+                    </button>
+                    {#if isAuthorized}
+                      <div class="relative shrink-0" data-context-menu>
+                        <button
+                          class="grid h-6 w-6 place-items-center rounded text-slate-400 opacity-0 group-hover:opacity-100 hover:bg-slate-200 dark:hover:bg-gray-700 transition-all"
+                          on:click|stopPropagation={(e) =>
+                            openContextMenu(e, "suite", suite.id)}
+                        >
+                          <MoreHorizontal size={14} />
+                        </button>
+                        {#if suiteMenuId === suite.id}
+                          <div
+                            class="fixed z-[9999] min-w-[140px] rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-slate-900 shadow-xl py-1"
+                            style="top: {contextMenuY}px; left: {contextMenuX}px"
+                            data-context-menu
+                          >
+                            <button
+                              class="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                              on:click|stopPropagation={() => {
+                                suiteToDelete = suite;
+                                showDeleteSuiteModal = true;
+                                suiteMenuId = null;
+                              }}
+                            >
+                              <Trash2 size={14} />
+                              Delete suite
+                            </button>
+                          </div>
+                        {/if}
+                      </div>
+                    {/if}
+                  </div>
+                {/each}
+              </div>
             {/if}
+
+            <!-- Test Runs Section -->
+            <div
+              class="mt-6 border-t border-gray-100 dark:border-gray-800 pt-4"
+            >
+              <div class="mb-2 flex items-center gap-2">
+                <button
+                  class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors"
+                  title="Toggle test runs"
+                  on:click={() => (isTestRunsOpen = !isTestRunsOpen)}
+                >
+                  <ChevronDown
+                    size={16}
+                    class="transition-transform duration-200 {isTestRunsOpen
+                      ? ''
+                      : '-rotate-90'}"
+                  />
+                </button>
+                <h2
+                  class="text-lg font-black text-slate-800 dark:text-white flex-1"
+                >
+                  Test Runs
+                </h2>
+                <span class="text-xs font-black text-slate-400"
+                  >{testRunsTotal || testRuns.length}</span
+                >
+                {#if isAuthorized}
+                  <button
+                    class="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                    title="New test run"
+                    on:click={openNewTestRunModal}
+                  >
+                    <Plus size={16} />
+                  </button>
+                {/if}
+              </div>
+
+              {#if isTestRunsOpen}
+                {#if testRuns.length === 0}
+                  <p
+                    class="px-2 py-2 text-xs text-slate-400 dark:text-gray-500"
+                  >
+                    No test runs yet
+                  </p>
+                {:else}
+                  <div class="space-y-1">
+                    {#each testRuns as run}
+                      <div
+                        class="group relative flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-bold transition-colors {selectedRunDetail?.id ===
+                        run._id
+                          ? 'bg-indigo-50 dark:bg-indigo-500/10'
+                          : 'hover:bg-slate-50 dark:hover:bg-gray-900'}"
+                      >
+                        <button
+                          class="flex flex-1 min-w-0 items-center gap-2 text-left {selectedRunDetail?.id ===
+                          run._id
+                            ? 'text-indigo-700 dark:text-indigo-400'
+                            : 'text-slate-600 dark:text-gray-400'}"
+                          on:click={() => openTestRun(run)}
+                        >
+                          <div
+                            class="h-2 w-2 shrink-0 rounded-full {run.status ===
+                            'completed'
+                              ? 'bg-emerald-500'
+                              : run.status === 'running'
+                                ? 'bg-amber-400'
+                                : 'bg-slate-300 dark:bg-gray-600'}"
+                          ></div>
+                          <span class="min-w-0 flex-1 truncate">{run.name}</span
+                          >
+                          <span class="text-xs font-black text-slate-400"
+                            >{run.test_cases.length}</span
+                          >
+                        </button>
+                        {#if isAuthorized}
+                          <div class="relative shrink-0" data-context-menu>
+                            <button
+                              class="grid h-6 w-6 place-items-center rounded text-slate-400 opacity-0 group-hover:opacity-100 hover:bg-slate-200 dark:hover:bg-gray-700 transition-all"
+                              on:click|stopPropagation={(e) =>
+                                openContextMenu(e, "run", run._id)}
+                            >
+                              <MoreHorizontal size={14} />
+                            </button>
+                            {#if runMenuId === run._id}
+                              <div
+                                class="fixed z-[9999] min-w-[140px] rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-slate-900 shadow-xl py-1"
+                                style="top: {contextMenuY}px; left: {contextMenuX}px"
+                                data-context-menu
+                              >
+                                <button
+                                  class="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                                  on:click|stopPropagation={() => {
+                                    runToDelete = run;
+                                    showDeleteRunModal = true;
+                                    runMenuId = null;
+                                  }}
+                                >
+                                  <Trash2 size={14} />
+                                  Delete run
+                                </button>
+                              </div>
+                            {/if}
+                          </div>
+                        {/if}
+                      </div>
+                    {/each}
+                    {#if testRuns.length < testRunsTotal}
+                      <button
+                        class="flex w-full items-center justify-center gap-1.5 mt-2 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-500 dark:text-gray-400 bg-slate-100 dark:bg-gray-800 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        disabled={isLoadingMoreRuns}
+                        on:click={loadMoreTestRuns}
+                      >
+                        {#if isLoadingMoreRuns}
+                          <svg
+                            class="animate-spin w-3 h-3"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              class="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              stroke-width="4"
+                            ></circle>
+                            <path
+                              class="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8v8z"
+                            ></path>
+                          </svg>
+                          <span>Loading...</span>
+                        {:else}
+                          <svg
+                            class="w-3 h-3"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2.5"
+                              d="M19 9l-7 7-7-7"
+                            />
+                          </svg>
+                          <span>{testRunsTotal - testRuns.length} more</span>
+                        {/if}
+                      </button>
+                    {/if}
+                  </div>
+                {/if}
+              {/if}
+            </div>
           </div>
         </aside>
 
-        <main
-          class="min-w-0 flex-1 overflow-y-auto bg-white p-4 dark:bg-gray-950"
-        >
-          <div class="space-y-7">
-            {#each filteredSuites as suite}
-              <section id="suite-{suite.id}" class="scroll-mt-4">
-                <div
-                  class="flex min-h-12 items-center gap-3 rounded-t-lg px-5 transition-colors duration-300 {selectedSuiteId === suite.id ? 'bg-indigo-50 dark:bg-indigo-500/10 border-b border-indigo-100 dark:border-indigo-500/20' : 'bg-slate-100 dark:bg-gray-900'}"
+        <main class="min-w-0 flex-1 overflow-y-auto bg-white dark:bg-gray-950">
+          {#if viewMode === "test-run"}
+            <!-- ══ TEST RUN VIEW ══ -->
+            <div class="flex flex-col h-full">
+              <!-- Run header -->
+              <div
+                class="flex items-center gap-3 px-6 py-4 border-b border-slate-100 dark:border-gray-800 shrink-0"
+              >
+                <button
+                  class="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-gray-800"
+                  on:click={closeTestRun}
                 >
-                  <h3
-                    class="min-w-0 flex-1 truncate text-base font-black text-slate-700 dark:text-white"
+                  <ChevronLeft size={18} />
+                </button>
+                <div class="flex items-center gap-3 min-w-0 flex-1">
+                  <h2
+                    class="text-lg font-black text-slate-800 dark:text-white truncate"
                   >
-                    {suite.title}
-                  </h3>
-                  {#if isAuthorized}
-                    <button
-                      class="grid h-8 w-8 place-items-center rounded-md text-indigo-600 hover:bg-white dark:text-indigo-400 dark:hover:bg-gray-800"
-                      title="Add case"
-                      on:click={() => openTestCaseEditor(suite.id)}
+                    {selectedRunDetail?.name ?? "Test run"}
+                  </h2>
+                  {#if selectedRunDetail}
+                    <span
+                      class="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-black
+                      {selectedRunDetail.status === 'completed'
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400'
+                        : selectedRunDetail.status === 'aborted'
+                          ? 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'
+                          : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'}"
                     >
-                      <Plus size={16} />
-                    </button>
-                    <button
-                      class="grid h-8 w-8 place-items-center rounded-md text-slate-400 hover:bg-white hover:text-slate-700 dark:hover:bg-gray-800 dark:hover:text-white"
-                      title="Edit suite"
-                      on:click={() => (editingSuite = { ...suite })}
-                    >
-                      <Edit3 size={15} />
-                    </button>
-                    <button
-                      class="grid h-8 w-8 place-items-center rounded-md text-slate-400 hover:bg-white hover:text-rose-600 dark:hover:bg-gray-800 dark:hover:text-rose-400"
-                      title="Delete suite"
-                      on:click={() => {
-                        suiteToDelete = suite;
-                        deleteMode =
-                          suite.id === "unassigned" ? "delete" : "move";
-                        showDeleteSuiteModal = true;
-                      }}
-                    >
-                      <Trash2 size={15} />
-                    </button>
+                      {selectedRunDetail.status === "completed"
+                        ? "Completed"
+                        : selectedRunDetail.status === "aborted"
+                          ? "Aborted"
+                          : "Running"}
+                    </span>
                   {/if}
                 </div>
-
-                <div class="divide-y divide-slate-200 dark:divide-gray-800">
-                  {#each suite.cases || [] as testCase}
-                    <div
-                      class="grid w-full grid-cols-[24px_52px_1fr_auto_auto_auto] sm:grid-cols-[60px_52px_1fr_auto_auto_auto] items-center gap-3 rounded-md px-3 py-2 text-left transition-colors {selectedCaseId ===
-                      testCase.id
-                        ? 'bg-slate-100 dark:bg-transparent'
-                        : 'hover:bg-slate-50 dark:hover:bg-gray-900/70'}"
+                {#if isAuthorized}
+                  {#if selectedRunDetail?.status === "running"}
+                    <button
+                      class="shrink-0 rounded-xl bg-emerald-600 px-4 py-1.5 text-xs font-black text-white hover:bg-emerald-500"
+                      on:click={() => updateRunStatus("completed")}
+                      >Mark complete</button
                     >
-                      <button
-                        class="col-span-3 grid grid-cols-[24px_52px_1fr] sm:grid-cols-[60px_52px_1fr] items-center gap-3 text-left"
-                        on:click={() => {
-                          selectCase(suite, testCase);
-                          showDetail = true;
-                        }}
+                  {:else if selectedRunDetail?.status === "completed"}
+                    <button
+                      class="shrink-0 rounded-xl bg-amber-500 px-4 py-1.5 text-xs font-black text-white hover:bg-amber-400"
+                      on:click={() => updateRunStatus("running")}>Reopen</button
+                    >
+                  {/if}
+                  <button
+                    class="shrink-0 grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 dark:hover:text-red-400 transition-colors"
+                    title="Delete test run"
+                    on:click={() => (showDeleteRunModal = true)}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                {/if}
+              </div>
+
+              <!-- Stats bar -->
+              {#if selectedRunDetail}
+                {@const s = selectedRunDetail.stats}
+                <div
+                  class="flex items-center gap-5 px-6 py-3 shrink-0 border-b border-slate-100 dark:border-gray-800 text-xs font-bold flex-wrap"
+                >
+                  <span class="text-slate-400">{s.total} total</span>
+                  {#if s.passed}
+                    <span class="text-emerald-600 dark:text-emerald-400"
+                      >{s.passed} passed</span
+                    >
+                  {/if}
+                  {#if s.failed}
+                    <span class="text-red-500">{s.failed} failed</span>
+                  {/if}
+                  {#if s.blocked}
+                    <span class="text-orange-500">{s.blocked} blocked</span>
+                  {/if}
+                  {#if s.skipped}
+                    <span class="text-blue-400">{s.skipped} skipped</span>
+                  {/if}
+                  {#if s.invalid}
+                    <span class="text-purple-500">{s.invalid} invalid</span>
+                  {/if}
+                  {#if s.pending}
+                    <span class="text-slate-400">{s.pending} pending</span>
+                  {/if}
+                  <div
+                    class="flex-1 min-w-[80px] h-1.5 rounded-full bg-slate-100 dark:bg-gray-800 overflow-hidden"
+                  >
+                    <div
+                      class="h-full bg-emerald-500 rounded-full transition-all"
+                      style="width:{s.total
+                        ? Math.round((s.passed / s.total) * 100)
+                        : 0}%"
+                    ></div>
+                  </div>
+                </div>
+              {/if}
+
+              <!-- Test case list -->
+              <div class="flex-1 overflow-y-auto">
+                {#if isLoadingRunDetail}
+                  <div
+                    class="flex items-center justify-center h-48 text-slate-400 dark:text-gray-500"
+                  >
+                    <div
+                      class="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-500"
+                    ></div>
+                  </div>
+                {:else if selectedRunDetail}
+                  <!-- Header row -->
+                  <div
+                    class="grid grid-cols-[60px_52px_1fr_140px] items-center gap-3 px-5 py-2 border-b border-slate-100 dark:border-gray-800 bg-slate-50 dark:bg-gray-900/60 text-xs font-black uppercase tracking-widest text-slate-400"
+                  >
+                    <span>#</span>
+                    <span></span>
+                    <span>Test Case</span>
+                    <span>Status</span>
+                  </div>
+                  <div class="divide-y divide-slate-100 dark:divide-gray-800">
+                    {#each selectedRunDetail.test_cases as entry}
+                      <div
+                        class="grid grid-cols-[60px_52px_1fr_140px] items-center gap-3 pl-4 pr-5 py-3 transition-colors border-l-4
+                        {entry.status === 'passed'
+                          ? 'border-l-emerald-500 bg-emerald-500/5 hover:bg-emerald-500/10'
+                          : entry.status === 'failed'
+                            ? 'border-l-red-500    bg-red-500/5    hover:bg-red-500/10'
+                            : entry.status === 'blocked'
+                              ? 'border-l-orange-500 bg-orange-500/5 hover:bg-orange-500/10'
+                              : entry.status === 'skipped'
+                                ? 'border-l-blue-400   bg-blue-400/5   hover:bg-blue-400/10'
+                                : entry.status === 'invalid'
+                                  ? 'border-l-purple-500 bg-purple-500/5 hover:bg-purple-500/10'
+                                  : 'border-l-transparent hover:bg-slate-50 dark:hover:bg-gray-900/40'}"
                       >
-                        <span class="grid h-5 w-5 place-items-center sm:hidden">
-                          <span
-                            class="h-2.5 w-2.5 rounded-full border-2 {testCase.priority ===
-                            'high'
-                              ? 'border-rose-500'
-                              : 'border-slate-300'}"
-                          ></span>
+                        <!-- TC-no -->
+                        <button
+                          class="font-mono text-sm font-bold text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors text-left"
+                          title="View test case details"
+                          on:click={() => {
+                            if (!entry.test_case) return;
+                            selectedSuiteId =
+                              entry.test_case.suite_id || suites[0]?.id || "";
+                            selectedCaseId = entry.test_case.id;
+                            showDetail = true;
+                          }}>TC-{entry.test_case?.test_no ?? "?"}</button
+                        >
+                        <!-- Priority badge -->
+                        <span
+                          class="flex items-center justify-center rounded-md border px-1 py-0.5 text-[10px] font-black uppercase tracking-wide
+                          {entry.test_case?.priority === 'high'
+                            ? 'border-rose-400 bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400'
+                            : entry.test_case?.priority === 'medium'
+                              ? 'border-amber-400 bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
+                              : 'border-slate-300 bg-slate-50 text-slate-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400'}"
+                        >
+                          {entry.test_case?.priority ?? "—"}
                         </span>
+                        <!-- Name -->
                         <span
-                          class="hidden w-full items-center justify-center rounded-md border px-1 py-0.5 text-[10px] font-black uppercase tracking-wide sm:flex {priorityColor(
-                            testCase.priority,
-                          )}"
+                          class="min-w-0 truncate text-sm font-bold text-slate-700 dark:text-gray-200"
                         >
-                          {testCase.priority}
+                          {entry.test_case?.name ?? entry.test_case_id}
                         </span>
-                        <span
-                          class="font-mono text-sm font-bold text-slate-400 text-left"
-                          >TC-{testCase.test_no}</span
-                        >
-                        <span
-                          class="min-w-0 truncate text-sm font-bold text-slate-700 dark:text-gray-200 text-left"
-                          >{testCase.title}</span
-                        >
-                      </button>
-                      <div class="flex items-center gap-2">
+                        <!-- Status -->
                         {#if isAuthorized}
-                          <div class="property-select min-w-[80px]">
+                          <div
+                            class="property-select w-[130px]"
+                            class:pointer-events-none={updatingCaseId ===
+                              entry.test_case_id ||
+                              selectedRunDetail?.status === "completed"}
+                            class:opacity-50={updatingCaseId ===
+                              entry.test_case_id ||
+                              selectedRunDetail?.status === "completed"}
+                          >
                             <SearchableSelect
-                              id="status-update-{testCase.id}"
-                              value={testCase.status}
-                              options={statusOptions}
+                              id="run-case-status-{entry.test_case_id}"
+                              value={entry.status}
+                              options={RUN_CASE_STATUSES}
                               showSearch={false}
                               minimal={true}
+                              dropdownClass="w-full"
                               on:select={(e) =>
-                                updateStatus(testCase, e.detail)}
+                                updateRunCaseStatus(
+                                  entry.test_case_id,
+                                  e.detail,
+                                )}
                             />
                           </div>
                         {:else}
                           <div
-                            class="property-select min-w-[80px] pointer-events-none opacity-80"
+                            class="property-select w-[130px] pointer-events-none opacity-70"
                           >
                             <SearchableSelect
-                              id="status-update-{testCase.id}"
-                              value={testCase.status}
-                              options={statusOptions}
+                              id="run-case-status-ro-{entry.test_case_id}"
+                              value={entry.status}
+                              options={RUN_CASE_STATUSES}
                               showSearch={false}
                               minimal={true}
+                              dropdownClass="w-full"
                               on:select={() => {}}
                             />
                           </div>
                         {/if}
-                        <div class="property-select min-w-[90px]">
-                          <SearchableSelect
-                            id="fixed-update-{testCase.id}"
-                            value={testCase.fixed}
-                            options={fixedOptions}
-                            showSearch={false}
-                            minimal={true}
-                            on:select={(e) => updateFixed(testCase, e.detail)}
-                          />
-                        </div>
-                        <div class="property-select min-w-[120px]">
-                          <SearchableSelect
-                            id="assigndev-update-{testCase.id}"
-                            value={testCase.assign_dev || "unassigned"}
-                            options={availableAssigneeOptions}
-                            showSearch={true}
-                            minimal={true}
-                            on:select={(e) =>
-                              updateAssignDev(testCase, e.detail)}
-                          />
-                        </div>
                       </div>
-                      <div class="flex items-center gap-1">
-                        <button
-                          class="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-white hover:text-slate-700 dark:hover:bg-gray-800 dark:hover:text-white transition-colors"
-                          title={isAuthorized ? "Edit Case" : "View Case"}
-                          on:click={() =>
-                            openTestCaseEditor(suite.id, testCase.id)}
-                        >
-                          {#if isAuthorized}
-                            <Edit3 size={16} />
-                          {:else}
-                            <Eye size={16} />
-                          {/if}
-                        </button>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
+            </div>
+          {:else}
+            <!-- ══ SUITES VIEW ══ -->
+            <div class="space-y-7 p-4">
+              {#each filteredSuites as suite}
+                <section id="suite-{suite.id}" class="scroll-mt-4">
+                  <div
+                    class="flex min-h-12 items-center gap-3 rounded-t-lg px-5 transition-colors duration-300 {selectedSuiteId ===
+                    suite.id
+                      ? 'bg-indigo-50 dark:bg-indigo-500/10 border-b border-indigo-100 dark:border-indigo-500/20'
+                      : 'bg-slate-100 dark:bg-gray-900'}"
+                  >
+                    <h3
+                      class="min-w-0 flex-1 truncate text-base font-black text-slate-700 dark:text-white"
+                    >
+                      {suite.title}
+                    </h3>
+                    {#if isAuthorized}
+                      <button
+                        class="grid h-8 w-8 place-items-center rounded-md text-indigo-600 hover:bg-white dark:text-indigo-400 dark:hover:bg-gray-800"
+                        title="Add case"
+                        on:click={() => openTestCaseEditor(suite.id)}
+                      >
+                        <Plus size={16} />
+                      </button>
+                      <button
+                        class="grid h-8 w-8 place-items-center rounded-md text-slate-400 hover:bg-white hover:text-slate-700 dark:hover:bg-gray-800 dark:hover:text-white"
+                        title="Edit suite"
+                        on:click={() => (editingSuite = { ...suite })}
+                      >
+                        <Edit3 size={15} />
+                      </button>
+                      <button
+                        class="grid h-8 w-8 place-items-center rounded-md text-slate-400 hover:bg-white hover:text-rose-600 dark:hover:bg-gray-800 dark:hover:text-rose-400"
+                        title="Delete suite"
+                        on:click={() => {
+                          suiteToDelete = suite;
+                          deleteMode =
+                            suite.id === "unassigned" ? "delete" : "move";
+                          showDeleteSuiteModal = true;
+                        }}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    {/if}
+                  </div>
 
-                        {#if isAuthorized}
+                  <div class="divide-y divide-slate-200 dark:divide-gray-800">
+                    {#each suite.cases || [] as testCase}
+                      <div
+                        class="grid w-full grid-cols-[24px_52px_1fr_auto_auto_auto] sm:grid-cols-[60px_52px_1fr_auto_auto_auto] items-center gap-3 rounded-md px-3 py-2 text-left transition-colors {selectedCaseId ===
+                        testCase.id
+                          ? 'bg-slate-100 dark:bg-transparent'
+                          : 'hover:bg-slate-50 dark:hover:bg-gray-900/70'}"
+                      >
+                        <button
+                          class="col-span-3 grid grid-cols-[24px_52px_1fr] sm:grid-cols-[60px_52px_1fr] items-center gap-3 text-left"
+                          on:click={() => {
+                            selectCase(suite, testCase);
+                            showDetail = true;
+                          }}
+                        >
+                          <span
+                            class="grid h-5 w-5 place-items-center sm:hidden"
+                          >
+                            <span
+                              class="h-2.5 w-2.5 rounded-full border-2 {testCase.priority ===
+                              'high'
+                                ? 'border-rose-500'
+                                : 'border-slate-300'}"
+                            ></span>
+                          </span>
+                          <span
+                            class="hidden w-full items-center justify-center rounded-md border px-1 py-0.5 text-[10px] font-black uppercase tracking-wide sm:flex {priorityColor(
+                              testCase.priority,
+                            )}"
+                          >
+                            {testCase.priority}
+                          </span>
+                          <span
+                            class="font-mono text-sm font-bold text-slate-400 text-left"
+                            >TC-{testCase.test_no}</span
+                          >
+                          <span
+                            class="min-w-0 truncate text-sm font-bold text-slate-700 dark:text-gray-200 text-left"
+                            >{testCase.title}</span
+                          >
+                        </button>
+                        <div class="flex items-center gap-2">
+                          {#if isAuthorized}
+                            <div class="property-select min-w-[80px]">
+                              <SearchableSelect
+                                id="status-update-{testCase.id}"
+                                value={testCase.status}
+                                options={statusOptions}
+                                showSearch={false}
+                                minimal={true}
+                                on:select={(e) =>
+                                  updateStatus(testCase, e.detail)}
+                              />
+                            </div>
+                          {:else}
+                            <div
+                              class="property-select min-w-[80px] pointer-events-none opacity-80"
+                            >
+                              <SearchableSelect
+                                id="status-update-{testCase.id}"
+                                value={testCase.status}
+                                options={statusOptions}
+                                showSearch={false}
+                                minimal={true}
+                                on:select={() => {}}
+                              />
+                            </div>
+                          {/if}
+                          <div class="property-select min-w-[90px]">
+                            <SearchableSelect
+                              id="fixed-update-{testCase.id}"
+                              value={testCase.fixed}
+                              options={fixedOptions}
+                              showSearch={false}
+                              minimal={true}
+                              on:select={(e) => updateFixed(testCase, e.detail)}
+                            />
+                          </div>
+                          <div class="property-select min-w-[120px]">
+                            <SearchableSelect
+                              id="assigndev-update-{testCase.id}"
+                              value={testCase.assign_dev || "unassigned"}
+                              options={availableAssigneeOptions}
+                              showSearch={true}
+                              minimal={true}
+                              on:select={(e) =>
+                                updateAssignDev(testCase, e.detail)}
+                            />
+                          </div>
+                        </div>
+                        <div class="flex items-center gap-1">
                           <button
                             class="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-white hover:text-slate-700 dark:hover:bg-gray-800 dark:hover:text-white transition-colors"
-                            title="Delete Case"
-                            on:click={() => deleteTestCase(testCase.id)}
+                            title={isAuthorized ? "Edit Case" : "View Case"}
+                            on:click={() =>
+                              openTestCaseEditor(suite.id, testCase.id)}
                           >
-                            <Trash2 size={16} />
+                            {#if isAuthorized}
+                              <Edit3 size={16} />
+                            {:else}
+                              <Eye size={16} />
+                            {/if}
+                          </button>
+
+                          {#if isAuthorized}
+                            <button
+                              class="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-white hover:text-slate-700 dark:hover:bg-gray-800 dark:hover:text-white transition-colors"
+                              title="Delete Case"
+                              on:click={() => deleteTestCase(testCase.id)}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          {/if}
+                        </div>
+                      </div>
+                    {/each}
+
+                    {#if suite.cases.length === 0}
+                      <div
+                        class="flex items-center justify-center py-4 opacity-50"
+                      >
+                        <p class="text-[12px] font-medium text-slate-400">
+                          {$_("testCases__empty_suite")}
+                        </p>
+                      </div>
+                    {/if}
+                  </div>
+
+                  <div
+                    class="flex items-center justify-between px-3 py-3 border-t border-slate-100 dark:border-gray-800"
+                  >
+                    <div class="flex flex-1 items-center gap-4">
+                      {#if isAuthorized}
+                        {#if quickTestInputSuiteId === suite.id}
+                          <input
+                            bind:value={quickTestTitle}
+                            class="flex-1 border-0 !bg-transparent text-sm font-bold outline-none placeholder:text-slate-400 dark:text-white"
+                            placeholder={$_("testCases__title_placeholder")}
+                            on:keydown={(e) => {
+                              if (e.key === "Enter")
+                                handleQuickCreate(suite.id);
+                              if (e.key === "Escape") {
+                                quickTestInputSuiteId = "";
+                                quickTestTitle = "";
+                              }
+                            }}
+                            on:blur={() => {
+                              if (!quickTestTitle.trim())
+                                quickTestInputSuiteId = "";
+                            }}
+                            use:autofocus
+                          />
+                        {:else}
+                          <button
+                            class="text-sm font-black text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+                            on:click={() => {
+                              quickTestInputSuiteId = suite.id;
+                              quickTestTitle = "";
+                            }}
+                          >
+                            {$_("testCases__quick_create")}
+                          </button>
+                        {/if}
+                      {:else}
+                        <div class="flex-1"></div>
+                      {/if}
+
+                      <div class="flex gap-2 ml-auto">
+                        {#if suite.page > 1 || suite.hasMore}
+                          <button
+                            class="flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-30 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-900"
+                            disabled={suite.page <= 1}
+                            on:click={() =>
+                              loadSuitePage(suite.id, suite.page - 1)}
+                          >
+                            <ChevronLeft size={14} />
+                            {$_("pagination__previous")}
+                          </button>
+                          <button
+                            class="flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-30 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-900"
+                            disabled={!suite.hasMore}
+                            on:click={() =>
+                              loadSuitePage(suite.id, suite.page + 1)}
+                          >
+                            {$_("pagination__next")}
+                            <ChevronRight size={14} />
                           </button>
                         {/if}
                       </div>
                     </div>
-                  {/each}
-
-                  {#if suite.cases.length === 0}
-                    <div
-                      class="flex items-center justify-center py-4 opacity-50"
-                    >
-                      <p class="text-[12px] font-medium text-slate-400">
-                        {$_("testCases__empty_suite")}
-                      </p>
-                    </div>
-                  {/if}
-                </div>
-
-                <div
-                  class="flex items-center justify-between px-3 py-3 border-t border-slate-100 dark:border-gray-800"
-                >
-                  <div class="flex flex-1 items-center gap-4">
-                    {#if isAuthorized}
-                      {#if quickTestInputSuiteId === suite.id}
-                        <input
-                          bind:value={quickTestTitle}
-                          class="flex-1 border-0 !bg-transparent text-sm font-bold outline-none placeholder:text-slate-400 dark:text-white"
-                          placeholder={$_("testCases__title_placeholder")}
-                          on:keydown={(e) => {
-                            if (e.key === "Enter") handleQuickCreate(suite.id);
-                            if (e.key === "Escape") {
-                              quickTestInputSuiteId = "";
-                              quickTestTitle = "";
-                            }
-                          }}
-                          on:blur={() => {
-                            if (!quickTestTitle.trim())
-                              quickTestInputSuiteId = "";
-                          }}
-                          use:autofocus
-                        />
-                      {:else}
-                        <button
-                          class="text-sm font-black text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
-                          on:click={() => {
-                            quickTestInputSuiteId = suite.id;
-                            quickTestTitle = "";
-                          }}
-                        >
-                          {$_("testCases__quick_create")}
-                        </button>
-                      {/if}
-                    {:else}
-                      <div class="flex-1"></div>
-                    {/if}
-
-                    <div class="flex gap-2 ml-auto">
-                      {#if suite.page > 1 || suite.hasMore}
-                        <button
-                          class="flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-30 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-900"
-                          disabled={suite.page <= 1}
-                          on:click={() =>
-                            loadSuitePage(suite.id, suite.page - 1)}
-                        >
-                          <ChevronLeft size={14} />
-                          {$_("pagination__previous")}
-                        </button>
-                        <button
-                          class="flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-30 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-900"
-                          disabled={!suite.hasMore}
-                          on:click={() =>
-                            loadSuitePage(suite.id, suite.page + 1)}
-                        >
-                          {$_("pagination__next")}
-                          <ChevronRight size={14} />
-                        </button>
-                      {/if}
-                    </div>
                   </div>
-                </div>
-              </section>
-            {/each}
-          </div>
+                </section>
+              {/each}
+            </div>
+          {/if}
+          <!-- ══ END VIEW SWITCH ══ -->
         </main>
       </div>
     </section>
@@ -3717,10 +4415,14 @@
     class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
     transition:fade={{ duration: 150 }}
   >
-    <div class="w-full max-w-2xl rounded-2xl bg-white shadow-2xl dark:bg-gray-900 flex flex-col h-[85vh]">
+    <div
+      class="w-full max-w-2xl rounded-2xl bg-white shadow-2xl dark:bg-gray-900 flex flex-col h-[85vh]"
+    >
       <!-- Header -->
       <div class="flex items-center justify-between px-8 pt-8 pb-4 shrink-0">
-        <h2 class="text-xl font-black text-slate-800 dark:text-white">New test run</h2>
+        <h2 class="text-xl font-black text-slate-800 dark:text-white">
+          New test run
+        </h2>
         <button
           class="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-gray-800"
           on:click={() => (showNewTestRunModal = false)}
@@ -3743,7 +4445,10 @@
         <!-- Description -->
         <div>
           <!-- svelte-ignore a11y_label_has_associated_control -->
-          <label class="block text-sm font-black text-slate-700 dark:text-gray-200 mb-2">Description</label>
+          <label
+            class="block text-sm font-black text-slate-700 dark:text-gray-200 mb-2"
+            >Description</label
+          >
           <textarea
             bind:value={newTestRunForm.description}
             rows="2"
@@ -3756,7 +4461,10 @@
         <div class="grid grid-cols-2 gap-4">
           <div>
             <!-- svelte-ignore a11y_label_has_associated_control -->
-            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-gray-400 mb-2">Default assignee</label>
+            <label
+              class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-gray-400 mb-2"
+              >Default assignee</label
+            >
             <div class="property-select w-full">
               <SearchableSelect
                 id="new-test-run-assignee"
@@ -3769,7 +4477,10 @@
           </div>
           <div>
             <!-- svelte-ignore a11y_label_has_associated_control -->
-            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-gray-400 mb-2">Operating System</label>
+            <label
+              class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-gray-400 mb-2"
+              >Operating System</label
+            >
             <div class="property-select w-full">
               <SearchableSelect
                 id="new-test-run-os"
@@ -3785,8 +4496,12 @@
         <!-- Test cases -->
         <div>
           <div class="flex items-center justify-between mb-3">
-            <h3 class="text-sm font-black text-slate-700 dark:text-gray-200">Test cases</h3>
-            <span class="text-xs text-slate-400">{selectedTestCaseIds.size} selected</span>
+            <h3 class="text-sm font-black text-slate-700 dark:text-gray-200">
+              Test cases
+            </h3>
+            <span class="text-xs text-slate-400"
+              >{selectedTestCaseIds.size} selected</span
+            >
           </div>
 
           <!-- Search -->
@@ -3796,7 +4511,10 @@
             >
               <!-- svelte-ignore a11y_label_has_associated_control -->
               <label class="flex min-w-0 flex-1 items-center gap-2.5 px-3.5">
-                <Search size={16} class="shrink-0 text-slate-400 group-focus-within:text-indigo-500" />
+                <Search
+                  size={16}
+                  class="shrink-0 text-slate-400 group-focus-within:text-indigo-500"
+                />
                 <input
                   bind:value={testRunSearchQuery}
                   class="min-w-0 flex-1 border-0 bg-transparent text-sm font-bold text-slate-700 outline-none placeholder:text-slate-400 dark:!bg-transparent dark:text-gray-200"
@@ -3811,7 +4529,9 @@
                   </button>
                 {/if}
               </label>
-              <div class="flex h-full w-36 items-center rounded-r-xl border-l border-slate-200 bg-slate-50/50 dark:border-gray-700 dark:bg-gray-800/50">
+              <div
+                class="flex h-full w-36 items-center rounded-r-xl border-l border-slate-200 bg-slate-50/50 dark:border-gray-700 dark:bg-gray-800/50"
+              >
                 <SearchableSelect
                   id="test-run-search-field"
                   bind:value={testRunSearchField}
@@ -3823,7 +4543,9 @@
             </div>
             <div class="relative shrink-0">
               <button
-                class="flex h-10 items-center gap-2 rounded-xl px-4 text-[13px] font-black transition-all active:scale-95 {hasTestRunFilters ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-300' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'}"
+                class="flex h-10 items-center gap-2 rounded-xl px-4 text-[13px] font-black transition-all active:scale-95 {hasTestRunFilters
+                  ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-300'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'}"
                 on:click={() => {
                   showTestRunFilterDropdown = !showTestRunFilterDropdown;
                   testRunActiveFilterProperty = null;
@@ -3832,8 +4554,13 @@
                 <Plus size={15} />
                 Add filter
                 {#if hasTestRunFilters}
-                  <span class="ml-0.5 h-4 w-4 rounded-full bg-indigo-600 text-[10px] font-black text-white flex items-center justify-center">
-                    {Object.values(testRunActiveFilters).reduce((s, v) => s + v.length, 0)}
+                  <span
+                    class="ml-0.5 h-4 w-4 rounded-full bg-indigo-600 text-[10px] font-black text-white flex items-center justify-center"
+                  >
+                    {Object.values(testRunActiveFilters).reduce(
+                      (s, v) => s + v.length,
+                      0,
+                    )}
                   </span>
                 {/if}
               </button>
@@ -3849,25 +4576,32 @@
                 >
                   {#if !testRunActiveFilterProperty}
                     <div class="flex flex-col py-1">
-                      <div class="px-4 py-2 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      <div
+                        class="px-4 py-2 text-[10px] font-black uppercase tracking-wider text-slate-400"
+                      >
                         Filter by
                       </div>
                       {#each testRunFilterProperties as prop}
                         <button
                           class="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm font-bold text-slate-700 hover:bg-slate-50 dark:text-gray-200 dark:hover:bg-gray-700/50 transition-colors"
-                          on:click={() => (testRunActiveFilterProperty = prop.id)}
+                          on:click={() =>
+                            (testRunActiveFilterProperty = prop.id)}
                         >
                           <span>{prop.label}</span>
                           <div class="flex items-center gap-1.5">
                             {#if testRunActiveFilters[prop.id]?.length > 0}
-                              <span class="text-xs font-black text-indigo-500">{testRunActiveFilters[prop.id].length}</span>
+                              <span class="text-xs font-black text-indigo-500"
+                                >{testRunActiveFilters[prop.id].length}</span
+                              >
                             {/if}
                             <ChevronRight size={14} class="opacity-30" />
                           </div>
                         </button>
                       {/each}
                       {#if hasTestRunFilters}
-                        <div class="h-px bg-slate-100 dark:bg-gray-700 my-1"></div>
+                        <div
+                          class="h-px bg-slate-100 dark:bg-gray-700 my-1"
+                        ></div>
                         <button
                           class="px-4 py-2 text-sm font-black text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/10 text-center w-full transition-colors"
                           on:click={() => {
@@ -3888,27 +4622,55 @@
                         >
                           <ChevronLeft size={16} />
                         </button>
-                        <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                          {testRunFilterProperties.find(p => p.id === testRunActiveFilterProperty)?.label}
+                        <span
+                          class="text-[10px] font-black uppercase tracking-wider text-slate-400"
+                        >
+                          {testRunFilterProperties.find(
+                            (p) => p.id === testRunActiveFilterProperty,
+                          )?.label}
                         </span>
                       </div>
-                      <div class="h-px bg-slate-100 dark:bg-gray-700 mb-1"></div>
+                      <div
+                        class="h-px bg-slate-100 dark:bg-gray-700 mb-1"
+                      ></div>
                       {#if testRunActiveFilterProperty === "priority"}
                         {#each priorityOptions as opt}
-                          <label class="flex cursor-pointer items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-gray-700/50 transition-colors">
-                            <input type="checkbox" class="rounded border-slate-300 accent-indigo-600 w-4 h-4"
-                              checked={testRunActiveFilters.priority.includes(opt.value)}
-                              on:change={() => toggleTestRunFilter("priority", opt.value)} />
-                            <span class="text-sm font-bold text-slate-700 dark:text-gray-200">{opt.label}</span>
+                          <label
+                            class="flex cursor-pointer items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-gray-700/50 transition-colors"
+                          >
+                            <input
+                              type="checkbox"
+                              class="rounded border-slate-300 accent-indigo-600 w-4 h-4"
+                              checked={testRunActiveFilters.priority.includes(
+                                opt.value,
+                              )}
+                              on:change={() =>
+                                toggleTestRunFilter("priority", opt.value)}
+                            />
+                            <span
+                              class="text-sm font-bold text-slate-700 dark:text-gray-200"
+                              >{opt.label}</span
+                            >
                           </label>
                         {/each}
                       {:else if testRunActiveFilterProperty === "status"}
                         {#each statusOptions as opt}
-                          <label class="flex cursor-pointer items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-gray-700/50 transition-colors">
-                            <input type="checkbox" class="rounded border-slate-300 accent-indigo-600 w-4 h-4"
-                              checked={testRunActiveFilters.status.includes(opt.value)}
-                              on:change={() => toggleTestRunFilter("status", opt.value)} />
-                            <span class="text-sm font-bold text-slate-700 dark:text-gray-200">{opt.label}</span>
+                          <label
+                            class="flex cursor-pointer items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-gray-700/50 transition-colors"
+                          >
+                            <input
+                              type="checkbox"
+                              class="rounded border-slate-300 accent-indigo-600 w-4 h-4"
+                              checked={testRunActiveFilters.status.includes(
+                                opt.value,
+                              )}
+                              on:change={() =>
+                                toggleTestRunFilter("status", opt.value)}
+                            />
+                            <span
+                              class="text-sm font-bold text-slate-700 dark:text-gray-200"
+                              >{opt.label}</span
+                            >
                           </label>
                         {/each}
                       {/if}
@@ -3924,11 +4686,18 @@
             <div class="flex flex-wrap gap-1.5 mb-3">
               {#each Object.entries(testRunActiveFilters) as [prop, values]}
                 {#each values as val}
-                  <span class="flex items-center gap-1 rounded-lg bg-indigo-50 border border-indigo-100 px-2.5 py-1 text-[12px] font-black text-indigo-700 dark:bg-indigo-500/10 dark:border-indigo-500/20 dark:text-indigo-300">
-                    <span class="opacity-60">{testRunFilterProperties.find(p => p.id === prop)?.label}:</span>
+                  <span
+                    class="flex items-center gap-1 rounded-lg bg-indigo-50 border border-indigo-100 px-2.5 py-1 text-[12px] font-black text-indigo-700 dark:bg-indigo-500/10 dark:border-indigo-500/20 dark:text-indigo-300"
+                  >
+                    <span class="opacity-60"
+                      >{testRunFilterProperties.find((p) => p.id === prop)
+                        ?.label}:</span
+                    >
                     <span>{val}</span>
-                    <button class="ml-0.5 rounded-full p-0.5 hover:bg-indigo-200 dark:hover:bg-indigo-500/30"
-                      on:click={() => toggleTestRunFilter(prop, val)}>
+                    <button
+                      class="ml-0.5 rounded-full p-0.5 hover:bg-indigo-200 dark:hover:bg-indigo-500/30"
+                      on:click={() => toggleTestRunFilter(prop, val)}
+                    >
                       <X size={11} strokeWidth={3} />
                     </button>
                   </span>
@@ -3938,48 +4707,89 @@
           {/if}
 
           <!-- Suite + Cases table -->
-          <div class="rounded-xl border border-slate-200 dark:border-gray-700 overflow-hidden">
-            <div class="text-[11px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 dark:bg-gray-800/50 px-4 py-2 border-b border-slate-200 dark:border-gray-700">
+          <div
+            class="rounded-xl border border-slate-200 dark:border-gray-700 overflow-hidden"
+          >
+            <div
+              class="text-[11px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 dark:bg-gray-800/50 px-4 py-2 border-b border-slate-200 dark:border-gray-700"
+            >
               <span>Test case</span>
             </div>
-            <div class="max-h-56 overflow-y-auto divide-y divide-slate-100 dark:divide-gray-800">
-              {#each suites.filter(s => s.cases.length > 0) as suite}
-                {@const filteredCases = suite.cases.filter(c => {
-                    if (testRunSearchQuery) {
-                      const q = testRunSearchQuery.toLowerCase();
-                      const matchSearch = testRunSearchField === "all"
-                        ? (c.title.toLowerCase().includes(q) || String(c.test_no).includes(q) || (c.description?.toLowerCase().includes(q) ?? false))
-                        : testRunSearchField === "test_no" ? String(c.test_no).includes(q)
-                        : testRunSearchField === "name" ? c.title.toLowerCase().includes(q)
-                        : testRunSearchField === "description" ? (c.description?.toLowerCase().includes(q) ?? false)
-                        : c.title.toLowerCase().includes(q);
-                      if (!matchSearch) return false;
-                    }
-                    if (testRunActiveFilters.priority.length > 0 && !testRunActiveFilters.priority.includes(c.priority)) return false;
-                    if (testRunActiveFilters.status.length > 0 && !testRunActiveFilters.status.includes(c.status)) return false;
+            <div
+              class="max-h-56 overflow-y-auto divide-y divide-slate-100 dark:divide-gray-800"
+            >
+              {#each suites.filter((s) => s.cases.length > 0) as suite}
+                {@const filteredCases = suite.cases.filter((c) => {
+                  if (testRunSearchQuery) {
+                    const q = testRunSearchQuery.toLowerCase();
+                    const matchSearch =
+                      testRunSearchField === "all"
+                        ? c.title.toLowerCase().includes(q) ||
+                          String(c.test_no).includes(q) ||
+                          (c.description?.toLowerCase().includes(q) ?? false)
+                        : testRunSearchField === "test_no"
+                          ? String(c.test_no).includes(q)
+                          : testRunSearchField === "name"
+                            ? c.title.toLowerCase().includes(q)
+                            : testRunSearchField === "description"
+                              ? (c.description?.toLowerCase().includes(q) ??
+                                false)
+                              : c.title.toLowerCase().includes(q);
+                    if (!matchSearch) return false;
+                  }
+                  if (
+                    testRunActiveFilters.priority.length > 0 &&
+                    !testRunActiveFilters.priority.includes(c.priority)
+                  )
+                    return false;
+                  if (
+                    testRunActiveFilters.status.length > 0 &&
+                    !testRunActiveFilters.status.includes(c.status)
+                  )
+                    return false;
 
-                    return true;
-                  })}
+                  return true;
+                })}
                 {#if filteredCases.length > 0}
                   <!-- Suite header row -->
-                  <div class="grid grid-cols-[1fr_auto] items-center px-4 py-2 bg-slate-50 dark:bg-gray-800/30">
-                    <label class="flex items-center gap-2.5 cursor-pointer select-none">
+                  <div
+                    class="grid grid-cols-[1fr_auto] items-center px-4 py-2 bg-slate-50 dark:bg-gray-800/30"
+                  >
+                    <label
+                      class="flex items-center gap-2.5 cursor-pointer select-none"
+                    >
                       <input
                         type="checkbox"
                         class="rounded border-slate-300 accent-indigo-600"
-                        checked={suite.cases.every(c => selectedTestCaseIds.has(c.id))}
-                        indeterminate={suite.cases.some(c => selectedTestCaseIds.has(c.id)) && !suite.cases.every(c => selectedTestCaseIds.has(c.id))}
+                        checked={suite.cases.every((c) =>
+                          selectedTestCaseIds.has(c.id),
+                        )}
+                        indeterminate={suite.cases.some((c) =>
+                          selectedTestCaseIds.has(c.id),
+                        ) &&
+                          !suite.cases.every((c) =>
+                            selectedTestCaseIds.has(c.id),
+                          )}
                         on:change={() => toggleSuiteSelection(suite)}
                       />
-                      <span class="text-xs font-black text-slate-600 dark:text-gray-300">{suite.title}</span>
-                      <span class="text-[10px] text-slate-400">{suite.totalCount ?? suite.cases.length}</span>
+                      <span
+                        class="text-xs font-black text-slate-600 dark:text-gray-300"
+                        >{suite.title}</span
+                      >
+                      <span class="text-[10px] text-slate-400"
+                        >{suite.totalCount ?? suite.cases.length}</span
+                      >
                     </label>
                   </div>
                   <!-- Cases -->
                   {#each filteredCases as tc}
-                    <div class="flex items-center px-4 py-1.5 hover:bg-slate-50 dark:hover:bg-gray-800/30">
+                    <div
+                      class="flex items-center px-4 py-1.5 hover:bg-slate-50 dark:hover:bg-gray-800/30"
+                    >
                       <!-- svelte-ignore a11y_label_has_associated_control -->
-                      <label class="flex items-center gap-2.5 cursor-pointer select-none min-w-0 flex-1">
+                      <label
+                        class="flex items-center gap-2.5 cursor-pointer select-none min-w-0 flex-1"
+                      >
                         <input
                           type="checkbox"
                           class="shrink-0 rounded border-slate-300 accent-indigo-600"
@@ -3987,9 +4797,15 @@
                           on:change={() => toggleTestCaseSelection(tc.id)}
                         />
                         {#if tc.test_no}
-                          <span class="shrink-0 text-[11px] font-black text-slate-400 dark:text-gray-500">TC-{tc.test_no}</span>
+                          <span
+                            class="shrink-0 text-[11px] font-black text-slate-400 dark:text-gray-500"
+                            >TC-{tc.test_no}</span
+                          >
                         {/if}
-                        <span class="text-xs text-slate-600 dark:text-gray-300 truncate">{tc.title}</span>
+                        <span
+                          class="text-xs text-slate-600 dark:text-gray-300 truncate"
+                          >{tc.title}</span
+                        >
                       </label>
                     </div>
                   {/each}
@@ -4001,16 +4817,18 @@
       </div>
 
       <!-- Footer -->
-      <div class="flex items-center justify-end gap-3 px-8 py-5 border-t border-slate-100 dark:border-gray-800 shrink-0">
+      <div
+        class="flex items-center justify-end gap-3 px-8 py-5 border-t border-slate-100 dark:border-gray-800 shrink-0"
+      >
         <button
           class="rounded-xl px-5 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
-          on:click={() => (showNewTestRunModal = false)}
-        >Cancel</button>
+          on:click={() => (showNewTestRunModal = false)}>Cancel</button
+        >
         <button
           class="rounded-xl bg-indigo-600 px-6 py-2 text-sm font-black text-white hover:bg-indigo-500 disabled:opacity-50"
           disabled={!newTestRunForm.name.trim()}
-          on:click={handleCreateTestRun}
-        >Start run</button>
+          on:click={handleCreateTestRun}>Start run</button
+        >
       </div>
     </div>
   </div>
@@ -4216,6 +5034,17 @@
     {/if}
   </div>
 {/if}
+
+<ConfirmModal
+  show={showDeleteRunModal}
+  title="Delete Test Run"
+  message="Are you sure you want to delete this test run? This action cannot be undone."
+  confirmText="Delete"
+  cancelText="Cancel"
+  type="danger"
+  onConfirm={confirmDeleteTestRun}
+  onClose={() => (showDeleteRunModal = false)}
+/>
 
 <ConfirmModal
   show={showDeleteModal}

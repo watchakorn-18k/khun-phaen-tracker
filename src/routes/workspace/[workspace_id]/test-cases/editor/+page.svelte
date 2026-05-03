@@ -44,14 +44,21 @@
   } from "lucide-svelte";
   import TestCaseStepList from "$lib/components/TestCaseStepList.svelte";
 
-  type Status = "draft" | "actual" | "failed" | "blocked" | "deprecated" | "pass";
+  type Status =
+    | "draft"
+    | "actual"
+    | "failed"
+    | "blocked"
+    | "deprecated"
+    | "passed";
   type StepFormat = "gherkin" | "classic";
   type GherkinKeyword = "given" | "when" | "then" | "and";
   type GherkinStep = { keyword: GherkinKeyword; text: string };
   type ClassicStep = { action: string; data: string; expected: string };
 
   let suiteOptions: any[] = [];
-  $: isAuthorized = $user?.role === "admin" || $user?.profile?.position === "QA Tester";
+  $: isAuthorized =
+    $user?.role === "admin" || $user?.profile?.position === "QA Tester";
   $: availableAssigneeOptions = isAuthorized
     ? assigneeOptions
     : assigneeOptions
@@ -64,34 +71,79 @@
         );
 
   const statusOptions = [
-    { value: "draft", label: "Draft", icon: CircleDashed, iconClass: "text-gray-400" },
-    { value: "actual", label: "Actual", icon: ListChecks, iconClass: "text-blue-400" },
-    { value: "pass", label: "Pass", icon: CheckCircle2, iconClass: "text-green-400" },
-    { value: "failed", label: "Failed", icon: XCircle, iconClass: "text-rose-400" },
-    { value: "blocked", label: "Blocked", icon: Ban, iconClass: "text-gray-500" },
-    { value: "deprecated", label: "Deprecated", icon: History, iconClass: "text-gray-600" },
+    {
+      value: "draft",
+      label: "Draft",
+      icon: CircleDashed,
+      iconClass: "text-gray-400",
+    },
+    {
+      value: "actual",
+      label: "Actual",
+      icon: ListChecks,
+      iconClass: "text-blue-400",
+    },
+    {
+      value: "passed",
+      label: "Passed",
+      icon: CheckCircle2,
+      iconClass: "text-green-400",
+    },
+    {
+      value: "failed",
+      label: "Failed",
+      icon: XCircle,
+      iconClass: "text-rose-400",
+    },
+    {
+      value: "blocked",
+      label: "Blocked",
+      icon: Ban,
+      iconClass: "text-gray-500",
+    },
+    {
+      value: "deprecated",
+      label: "Deprecated",
+      icon: History,
+      iconClass: "text-gray-600",
+    },
   ];
 
   const priorityOptions = [
     { value: "high", label: "High", icon: Shield, iconClass: "text-rose-500" },
-    { value: "medium", label: "Medium", icon: Shield, iconClass: "text-amber-500" },
+    {
+      value: "medium",
+      label: "Medium",
+      icon: Shield,
+      iconClass: "text-amber-500",
+    },
     { value: "low", label: "Low", icon: Shield, iconClass: "text-gray-400" },
   ];
 
   let workspaceAssignees: Assignee[] = [];
   $: assigneeOptions = [
-    { value: "unassigned", label: "Unassigned", user_id: undefined, avatarColor: "#64748b" },
-    ...workspaceAssignees.map((a) => ({ 
-      value: String(a.id || ""), 
+    {
+      value: "unassigned",
+      label: "Unassigned",
+      user_id: undefined,
+      avatarColor: "#64748b",
+    },
+    ...workspaceAssignees.map((a) => ({
+      value: String(a.id || ""),
       label: a.name,
       user_id: a.user_id,
       avatarUrl: a.avatar_url,
-      avatarColor: a.color
+      avatarColor: a.color,
     })),
   ];
 
   const fixedOptions = [
-    { value: "no", label: "Not fixed", icon: AlertCircle, iconClass: "text-amber-400" },
+    {
+      value: "no",
+      label: "Not fixed",
+      icon: AlertCircle,
+      iconClass: "text-amber-400",
+    },
     { value: "yes", label: "Fixed", icon: Check, iconClass: "text-green-400" },
   ];
 
@@ -100,20 +152,23 @@
     { value: "classic", label: "Classic" },
   ];
 
-
-  const mockCases: Record<string, {
-    name: string;
-    suiteId: string;
-    description: string;
-    preconditions: string;
-    postconditions: string;
-    status: Status;
-    assignee: string;
-  }> = {
+  const mockCases: Record<
+    string,
+    {
+      name: string;
+      suiteId: string;
+      description: string;
+      preconditions: string;
+      postconditions: string;
+      status: Status;
+      assignee: string;
+    }
+  > = {
     "TC-1": {
       name: "Authorization",
       suiteId: "authorization",
-      description: "Registered users can log in to the application using email and password.",
+      description:
+        "Registered users can log in to the application using email and password.",
       preconditions: "User account exists and email is verified.",
       postconditions: "User lands on the workspace dashboard.",
       status: "actual",
@@ -137,12 +192,14 @@
 
   const initialCase = mockCases[caseId] || null;
   let name = initialCase?.name || "";
-  let suiteId = initialCase?.suiteId || $page.url.searchParams.get("suite") || "";
+  let suiteId =
+    initialCase?.suiteId || $page.url.searchParams.get("suite") || "";
   let description = initialCase?.description || "";
   let preconditions = initialCase?.preconditions || "";
   let postconditions = initialCase?.postconditions || "";
   let status: Status = initialCase?.status || "actual";
-  let priority: "high" | "medium" | "low" = (initialCase as any)?.priority || "medium";
+  let priority: "high" | "medium" | "low" =
+    (initialCase as any)?.priority || "medium";
   let assignee = initialCase?.assignee || "unassigned";
   let testNo = caseId || "";
   let dateCreate = "2026-05-03";
@@ -168,9 +225,13 @@
         const data = await resp.json();
         ui.showMessage("Task created successfully", "success");
         // Redirect to task detail
-        const urlRoom = $page.url.searchParams.get("room") || (browser ? localStorage.getItem("sync-room-code") : null);
+        const urlRoom =
+          $page.url.searchParams.get("room") ||
+          (browser ? localStorage.getItem("sync-room-code") : null);
         const roomParam = urlRoom ? `?room=${urlRoom}` : "";
-        goto(`${base}/workspace/${workspaceId}/task/${data.task_id}${roomParam}`);
+        goto(
+          `${base}/workspace/${workspaceId}/task/${data.task_id}${roomParam}`,
+        );
       } else {
         const error = await resp.text();
         ui.showMessage(`Failed to create task: ${error}`, "error");
@@ -182,18 +243,23 @@
 
   async function handleCreateSuite() {
     if (!newSuiteName.trim() || !workspaceId) return;
-    
+
     try {
-      const resp = await api.data.testSuites.create(workspaceId, { title: newSuiteName });
+      const resp = await api.data.testSuites.create(workspaceId, {
+        title: newSuiteName,
+      });
       if (resp.ok) {
         const newSuite = await resp.json();
         const newId = newSuite.id || newSuite._id;
-        suiteOptions = [...suiteOptions, { 
-          value: newId, 
-          label: newSuite.title, 
-          icon: Folder, 
-          iconClass: "text-gray-400" 
-        }];
+        suiteOptions = [
+          ...suiteOptions,
+          {
+            value: newId,
+            label: newSuite.title,
+            icon: Folder,
+            iconClass: "text-gray-400",
+          },
+        ];
         suiteId = newId;
         newSuiteName = "";
         showCreateSuiteModal = false;
@@ -225,7 +291,10 @@
     const newFiles = Array.from(target.files);
     const remaining = MAX_ATTACHMENTS - attachments.length;
     const toAdd = newFiles.slice(0, remaining);
-    const created = toAdd.map((f) => ({ file: f, url: URL.createObjectURL(f) }));
+    const created = toAdd.map((f) => ({
+      file: f,
+      url: URL.createObjectURL(f),
+    }));
     attachments = [...attachments, ...created];
     target.value = "";
   }
@@ -249,7 +318,7 @@
   onMount(async () => {
     try {
       workspaceAssignees = await getAssignees(true);
-      
+
       // Fetch suites
       if (workspaceId) {
         const suiteResp = await api.data.testSuites.list(workspaceId);
@@ -259,14 +328,18 @@
             value: s.id || s._id,
             label: s.title,
             icon: Folder,
-            iconClass: "text-gray-400"
+            iconClass: "text-gray-400",
           }));
-          
+
           // If suiteId is not in options (e.g. from URL), handle it
-          if (suiteId && !suiteOptions.find(o => o.value === suiteId)) {
-            // Might need to fetch the specific suite if it's not in the list, 
+          if (suiteId && !suiteOptions.find((o) => o.value === suiteId)) {
+            // Might need to fetch the specific suite if it's not in the list,
             // but usually list returns all for the workspace.
-          } else if (!suiteId && suiteOptions.length > 0 && suiteOptions[0].value) {
+          } else if (
+            !suiteId &&
+            suiteOptions.length > 0 &&
+            suiteOptions[0].value
+          ) {
             suiteId = suiteOptions[0].value;
           }
         }
@@ -303,13 +376,16 @@
           devNote = tc.dev_note || "";
           testNote = tc.test_note || "";
           stepFormat = tc.step_format || "classic";
-          
+
           if (tc.step_format === "gherkin") {
-            gherkinSteps = tc.gherkin_steps && tc.gherkin_steps.length > 0 ? tc.gherkin_steps : [
-              { keyword: "given", text: "" },
-              { keyword: "when", text: "" },
-              { keyword: "then", text: "" },
-            ];
+            gherkinSteps =
+              tc.gherkin_steps && tc.gherkin_steps.length > 0
+                ? tc.gherkin_steps
+                : [
+                    { keyword: "given", text: "" },
+                    { keyword: "when", text: "" },
+                    { keyword: "then", text: "" },
+                  ];
           } else if (tc.classic_steps && tc.classic_steps.length > 0) {
             classicSteps = tc.classic_steps;
           }
@@ -328,9 +404,10 @@
           expected: "Then Sign up page is shown",
         },
         {
-          action: "When Fill the form with login \"test\" and password \"test\"",
+          action: 'When Fill the form with login "test" and password "test"',
           data: "Data",
-          expected: "Then Form is being submitted and user is redirected to https://qase.io/app page.",
+          expected:
+            "Then Form is being submitted and user is redirected to https://qase.io/app page.",
         },
       ]
     : [{ action: "", data: "", expected: "" }];
@@ -340,9 +417,10 @@
     params.delete("suite");
     params.delete("case");
     const query = params.toString();
-    goto(`${base}/workspace/${workspaceId}/test-cases${query ? `?${query}` : ""}`);
+    goto(
+      `${base}/workspace/${workspaceId}/test-cases${query ? `?${query}` : ""}`,
+    );
   }
-
 
   async function handleSubmit() {
     if (!name.trim()) return;
@@ -350,7 +428,7 @@
 
     try {
       const payload: any = {
-        suite_id: (suiteId && suiteId !== "undefined") ? String(suiteId) : null,
+        suite_id: suiteId && suiteId !== "undefined" ? String(suiteId) : null,
         name: name.trim(),
         description,
         preconditions,
@@ -371,11 +449,12 @@
       };
 
       if (!workspaceId) return;
-      
-      const resp = isEditing && caseId
-        ? await api.data.testCases.update(caseId, payload)
-        : await api.data.testCases.create(workspaceId, payload);
-      
+
+      const resp =
+        isEditing && caseId
+          ? await api.data.testCases.update(caseId, payload)
+          : await api.data.testCases.create(workspaceId, payload);
+
       if (resp.ok) {
         const result = isEditing ? { id: caseId } : await resp.json();
         const testCaseId = result.id;
@@ -387,14 +466,27 @@
             formData.append("files", a.file);
           });
 
-          await api.data.testCases.uploadAttachment(workspaceId, testCaseId, formData);
+          await api.data.testCases.uploadAttachment(
+            workspaceId,
+            testCaseId,
+            formData,
+          );
         }
 
-        ui.showMessage(isEditing ? "Test case updated successfully" : "Test case created successfully", "success");
+        ui.showMessage(
+          isEditing
+            ? "Test case updated successfully"
+            : "Test case created successfully",
+          "success",
+        );
         backToRepository();
       } else {
         const error = await resp.json();
-        ui.showMessage(error.error || `Failed to ${isEditing ? 'update' : 'create'} test case`, "error");
+        ui.showMessage(
+          error.error ||
+            `Failed to ${isEditing ? "update" : "create"} test case`,
+          "error",
+        );
       }
     } catch (e) {
       console.error("Save error:", e);
@@ -427,7 +519,10 @@
 </svelte:head>
 
 <div class="min-h-screen bg-[#0b1220] text-white">
-  <form class="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-5" on:submit|preventDefault={handleSubmit}>
+  <form
+    class="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-5"
+    on:submit|preventDefault={handleSubmit}
+  >
     <header class="flex items-center justify-between gap-4">
       <button
         type="button"
@@ -463,20 +558,32 @@
       </div>
     </header>
 
-    <main class="mt-6 flex-1 rounded-2xl border border-white/10 bg-[#111827] shadow-2xl shadow-black/30">
+    <main
+      class="mt-6 flex-1 rounded-2xl border border-white/10 bg-[#111827] shadow-2xl shadow-black/30"
+    >
       <div class="border-b border-white/5 px-6 py-5">
-        <div class="flex min-w-0 items-center gap-2 text-[13px] font-medium text-gray-500">
+        <div
+          class="flex min-w-0 items-center gap-2 text-[13px] font-medium text-gray-500"
+        >
           <span class="truncate">{workspaceLabel}</span>
           <span class="text-gray-600">›</span>
-          <span class="text-gray-400">{isEditing ? caseId : "Create test case"}</span>
+          <span class="text-gray-400"
+            >{isEditing ? caseId : "Create test case"}</span
+          >
         </div>
 
-        <div class="mt-8 flex flex-wrap items-center gap-3 text-[12px] font-black uppercase tracking-widest text-gray-500">
-          <span class="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5">
+        <div
+          class="mt-8 flex flex-wrap items-center gap-3 text-[12px] font-black uppercase tracking-widest text-gray-500"
+        >
+          <span
+            class="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5"
+          >
             <Hash size={14} />
             {testNo || "Auto test no"}
           </span>
-          <span class="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5">
+          <span
+            class="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5"
+          >
             <CalendarDays size={14} />
             {dateCreate}
           </span>
@@ -485,7 +592,9 @@
         <input
           bind:value={name}
           readonly={!isAuthorized}
-          class="mt-4 w-full !bg-transparent px-0 py-2 text-2xl font-black text-white placeholder:text-gray-600 border-none outline-none {isAuthorized ? '' : 'cursor-default focus:ring-0'}"
+          class="mt-4 w-full !bg-transparent px-0 py-2 text-2xl font-black text-white placeholder:text-gray-600 border-none outline-none {isAuthorized
+            ? ''
+            : 'cursor-default focus:ring-0'}"
           placeholder="Example: Validate invite-link signup flow..."
         />
 
@@ -494,67 +603,113 @@
             bind:value={description}
             readonly={!isAuthorized}
             use:autoGrow
-            class="min-h-[38px] w-full overflow-hidden resize-none !bg-transparent px-0 text-[15px] leading-relaxed text-gray-300 placeholder:text-gray-600 border-none outline-none {isAuthorized ? '' : 'cursor-default'}"
+            class="min-h-[38px] w-full overflow-hidden resize-none !bg-transparent px-0 text-[15px] leading-relaxed text-gray-300 placeholder:text-gray-600 border-none outline-none {isAuthorized
+              ? ''
+              : 'cursor-default'}"
             placeholder="Additional details..."
           ></textarea>
         </label>
 
         <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
           <label class="space-y-2">
-            <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
+            <span
+              class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500"
+            >
               <UserCog size={14} />
               Assign Dev
             </span>
             <div class="property-select">
-              <SearchableSelect id="editor-assign-dev" bind:value={assignDev} options={availableAssigneeOptions} minimal={true} />
+              <SearchableSelect
+                id="editor-assign-dev"
+                bind:value={assignDev}
+                options={availableAssigneeOptions}
+                minimal={true}
+              />
             </div>
           </label>
 
           <label class="space-y-2">
-            <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
+            <span
+              class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500"
+            >
               <UserCheck size={14} />
               Assign Tester
             </span>
             <div class="property-select">
-              <SearchableSelect id="editor-assign-tester" bind:value={assignTester} options={assigneeOptions} minimal={true} disabled={!isAuthorized} />
+              <SearchableSelect
+                id="editor-assign-tester"
+                bind:value={assignTester}
+                options={assigneeOptions}
+                minimal={true}
+                disabled={!isAuthorized}
+              />
             </div>
           </label>
         </div>
 
         <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
           <label class="space-y-2">
-            <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
+            <span
+              class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500"
+            >
               <ClipboardCheck size={14} />
               Status
             </span>
             <div class="property-select">
-              <SearchableSelect id="editor-status" bind:value={status} options={statusOptions} showSearch={false} minimal={true} disabled={!isAuthorized} />
+              <SearchableSelect
+                id="editor-status"
+                bind:value={status}
+                options={statusOptions}
+                showSearch={false}
+                minimal={true}
+                disabled={!isAuthorized}
+              />
             </div>
           </label>
 
           <label class="space-y-2">
-            <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
+            <span
+              class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500"
+            >
               <Shield size={14} />
               Priority
             </span>
             <div class="property-select">
-              <SearchableSelect id="editor-priority" bind:value={priority} options={priorityOptions} showSearch={false} minimal={true} disabled={!isAuthorized} />
+              <SearchableSelect
+                id="editor-priority"
+                bind:value={priority}
+                options={priorityOptions}
+                showSearch={false}
+                minimal={true}
+                disabled={!isAuthorized}
+              />
             </div>
           </label>
 
           <label class="space-y-2">
-            <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
+            <span
+              class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500"
+            >
               <Wrench size={14} />
               Fixed
             </span>
             <div class="property-select">
-              <SearchableSelect id="editor-fixed" bind:value={fixed} options={fixedOptions} showSearch={false} minimal={true} disabled={!isAuthorized} />
+              <SearchableSelect
+                id="editor-fixed"
+                bind:value={fixed}
+                options={fixedOptions}
+                showSearch={false}
+                minimal={true}
+                disabled={!isAuthorized}
+              />
             </div>
           </label>
 
           <label class="space-y-2">
             <span class="flex items-center justify-between">
-              <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
+              <span
+                class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500"
+              >
                 <ListChecks size={14} />
                 Suite
               </span>
@@ -570,15 +725,25 @@
               {/if}
             </span>
             <div class="property-select">
-              <SearchableSelect id="editor-suite" bind:value={suiteId} options={suiteOptions} minimal={true} disabled={!isAuthorized} />
+              <SearchableSelect
+                id="editor-suite"
+                bind:value={suiteId}
+                options={suiteOptions}
+                minimal={true}
+                disabled={!isAuthorized}
+              />
             </div>
           </label>
         </div>
       </div>
 
-      <section class="grid grid-cols-1 gap-5 border-b border-white/5 px-6 py-6 md:grid-cols-2">
+      <section
+        class="grid grid-cols-1 gap-5 border-b border-white/5 px-6 py-6 md:grid-cols-2"
+      >
         <label>
-          <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
+          <span
+            class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500"
+          >
             <ShieldCheck size={14} />
             Precondition
           </span>
@@ -587,12 +752,16 @@
             readonly={!isAuthorized}
             use:autoGrow
             rows="1"
-            class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20 {isAuthorized ? '' : 'cursor-default focus:ring-0'}"
+            class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20 {isAuthorized
+              ? ''
+              : 'cursor-default focus:ring-0'}"
             placeholder="Conditions required before this test starts..."
           ></textarea>
         </label>
         <label>
-          <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
+          <span
+            class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500"
+          >
             <Target size={14} />
             Post-conditions
           </span>
@@ -601,7 +770,9 @@
             readonly={!isAuthorized}
             use:autoGrow
             rows="1"
-            class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20 {isAuthorized ? '' : 'cursor-default focus:ring-0'}"
+            class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20 {isAuthorized
+              ? ''
+              : 'cursor-default focus:ring-0'}"
             placeholder="Expected state after this test finishes..."
           ></textarea>
         </label>
@@ -609,7 +780,9 @@
 
       <section class="border-b border-white/5 px-6 py-6">
         <label>
-          <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
+          <span
+            class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500"
+          >
             <Keyboard size={14} />
             Input
           </span>
@@ -618,14 +791,18 @@
             readonly={!isAuthorized}
             use:autoGrow
             rows="1"
-            class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20 {isAuthorized ? '' : 'cursor-default focus:ring-0'}"
+            class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20 {isAuthorized
+              ? ''
+              : 'cursor-default focus:ring-0'}"
             placeholder="Data that tester must enter..."
           ></textarea>
         </label>
 
         <div class="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
           <label>
-            <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
+            <span
+              class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500"
+            >
               <CheckCircle2 size={14} />
               Expected Result
             </span>
@@ -634,13 +811,17 @@
               readonly={!isAuthorized}
               use:autoGrow
               rows="1"
-              class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20 {isAuthorized ? '' : 'cursor-default focus:ring-0'}"
+              class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20 {isAuthorized
+                ? ''
+                : 'cursor-default focus:ring-0'}"
               placeholder="Expected behavior after running the step..."
             ></textarea>
           </label>
 
           <label>
-            <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
+            <span
+              class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500"
+            >
               <ClipboardCheck size={14} />
               Actual Result
             </span>
@@ -649,17 +830,22 @@
               readonly={!isAuthorized}
               use:autoGrow
               rows="1"
-              class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20 {isAuthorized ? '' : 'cursor-default focus:ring-0'}"
+              class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20 {isAuthorized
+                ? ''
+                : 'cursor-default focus:ring-0'}"
               placeholder="Actual behavior found during testing..."
             ></textarea>
           </label>
         </div>
       </section>
 
-      <section class="grid grid-cols-1 gap-5 border-b border-white/5 px-6 py-6 lg:grid-cols-2">
-
+      <section
+        class="grid grid-cols-1 gap-5 border-b border-white/5 px-6 py-6 lg:grid-cols-2"
+      >
         <label>
-          <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
+          <span
+            class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500"
+          >
             <MessageSquare size={14} />
             Dev Note
           </span>
@@ -673,7 +859,9 @@
         </label>
 
         <label>
-          <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
+          <span
+            class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500"
+          >
             <MessageSquare size={14} />
             Test Note
           </span>
@@ -682,7 +870,9 @@
             readonly={!isAuthorized}
             use:autoGrow
             rows="1"
-            class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20 {isAuthorized ? '' : 'cursor-default focus:ring-0'}"
+            class="mt-3 min-h-[38px] w-full overflow-hidden resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20 {isAuthorized
+              ? ''
+              : 'cursor-default focus:ring-0'}"
             placeholder="Tester note..."
           ></textarea>
         </label>
@@ -695,28 +885,40 @@
         {#if attachments.length > 0}
           <div class="mt-4 flex flex-wrap gap-3">
             {#each attachments as att, index}
-              <div class="group relative w-40 overflow-hidden rounded-lg border border-white/10 bg-[#1a2332]">
-                {#if att.file.type.startsWith('image/')}
-                  <img src={att.url} alt={att.file.name} class="h-24 w-full object-cover" />
+              <div
+                class="group relative w-40 overflow-hidden rounded-lg border border-white/10 bg-[#1a2332]"
+              >
+                {#if att.file.type.startsWith("image/")}
+                  <img
+                    src={att.url}
+                    alt={att.file.name}
+                    class="h-24 w-full object-cover"
+                  />
                 {:else}
-                  <div class="flex h-24 items-center justify-center bg-[#151e2e]">
+                  <div
+                    class="flex h-24 items-center justify-center bg-[#151e2e]"
+                  >
                     <Paperclip size={28} class="text-gray-500" />
                   </div>
                 {/if}
                 <div class="px-2 py-1.5">
-                  <p class="truncate text-xs font-medium text-gray-300">{att.file.name}</p>
+                  <p class="truncate text-xs font-medium text-gray-300">
+                    {att.file.name}
+                  </p>
                   <div class="flex items-center justify-between">
-                    <span class="text-[11px] text-gray-500">{formatFileSize(att.file.size)}</span>
-                      {#if isAuthorized}
-                        <button
-                          type="button"
-                          class="grid h-5 w-5 place-items-center rounded text-gray-500 hover:text-rose-400 transition-colors"
-                          title="Remove"
-                          on:click={() => removeAttachment(index)}
-                        >
-                          <X size={13} />
-                        </button>
-                      {/if}
+                    <span class="text-[11px] text-gray-500"
+                      >{formatFileSize(att.file.size)}</span
+                    >
+                    {#if isAuthorized}
+                      <button
+                        type="button"
+                        class="grid h-5 w-5 place-items-center rounded text-gray-500 hover:text-rose-400 transition-colors"
+                        title="Remove"
+                        on:click={() => removeAttachment(index)}
+                      >
+                        <X size={13} />
+                      </button>
+                    {/if}
                   </div>
                 </div>
               </div>
@@ -741,9 +943,13 @@
             <Plus size={15} />
             Add attachment
           </button>
-          <span class="ml-2 text-xs text-gray-600">({attachments.length}/{MAX_ATTACHMENTS})</span>
+          <span class="ml-2 text-xs text-gray-600"
+            >({attachments.length}/{MAX_ATTACHMENTS})</span
+          >
         {:else if isAuthorized}
-          <p class="mt-4 text-xs text-gray-500">Maximum {MAX_ATTACHMENTS} attachments reached.</p>
+          <p class="mt-4 text-xs text-gray-500">
+            Maximum {MAX_ATTACHMENTS} attachments reached.
+          </p>
         {/if}
       </section>
 
@@ -784,16 +990,29 @@
 </div>
 
 {#if showCreateSuiteModal}
-  <div class="fixed inset-0 z-[9999] flex items-center justify-center p-4" transition:fade={{ duration: 150 }}>
+  <div
+    class="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+    transition:fade={{ duration: 150 }}
+  >
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <!-- svelte-ignore a11y-no-static-element-interactions -->
-    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" on:click={() => (showCreateSuiteModal = false)}></div>
-    <div class="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#111827] p-6 shadow-2xl">
+    <div
+      class="absolute inset-0 bg-black/60 backdrop-blur-sm"
+      on:click={() => (showCreateSuiteModal = false)}
+    ></div>
+    <div
+      class="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#111827] p-6 shadow-2xl"
+    >
       <h3 class="text-lg font-black text-white">Create New Suite</h3>
-      <p class="mt-1 text-sm text-gray-500">Enter a name for the new test suite.</p>
+      <p class="mt-1 text-sm text-gray-500">
+        Enter a name for the new test suite.
+      </p>
 
       <div class="mt-6">
-        <label for="new-suite-name" class="block text-[12px] font-black uppercase tracking-widest text-gray-500">
+        <label
+          for="new-suite-name"
+          class="block text-[12px] font-black uppercase tracking-widest text-gray-500"
+        >
           Suite Name
         </label>
         <!-- svelte-ignore a11y_autofocus -->

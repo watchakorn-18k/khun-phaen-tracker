@@ -6,5 +6,6 @@ pub mod profile;
 pub mod room;
 pub mod storage;
 pub mod test_case;
+pub mod test_run;
 pub mod user;
 pub mod workspace;

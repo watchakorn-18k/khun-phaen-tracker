@@ -7,11 +7,18 @@
     Search,
     ChevronDown,
     ChevronRight,
-    Filter,
     Moon,
     Sun,
-    ExternalLink,
     FileDown,
+    Activity,
+    CheckCircle2,
+    XCircle,
+    MinusCircle,
+    Clock,
+    SkipForward,
+    AlertOctagon,
+    ChevronUp,
+    Layers,
   } from "lucide-svelte";
   import favicon from "$lib/assets/favicon.svg";
 
@@ -45,6 +52,29 @@
     hasMore: boolean;
   };
 
+  type LatestRunStats = {
+    total: number;
+    pending: number;
+    passed: number;
+    failed: number;
+    blocked: number;
+    skipped: number;
+    invalid: number;
+  };
+
+  type LatestTestRun = {
+    id: string;
+    name: string;
+    description: string | null;
+    default_assignee: string;
+    operating_system: string;
+    status: string;
+    stats: LatestRunStats;
+    test_cases: { test_case_id: string; status: string }[];
+    created_at: string | null;
+    updated_at: string | null;
+  };
+
   $: workspaceId = $page.params.workspace_id;
 
   let suites: Suite[] = [];
@@ -54,6 +84,10 @@
   let searchTimeout: any;
   let filterPriority = "";
   let filterStatus = "";
+
+  let latestRun: LatestTestRun | null = null;
+  let runCaseMap = new Map<string, string>();
+  let showRunBanner = true;
 
   function mapCase(tc: any): TestCase {
     return {
@@ -81,9 +115,21 @@
     if (!workspaceId) return;
     loading = true;
     try {
-      const suiteResp = await api.public.listSuites(workspaceId);
+      const [suiteResp, runResp] = await Promise.all([
+        api.public.listSuites(workspaceId),
+        api.public.getLatestTestRun(workspaceId),
+      ]);
+
       if (!suiteResp.ok) return;
       const suiteData = await suiteResp.json();
+
+      if (runResp.ok) {
+        const runData: LatestTestRun = await runResp.json();
+        latestRun = runData;
+        runCaseMap = new Map(
+          runData.test_cases.map((tc) => [tc.test_case_id, tc.status]),
+        );
+      }
 
       const suiteList = suiteData.map((s: any) => ({
         id: s.id || s._id,
@@ -95,7 +141,6 @@
         cases: [] as TestCase[],
       }));
 
-      // Load cases per suite in parallel
       const params: Record<string, any> = { limit: 50 };
       if (query) params.q = query;
       if (filterPriority) params.priority = filterPriority;
@@ -109,7 +154,6 @@
       );
 
       const casesResponses = await Promise.all(casesPromises);
-
       for (let i = 0; i < suiteList.length; i++) {
         if (casesResponses[i].ok) {
           const data = await casesResponses[i].json();
@@ -145,7 +189,7 @@
         "Test Case No",
         "Test Name",
         "Status",
-        "Assign Tester",
+        "Run Result",
         "Assign Dev",
         "Precondition",
         "Input",
@@ -155,7 +199,6 @@
       ];
 
       let rows: string[][] = [];
-
       allCases.forEach((c: TestCase) => {
         let steps = "";
         if (c.step_format === "gherkin") {
@@ -165,13 +208,12 @@
         } else {
           steps = (c.classic_steps || []).map((s: any) => s.action).join("\n");
         }
-
         rows.push([
           String(suiteMap.get(c.suite_id) || "Unassigned"),
           String(c.test_no),
           String(c.title || ""),
           String(c.status || ""),
-          "Public View",
+          String(runCaseMap.get(c.id) || "—"),
           String(c.assign_dev || "unassigned"),
           String(c.preconditions || ""),
           String(c.input || ""),
@@ -211,6 +253,38 @@
   $: totalCases = suites.reduce((t, s) => t + (s.case_count || 0), 0);
   $: totalSuites = suites.filter((s) => s.id !== "unassigned").length;
 
+  $: runPassPct =
+    latestRun && latestRun.stats.total > 0
+      ? Math.round((latestRun.stats.passed / latestRun.stats.total) * 100)
+      : 0;
+  $: runFailPct =
+    latestRun && latestRun.stats.total > 0
+      ? Math.round((latestRun.stats.failed / latestRun.stats.total) * 100)
+      : 0;
+  $: runBlockPct =
+    latestRun && latestRun.stats.total > 0
+      ? Math.round((latestRun.stats.blocked / latestRun.stats.total) * 100)
+      : 0;
+  $: runPendingPct =
+    latestRun && latestRun.stats.total > 0
+      ? Math.max(0, 100 - runPassPct - runFailPct - runBlockPct)
+      : 0;
+
+  function formatDate(iso: string | null): string {
+    if (!iso) return "—";
+    try {
+      return new Intl.DateTimeFormat("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(iso));
+    } catch {
+      return iso;
+    }
+  }
+
   function priorityBadge(p: string) {
     switch (p) {
       case "high":
@@ -226,7 +300,7 @@
 
   function statusBadge(s: string) {
     switch (s) {
-      case "pass":
+      case "passed":
         return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300";
       case "failed":
         return "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300";
@@ -245,6 +319,34 @@
     return f === "yes"
       ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
       : "bg-slate-100 text-slate-500 dark:bg-gray-800 dark:text-gray-400";
+  }
+
+  function runResultBadge(s: string) {
+    switch (s) {
+      case "passed":
+        return "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800";
+      case "failed":
+        return "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-800";
+      case "blocked":
+        return "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800";
+      case "skipped":
+        return "bg-slate-100 text-slate-500 border-slate-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700";
+      case "invalid":
+        return "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800";
+      default:
+        return "bg-indigo-50 text-indigo-500 border-indigo-100 dark:bg-indigo-900/20 dark:text-indigo-400 dark:border-indigo-800";
+    }
+  }
+
+  function runStatusBadge(s: string) {
+    switch (s) {
+      case "completed":
+        return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300";
+      case "aborted":
+        return "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300";
+      default:
+        return "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300";
+    }
   }
 
   function toggleSuite(id: string) {
@@ -323,6 +425,220 @@
   </header>
 
   <main class="mx-auto max-w-7xl px-6 py-8">
+    <!-- Latest Test Run Banner -->
+    {#if latestRun}
+      <div
+        class="mb-8 overflow-hidden rounded-2xl border border-indigo-200/60 bg-gradient-to-br from-indigo-50 via-white to-purple-50/40 shadow-sm dark:border-indigo-800/40 dark:from-indigo-950/40 dark:via-gray-900 dark:to-purple-950/20"
+      >
+        <!-- Banner Header -->
+        <div class="flex items-center justify-between px-6 pt-5 pb-0">
+          <div class="flex items-center gap-3">
+            <div
+              class="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600/10 dark:bg-indigo-500/20"
+            >
+              <Activity
+                size={18}
+                class="text-indigo-600 dark:text-indigo-400"
+              />
+            </div>
+            <div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <span
+                  class="text-xs font-black uppercase tracking-widest text-indigo-500 dark:text-indigo-400"
+                >
+                  Latest Test Run
+                </span>
+                <span
+                  class="inline-block rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase {runStatusBadge(
+                    latestRun.status,
+                  )}"
+                >
+                  {latestRun.status}
+                </span>
+              </div>
+              <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                <h2 class="text-base font-black text-slate-800 dark:text-white">
+                  {latestRun.name}
+                </h2>
+                {#if latestRun.operating_system}
+                  <span
+                    class="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
+                  >
+                    {latestRun.operating_system}
+                  </span>
+                {/if}
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <span
+              class="hidden sm:block text-xs font-medium text-slate-400 dark:text-gray-500"
+            >
+              {formatDate(latestRun.created_at)}
+            </span>
+            <button
+              class="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-bold text-slate-500 transition-colors hover:bg-slate-50 dark:border-gray-700 dark:bg-gray-800/80 dark:text-gray-400 dark:hover:bg-gray-700"
+              on:click={() => (showRunBanner = !showRunBanner)}
+            >
+              {#if showRunBanner}
+                <ChevronUp size={12} />
+                Hide
+              {:else}
+                <ChevronDown size={12} />
+                Show
+              {/if}
+            </button>
+          </div>
+        </div>
+
+        {#if showRunBanner}
+          <div class="px-6 pt-4 pb-5 space-y-4">
+            <!-- Progress Bar -->
+            <div>
+              <div class="mb-1.5 flex items-center justify-between">
+                <span
+                  class="text-xs font-bold text-slate-500 dark:text-gray-400"
+                >
+                  Progress — {latestRun.stats.passed}/{latestRun.stats.total} passed
+                </span>
+                <span
+                  class="text-xs font-black text-indigo-600 dark:text-indigo-400"
+                >
+                  {runPassPct}%
+                </span>
+              </div>
+              <div
+                class="flex h-3 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-gray-800"
+              >
+                {#if latestRun.stats.passed > 0}
+                  <div
+                    class="h-full bg-emerald-500 transition-all duration-500"
+                    style="width: {runPassPct}%"
+                  ></div>
+                {/if}
+                {#if latestRun.stats.failed > 0}
+                  <div
+                    class="h-full bg-rose-500 transition-all duration-500"
+                    style="width: {runFailPct}%"
+                  ></div>
+                {/if}
+                {#if latestRun.stats.blocked > 0}
+                  <div
+                    class="h-full bg-orange-400 transition-all duration-500"
+                    style="width: {runBlockPct}%"
+                  ></div>
+                {/if}
+                {#if runPendingPct > 0}
+                  <div
+                    class="h-full bg-slate-200 dark:bg-gray-700 transition-all duration-500"
+                    style="width: {runPendingPct}%"
+                  ></div>
+                {/if}
+              </div>
+            </div>
+
+            <!-- Stats Chips -->
+            <div class="flex flex-wrap gap-2">
+              <div
+                class="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 dark:border-emerald-800/50 dark:bg-emerald-900/20"
+              >
+                <CheckCircle2
+                  size={13}
+                  class="text-emerald-600 dark:text-emerald-400"
+                />
+                <span
+                  class="text-xs font-black text-emerald-700 dark:text-emerald-300"
+                >
+                  {latestRun.stats.passed} Passed
+                </span>
+              </div>
+              <div
+                class="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 dark:border-rose-800/50 dark:bg-rose-900/20"
+              >
+                <XCircle size={13} class="text-rose-600 dark:text-rose-400" />
+                <span
+                  class="text-xs font-black text-rose-700 dark:text-rose-300"
+                >
+                  {latestRun.stats.failed} Failed
+                </span>
+              </div>
+              <div
+                class="flex items-center gap-1.5 rounded-xl border border-orange-200 bg-orange-50 px-3 py-1.5 dark:border-orange-800/50 dark:bg-orange-900/20"
+              >
+                <MinusCircle
+                  size={13}
+                  class="text-orange-600 dark:text-orange-400"
+                />
+                <span
+                  class="text-xs font-black text-orange-700 dark:text-orange-300"
+                >
+                  {latestRun.stats.blocked} Blocked
+                </span>
+              </div>
+              <div
+                class="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 dark:border-indigo-800/50 dark:bg-indigo-900/20"
+              >
+                <Clock size={13} class="text-indigo-500 dark:text-indigo-400" />
+                <span
+                  class="text-xs font-black text-indigo-600 dark:text-indigo-300"
+                >
+                  {latestRun.stats.pending} Pending
+                </span>
+              </div>
+              {#if latestRun.stats.skipped > 0}
+                <div
+                  class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 dark:border-gray-700 dark:bg-gray-800"
+                >
+                  <SkipForward
+                    size={13}
+                    class="text-slate-500 dark:text-gray-400"
+                  />
+                  <span
+                    class="text-xs font-black text-slate-600 dark:text-gray-300"
+                  >
+                    {latestRun.stats.skipped} Skipped
+                  </span>
+                </div>
+              {/if}
+              {#if latestRun.stats.invalid > 0}
+                <div
+                  class="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 dark:border-red-800/50 dark:bg-red-900/20"
+                >
+                  <AlertOctagon
+                    size={13}
+                    class="text-red-600 dark:text-red-400"
+                  />
+                  <span
+                    class="text-xs font-black text-red-700 dark:text-red-300"
+                  >
+                    {latestRun.stats.invalid} Invalid
+                  </span>
+                </div>
+              {/if}
+              <div
+                class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 dark:border-gray-700 dark:bg-gray-800/60"
+              >
+                <Layers size={13} class="text-slate-400 dark:text-gray-400" />
+                <span
+                  class="text-xs font-black text-slate-500 dark:text-gray-400"
+                >
+                  {latestRun.stats.total} Total
+                </span>
+              </div>
+            </div>
+
+            {#if latestRun.description}
+              <p
+                class="text-xs font-medium text-slate-500 dark:text-gray-400 border-t border-slate-100 dark:border-gray-800 pt-3"
+              >
+                {latestRun.description}
+              </p>
+            {/if}
+          </div>
+        {/if}
+      </div>
+    {/if}
+
     <!-- Search + Filters -->
     <div class="mb-8 flex flex-wrap items-center gap-3">
       <div
@@ -356,7 +672,7 @@
       >
         <option value="">All Status</option>
         <option value="actual">Actual</option>
-        <option value="pass">Pass</option>
+        <option value="passed">Passed</option>
         <option value="failed">Failed</option>
         <option value="blocked">Blocked</option>
         <option value="draft">Draft</option>
@@ -442,6 +758,13 @@
                         class="px-6 py-3 text-center text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-gray-500"
                         >Fixed</th
                       >
+                      {#if latestRun}
+                        <th
+                          class="px-6 py-3 text-center text-[10px] font-black uppercase tracking-wider text-indigo-400 dark:text-indigo-500"
+                        >
+                          Run Result
+                        </th>
+                      {/if}
                       <th
                         class="px-6 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-gray-500"
                         >Developer</th
@@ -450,8 +773,14 @@
                   </thead>
                   <tbody class="divide-y divide-slate-100 dark:divide-gray-800">
                     {#each suite.cases as tc}
+                      {@const runStatus = runCaseMap.get(tc.id)}
                       <tr
-                        class="transition-colors hover:bg-slate-50/50 dark:hover:bg-gray-800/30"
+                        class="transition-colors hover:bg-slate-50/50 dark:hover:bg-gray-800/30 {runStatus ===
+                        'failed'
+                          ? 'bg-rose-50/30 dark:bg-rose-950/10'
+                          : runStatus === 'passed'
+                            ? 'bg-emerald-50/20 dark:bg-emerald-950/5'
+                            : ''}"
                       >
                         <td class="whitespace-nowrap px-6 py-3">
                           <span
@@ -492,6 +821,36 @@
                             {tc.fixed}
                           </span>
                         </td>
+                        {#if latestRun}
+                          <td class="px-6 py-3 text-center">
+                            {#if runStatus}
+                              <span
+                                class="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-black uppercase {runResultBadge(
+                                  runStatus,
+                                )}"
+                              >
+                                {#if runStatus === "passed"}
+                                  <CheckCircle2 size={10} />
+                                {:else if runStatus === "failed"}
+                                  <XCircle size={10} />
+                                {:else if runStatus === "blocked"}
+                                  <MinusCircle size={10} />
+                                {:else if runStatus === "skipped"}
+                                  <SkipForward size={10} />
+                                {:else if runStatus === "invalid"}
+                                  <AlertOctagon size={10} />
+                                {:else}
+                                  <Clock size={10} />
+                                {/if}
+                                {runStatus}
+                              </span>
+                            {:else}
+                              <span class="text-slate-300 dark:text-gray-700"
+                                >—</span
+                              >
+                            {/if}
+                          </td>
+                        {/if}
                         <td class="px-6 py-3">
                           <span
                             class="text-xs font-medium text-slate-500 dark:text-gray-400"
@@ -506,7 +865,7 @@
                     {#if suite.cases.length === 0}
                       <tr>
                         <td
-                          colspan="6"
+                          colspan={latestRun ? 7 : 6}
                           class="px-6 py-8 text-center text-sm font-medium text-slate-400 dark:text-gray-500"
                         >
                           No test cases in this suite

@@ -1151,5 +1151,53 @@ export const api = {
       const qs = params ? "?" + new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== "") as [string, string][]).toString() : "";
       return fetch(`${API_BASE_URL}/public/workspaces/${wsId}/all-test-cases${qs}`);
     },
+    getLatestTestRun: (wsId: string): Promise<Response> => {
+      return fetch(`${API_BASE_URL}/public/workspaces/${wsId}/test-runs/latest`);
+    },
+  },
+  testRuns: {
+    list: (wsId: string, page = 1, limit = 10): Promise<Response> => {
+      return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-runs?page=${page}&limit=${limit}`, {
+        headers: api.data._headers(),
+        credentials: "include",
+      });
+    },
+    get: (wsId: string, runId: string): Promise<Response> => {
+      return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-runs/${runId}`, {
+        headers: api.data._headers(),
+        credentials: "include",
+      });
+    },
+    create: (wsId: string, payload: { name: string; description?: string; default_assignee?: string; operating_system?: string; test_case_ids: string[] }): Promise<Response> => {
+      return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-runs`, {
+        method: "POST",
+        headers: { ...api.data._headers(), "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+    },
+    updateStatus: (wsId: string, runId: string, status: string): Promise<Response> => {
+      return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-runs/${runId}/status`, {
+        method: "PATCH",
+        headers: { ...api.data._headers(), "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status }),
+      });
+    },
+    updateCaseStatus: (wsId: string, runId: string, tcId: string, status: string): Promise<Response> => {
+      return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-runs/${runId}/cases/${tcId}/status`, {
+        method: "PATCH",
+        headers: { ...api.data._headers(), "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status }),
+      });
+    },
+    delete: (wsId: string, runId: string): Promise<Response> => {
+      return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-runs/${runId}`, {
+        method: "DELETE",
+        headers: api.data._headers(),
+        credentials: "include",
+      });
+    },
   },
 };

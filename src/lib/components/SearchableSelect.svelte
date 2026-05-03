@@ -22,6 +22,7 @@
 	export let minimal: boolean = false;
 	export let customClass: string = '';
 	export let disabled: boolean = false;
+	export let dropdownClass: string = 'min-w-[200px]';
 
 	let isOpen = false;
 	let searchQuery = '';
@@ -123,7 +124,7 @@
 
 	<!-- Dropdown -->
 	{#if isOpen && !disabled}
-		<div class="absolute z-[9000] w-full min-w-[200px] mt-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl shadow-2xl max-h-80 overflow-hidden ring-1 ring-black/5" transition:fade={{ duration: 100 }}>
+		<div class="absolute z-[9000] w-full {dropdownClass} mt-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl shadow-2xl max-h-80 overflow-hidden ring-1 ring-black/5" transition:fade={{ duration: 100 }}>
 			<!-- Search Input -->
 			{#if showSearch}
 				<div class="border-b border-white/10">

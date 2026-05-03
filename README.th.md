@@ -142,7 +142,7 @@ docker compose down
 หน้าเว็บจะสามารถเข้าถึงได้ที่: `http://localhost:8080/khun-phaen-tracker/`
 ระบบหลังบ้าน (API/WebSocket) จะอยู่ที่: `http://localhost:3001`
 ระบบเก็บไฟล์ (RustFS API) จะอยู่ที่พอร์ต: `9000`
-ระบบจัดการไฟล์ผ่านหน้าเว็บ (RustFS Console) จะอยู่ที่: `http://localhost:9001` (User/Pass พื้นฐาน: `rustfsadmin` / `rustfsadmin`)
+ระบบจัดการไฟล์ผ่านหน้าเว็บ (RustFS Console) จะอยู่ที่: `http://localhost:9001` (User/Passed พื้นฐาน: `rustfsadmin` / `rustfsadmin`)
 
 ### วิธีที่ 2: รันทั้งหมด + ใช้ Mongo Atlas (ฐานข้อมูลคลาวด์)
 

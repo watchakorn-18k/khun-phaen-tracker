@@ -225,6 +225,28 @@ impl TestCaseRepository {
         Ok(res.matched_count > 0)
     }
 
+    pub async fn update_status(
+        &self,
+        id: &str,
+        status: &str,
+        updated_at: &str,
+    ) -> mongodb::error::Result<bool> {
+        let res = self
+            .collection
+            .update_one(
+                doc! { "_id": Self::build_id_filter(id) },
+                doc! {
+                    "$set": {
+                        "status": status,
+                        "updated_at": updated_at,
+                    }
+                },
+                None,
+            )
+            .await?;
+        Ok(res.matched_count > 0)
+    }
+
     pub async fn delete_by_suite(&self, suite_id: &str) -> mongodb::error::Result<u64> {
         let res = self.collection.delete_many(doc! { "suite_id": suite_id }, None).await?;
         Ok(res.deleted_count)

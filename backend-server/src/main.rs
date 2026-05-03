@@ -475,6 +475,25 @@ async fn main() {
             "/api/workspaces/:ws_id/test-cases/:test_case_id/attachments",
             post(handlers::test_case_handler::upload_test_case_attachment),
         )
+        // Test run routes
+        .route(
+            "/api/workspaces/:ws_id/test-runs",
+            get(handlers::test_run_handler::list_test_runs)
+                .post(handlers::test_run_handler::create_test_run),
+        )
+        .route(
+            "/api/workspaces/:ws_id/test-runs/:run_id",
+            get(handlers::test_run_handler::get_test_run)
+                .delete(handlers::test_run_handler::delete_test_run),
+        )
+        .route(
+            "/api/workspaces/:ws_id/test-runs/:run_id/status",
+            patch(handlers::test_run_handler::update_test_run_status),
+        )
+        .route(
+            "/api/workspaces/:ws_id/test-runs/:run_id/cases/:tc_id/status",
+            patch(handlers::test_run_handler::update_run_case_status),
+        )
         // Public routes (no auth required)
         .route(
             "/api/public/workspaces/:ws_id/test-suites",
@@ -487,6 +506,10 @@ async fn main() {
         .route(
             "/api/public/workspaces/:ws_id/all-test-cases",
             get(handlers::test_case_handler::get_all_test_cases_public),
+        )
+        .route(
+            "/api/public/workspaces/:ws_id/test-runs/latest",
+            get(handlers::test_run_handler::get_latest_public_test_run),
         )
         .route("/ws", get(handlers::ws_handler::ws_handler))
         .layer(
