@@ -21,6 +21,7 @@
   import QuickNotes from "$lib/components/QuickNotes.svelte";
   import ProfileModal from "$lib/components/ProfileModal.svelte";
   import TimerDashboard from "$lib/components/TimerDashboard.svelte";
+  import HtmlPreview from "$lib/components/HtmlPreview.svelte";
   import GlobalConfirmModal from "$lib/components/GlobalConfirmModal.svelte";
   import { _ } from "svelte-i18n";
   import { initAuth, user, authLoading } from "$lib/stores/auth";
@@ -304,8 +305,8 @@
 
 <svelte:head>
   <link rel="icon" href={favicon} type="image/svg+xml" />
-  <title>Khun Phaen — Task Management System</title>
-  <meta name="description" content="Khun Phaen is an offline-first task management system for teams. Manage tasks, sprints, test cases, and more." />
+  <title>{$_("meta__app_title")}</title>
+  <meta name="description" content={$_("meta__app_desc")} />
   <meta name="robots" content="noindex, nofollow" />
   <meta property="og:site_name" content="Khun Phaen" />
   <meta property="og:type" content="website" />
@@ -388,6 +389,10 @@
 
     {#if $modals.timerDashboard}
       <TimerDashboard />
+    {/if}
+
+    {#if $modals.htmlPreview}
+      <HtmlPreview on:close={() => ui.closeModal("htmlPreview")} />
     {/if}
 
     {#if $modals.whiteboard}

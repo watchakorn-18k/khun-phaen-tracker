@@ -140,8 +140,8 @@
 </script>
 
 <svelte:head>
-  <title>โปรไฟล์ — Khun Phaen</title>
-  <meta name="description" content="จัดการข้อมูลโปรไฟล์และการตั้งค่าบัญชีของคุณ" />
+  <title>{$_("meta__profile_title")}</title>
+  <meta name="description" content={$_("meta__profile_desc")} />
 </svelte:head>
 
 <div class="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">

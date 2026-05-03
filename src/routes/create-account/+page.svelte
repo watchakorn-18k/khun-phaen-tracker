@@ -55,8 +55,8 @@
 </script>
 
 <svelte:head>
-  <title>สร้างบัญชีผู้ใช้ — Khun Phaen</title>
-  <meta name="description" content="สร้างบัญชีผู้ใช้ใหม่เพื่อเริ่มต้นใช้งาน Khun Phaen" />
+  <title>{$_("meta__create_account_title")}</title>
+  <meta name="description" content={$_("meta__create_account_desc")} />
 </svelte:head>
 
 <div class="h-screen w-full flex bg-[#030712] overflow-hidden font-sans">

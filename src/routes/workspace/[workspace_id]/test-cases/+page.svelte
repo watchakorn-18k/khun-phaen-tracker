@@ -2355,8 +2355,8 @@
 </script>
 
 <svelte:head>
-  <title>Test Cases - {workspaceLabel}</title>
-  <meta name="description" content="จัดการ test cases ของ {workspaceLabel}" />
+  <title>{$_("meta__testcases_title", { values: { name: workspaceLabel } })}</title>
+  <meta name="description" content={$_("meta__testcases_desc", { values: { name: workspaceLabel } })} />
 </svelte:head>
 
 <div
@@ -2394,7 +2394,7 @@
                   <input
                     bind:value={query}
                     class="min-w-0 flex-1 border-0 bg-transparent text-sm font-bold text-slate-700 outline-none placeholder:text-slate-400 dark:!bg-transparent dark:text-gray-200"
-                    placeholder="Search test cases, ID, description..."
+                    placeholder={$_("tc__ph_search")}
                   />
                   {#if query}
                     <button
@@ -2623,7 +2623,7 @@
                 <button
                   class="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
                   on:click={() => (showActionsMenu = !showActionsMenu)}
-                  title="Actions"
+                  title={$_("tc__title_actions")}
                 >
                   <MoreHorizontal size={16} />
                 </button>
@@ -2719,7 +2719,7 @@
             <div class="mb-2 flex items-center gap-2">
               <button
                 class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors"
-                title="Toggle suites"
+                title={$_("tc__title_toggle_suites")}
                 on:click={() => (isSuitesOpen = !isSuitesOpen)}
               >
                 <ChevronDown
@@ -2737,7 +2737,7 @@
               {#if isAuthorized}
                 <button
                   class="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
-                  title="Add suite"
+                  title={$_("tc__title_add_suite")}
                   on:click={() => (showCreateSuiteModal = true)}
                 >
                   <Plus size={16} />
@@ -2809,7 +2809,7 @@
               <div class="mb-2 flex items-center gap-2">
                 <button
                   class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors"
-                  title="Toggle test runs"
+                  title={$_("tc__title_toggle_runs")}
                   on:click={() => (isTestRunsOpen = !isTestRunsOpen)}
                 >
                   <ChevronDown
@@ -2830,7 +2830,7 @@
                 {#if isAuthorized}
                   <button
                     class="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
-                    title="New test run"
+                    title={$_("tc__title_new_run")}
                     on:click={openNewTestRunModal}
                   >
                     <Plus size={16} />
@@ -2933,7 +2933,7 @@
                               d="M4 12a8 8 0 018-8v8z"
                             ></path>
                           </svg>
-                          <span>Loading...</span>
+                          <span>{$_("tc__loading")}</span>
                         {:else}
                           <svg
                             class="w-3 h-3"
@@ -3001,17 +3001,17 @@
                     <button
                       class="shrink-0 rounded-xl bg-emerald-600 px-4 py-1.5 text-xs font-black text-white hover:bg-emerald-500"
                       on:click={() => updateRunStatus("completed")}
-                      >Mark complete</button
+                      >{$_("tc__mark_complete")}</button
                     >
                   {:else if selectedRunDetail?.status === "completed"}
                     <button
                       class="shrink-0 rounded-xl bg-amber-500 px-4 py-1.5 text-xs font-black text-white hover:bg-amber-400"
-                      on:click={() => updateRunStatus("running")}>Reopen</button
+                      on:click={() => updateRunStatus("running")}>{$_("tc__reopen")}</button
                     >
                   {/if}
                   <button
                     class="shrink-0 grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 dark:hover:text-red-400 transition-colors"
-                    title="Delete test run"
+                    title={$_("tc__title_delete_run")}
                     on:click={() => (showDeleteRunModal = true)}
                   >
                     <Trash2 size={16} />
@@ -3094,8 +3094,8 @@
                   >
                     <span>#</span>
                     <span></span>
-                    <span>Test Case</span>
-                    <span>Status</span>
+                    <span>{$_("tc__test_case")}</span>
+                    <span>{$_("tc__status")}</span>
                   </div>
                   <div class="divide-y divide-slate-100 dark:divide-gray-800">
                     {#each selectedRunDetail.test_cases as entry}
@@ -3116,7 +3116,7 @@
                         <!-- TC-no -->
                         <button
                           class="font-mono text-sm font-bold text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors text-left"
-                          title="View test case details"
+                          title={$_("tc__title_view_case")}
                           on:click={() => {
                             if (!entry.test_case) return;
                             selectedSuiteId =
@@ -3207,21 +3207,21 @@
                     {#if isAuthorized}
                       <button
                         class="grid h-8 w-8 place-items-center rounded-md text-indigo-600 hover:bg-white dark:text-indigo-400 dark:hover:bg-gray-800"
-                        title="Add case"
+                        title={$_("tc__title_add_case")}
                         on:click={() => openTestCaseEditor(suite.id)}
                       >
                         <Plus size={16} />
                       </button>
                       <button
                         class="grid h-8 w-8 place-items-center rounded-md text-slate-400 hover:bg-white hover:text-slate-700 dark:hover:bg-gray-800 dark:hover:text-white"
-                        title="Edit suite"
+                        title={$_("tc__title_edit_suite")}
                         on:click={() => (editingSuite = { ...suite })}
                       >
                         <Edit3 size={15} />
                       </button>
                       <button
                         class="grid h-8 w-8 place-items-center rounded-md text-slate-400 hover:bg-white hover:text-rose-600 dark:hover:bg-gray-800 dark:hover:text-rose-400"
-                        title="Delete suite"
+                        title={$_("tc__title_delete_suite")}
                         on:click={() => {
                           suiteToDelete = suite;
                           deleteMode =
@@ -3342,7 +3342,7 @@
                           {#if isAuthorized}
                             <button
                               class="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-white hover:text-slate-700 dark:hover:bg-gray-800 dark:hover:text-white transition-colors"
-                              title="Delete Case"
+                              title={$_("tc__title_delete_case")}
                               on:click={() => deleteTestCase(testCase.id)}
                             >
                               <Trash2 size={16} />
@@ -3443,7 +3443,7 @@
         <button
           class="absolute left-0 top-0 z-20 h-full w-2 -translate-x-1 cursor-col-resize border-0 bg-transparent transition-colors hover:bg-indigo-500/10 focus:bg-indigo-500/10 focus:outline-none"
           aria-label="Resize test case details panel"
-          title="Resize details panel"
+          title={$_("tc__title_resize")}
           on:pointerdown={startPanelResize}
         ></button>
         <div
@@ -3467,7 +3467,7 @@
             </div>
             <button
               class="grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
-              title="Close details"
+              title={$_("tc__title_close_details")}
               on:click={() => (showDetail = false)}
             >
               <X size={18} />
@@ -3477,7 +3477,7 @@
           <div class="mt-4 flex flex-wrap items-center gap-2">
             <button
               class="flex h-9 items-center gap-2 rounded-lg bg-indigo-600 px-3 text-sm font-black text-white hover:bg-indigo-500 transition-colors shadow-sm"
-              title="Create Task"
+              title={$_("tc__title_create_task")}
               on:click={() => handleConvertToTask(selectedCase.id)}
             >
               <Plus size={16} />
@@ -3486,7 +3486,7 @@
             {#if isAuthorized}
               <button
                 class="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-                title="Edit"
+                title={$_("tc__title_edit")}
                 on:click={() =>
                   openTestCaseEditor(selectedSuite.id, selectedCase.id)}
               >
@@ -3494,7 +3494,7 @@
               </button>
               <button
                 class="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-                title="Delete"
+                title={$_("tc__title_delete")}
                 on:click={() => deleteTestCase(selectedCase.id)}
               >
                 <Trash2 size={17} />

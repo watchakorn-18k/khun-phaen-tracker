@@ -604,8 +604,8 @@
 </script>
 
 <svelte:head>
-  <title>Storage — Khun Phaen</title>
-  <meta name="description" content="จัดการพื้นที่จัดเก็บไฟล์และ attachment ใน workspace" />
+  <title>{$_("meta__settings_storage_title")}</title>
+  <meta name="description" content={$_("meta__settings_storage_desc")} />
 </svelte:head>
 
 <div class="space-y-6 animate-fade-in">

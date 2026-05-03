@@ -930,8 +930,8 @@
 </script>
 
 <svelte:head>
-  <title>{task ? task.title + ' — Khun Phaen' : 'Task — Khun Phaen'}</title>
-  <meta name="description" content={task ? task.title + (task.notes ? ' · ' + task.notes.replace(/<[^>]*>/g, '').slice(0, 100) : '') : 'รายละเอียดงาน'} />
+  <title>{$_("meta__task_title", { values: { title: task ? task.title : "Task" } })}</title>
+  <meta name="description" content={task ? $_("meta__task_desc", { values: { title: task.title + (task.notes ? " · " + task.notes.replace(/<[^>]*>/g, "").slice(0, 100) : "") } }) : $_("meta__task_desc", { values: { title: "Task" } })} />
 </svelte:head>
 
 <svelte:window

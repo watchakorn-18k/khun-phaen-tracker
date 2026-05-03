@@ -76,8 +76,8 @@
 </script>
 
 <svelte:head>
-  <title>เข้าสู่ระบบ — Khun Phaen</title>
-  <meta name="description" content="เข้าสู่ระบบ Khun Phaen เพื่อจัดการงานและ sprint ของทีมคุณ" />
+  <title>{$_("meta__login_title")}</title>
+  <meta name="description" content={$_("meta__login_desc")} />
 </svelte:head>
 
 <div class="h-screen w-full flex bg-[#030712] overflow-hidden font-sans">

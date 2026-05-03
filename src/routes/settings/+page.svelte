@@ -56,8 +56,8 @@
 </script>
 
 <svelte:head>
-  <title>การตั้งค่า — Khun Phaen</title>
-  <meta name="description" content="ตั้งค่า workspace, สมาชิก, และการจัดเก็บข้อมูล" />
+  <title>{$_("meta__settings_title")}</title>
+  <meta name="description" content={$_("meta__settings_desc")} />
 </svelte:head>
 
 <div class="space-y-6 animate-fade-in">

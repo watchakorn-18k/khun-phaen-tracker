@@ -9,7 +9,7 @@
 </script>
 
 <svelte:head>
-  <title>Khun Phaen — Task Management System</title>
+  <title>{$_("meta__app_title")}</title>
 </svelte:head>
 
 <div class="flex items-center justify-center min-h-[60vh]">

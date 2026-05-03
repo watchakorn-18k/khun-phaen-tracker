@@ -233,8 +233,8 @@
 </script>
 
 <svelte:head>
-  <title>{$currentWorkspaceName ? $currentWorkspaceName + ' — Overview · Khun Phaen' : 'Overview — Khun Phaen'}</title>
-  <meta name="description" content={$currentWorkspaceName ? 'ภาพรวม sprint และ progress ใน ' + $currentWorkspaceName : 'ภาพรวม sprint และ progress ของทีม'} />
+  <title>{$_("meta__overview_title", { values: { name: $currentWorkspaceName || "Khun Phaen" } })}</title>
+  <meta name="description" content={$_("meta__overview_desc", { values: { name: $currentWorkspaceName || "Khun Phaen" } })} />
 </svelte:head>
 
 <div class="px-4 sm:px-6 space-y-8 pb-24 pt-6">

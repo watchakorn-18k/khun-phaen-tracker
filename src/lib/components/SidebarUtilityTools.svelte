@@ -9,6 +9,7 @@
     Pause,
     Save,
     Maximize2,
+    Code2,
   } from "lucide-svelte";
   import { _ } from "svelte-i18n";
   import { timerStore, formattedTime } from "$lib/stores/timerStore";
@@ -87,6 +88,17 @@
         <PenTool size={isCollapsed ? 22 : 18} class="shrink-0 transition-transform group-hover:scale-110" />
         {#if !isCollapsed}
           <span>{$_("commandPalette__whiteboard_label")}</span>
+        {/if}
+      </button>
+
+      <button
+        on:click={() => ui.openModal("htmlPreview")}
+        title={$_("htmlPreview__title") || "HTML Preview"}
+        class="group w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white transition-all duration-300 {isCollapsed ? 'justify-center px-0' : ''}"
+      >
+        <Code2 size={isCollapsed ? 22 : 18} class="shrink-0 transition-transform group-hover:scale-110" />
+        {#if !isCollapsed}
+          <span>{$_("htmlPreview__title") || "HTML Preview"}</span>
         {/if}
       </button>
     </div>

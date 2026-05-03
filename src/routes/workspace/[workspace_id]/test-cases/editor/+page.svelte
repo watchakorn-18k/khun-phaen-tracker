@@ -9,6 +9,7 @@
   import { getAssignees } from "$lib/db";
   import { api } from "$lib/apis";
   import { user } from "$lib/stores/auth";
+  import { _ } from "svelte-i18n";
   import { createUIActions } from "$lib/stores/uiActions";
   import type { Assignee } from "$lib/types";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
@@ -515,8 +516,8 @@
 </script>
 
 <svelte:head>
-  <title>{isEditing ? "Edit" : "Create"} Test Case - {workspaceLabel}</title>
-  <meta name="description" content={isEditing ? "แก้ไข test case ใน " + workspaceLabel : "สร้าง test case ใหม่ใน " + workspaceLabel} />
+  <title>{$_("meta__testcase_editor_title", { values: { action: isEditing ? $_("meta__testcase_action_edit") : $_("meta__testcase_action_create"), name: workspaceLabel } })}</title>
+  <meta name="description" content={$_("meta__testcase_editor_desc", { values: { action: isEditing ? $_("meta__testcase_action_edit") : $_("meta__testcase_action_create"), name: workspaceLabel } })} />
 </svelte:head>
 
 <div class="min-h-screen bg-[#0b1220] text-white">

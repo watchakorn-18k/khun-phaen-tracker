@@ -82,8 +82,8 @@
 </script>
 
 <svelte:head>
-  <title>ตั้งรหัสผ่าน — Khun Phaen</title>
-  <meta name="description" content="ตั้งรหัสผ่านเพื่อเปิดใช้งานบัญชี Khun Phaen ของคุณ" />
+  <title>{$_("meta__setup_password_title")}</title>
+  <meta name="description" content={$_("meta__setup_password_desc")} />
 </svelte:head>
 
 <div class="h-screen w-full flex bg-[#030712] overflow-hidden font-sans">

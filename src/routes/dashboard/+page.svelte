@@ -488,8 +488,8 @@
 </script>
 
 <svelte:head>
-  <title>Dashboard — Khun Phaen</title>
-  <meta name="description" content="ภาพรวม workspace ทั้งหมดของคุณ — งาน, sprint, และทีม" />
+  <title>{$_("meta__dashboard_title")}</title>
+  <meta name="description" content={$_("meta__dashboard_desc")} />
 </svelte:head>
 
 <div class="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">

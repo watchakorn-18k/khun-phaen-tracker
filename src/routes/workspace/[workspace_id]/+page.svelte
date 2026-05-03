@@ -363,8 +363,8 @@
 </script>
 
 <svelte:head>
-  <title>{$currentWorkspaceName ? $currentWorkspaceName + ' — Khun Phaen' : 'Khun Phaen'}</title>
-  <meta name="description" content={$currentWorkspaceName ? 'จัดการงานและ sprint ใน ' + $currentWorkspaceName : 'จัดการงานและ sprint ของทีม'} />
+  <title>{$_("meta__workspace_title", { values: { name: $currentWorkspaceName || "Khun Phaen" } })}</title>
+  <meta name="description" content={$_("meta__workspace_desc", { values: { name: $currentWorkspaceName || "Khun Phaen" } })} />
 </svelte:head>
 
 <svelte:window on:click={handleWindowClick} />

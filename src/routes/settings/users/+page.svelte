@@ -279,8 +279,8 @@
 </script>
 
 <svelte:head>
-  <title>จัดการสมาชิก — Khun Phaen</title>
-  <meta name="description" content="เพิ่ม ลบ และจัดการสมาชิกใน workspace" />
+  <title>{$_("meta__settings_users_title")}</title>
+  <meta name="description" content={$_("meta__settings_users_desc")} />
 </svelte:head>
 
 <div class="space-y-6 animate-fade-in">

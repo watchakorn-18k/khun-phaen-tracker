@@ -5,6 +5,7 @@
   import QuickNotes from "$lib/components/QuickNotes.svelte";
   import TimerDashboard from "$lib/components/TimerDashboard.svelte";
   import WhiteboardModal from "$lib/components/WhiteboardModal.svelte";
+  import HtmlPreview from "$lib/components/HtmlPreview.svelte";
   import ProfileModal from "$lib/components/ProfileModal.svelte";
   import GlobalConfirmModal from "$lib/components/GlobalConfirmModal.svelte";
   import { modals, createUIActions } from "$lib/stores/uiActions";
@@ -65,6 +66,10 @@
 
   {#if $modals.timerDashboard}
     <TimerDashboard />
+  {/if}
+
+  {#if $modals.htmlPreview}
+    <HtmlPreview on:close={() => ui.closeModal("htmlPreview")} />
   {/if}
 
   {#if $modals.whiteboard}

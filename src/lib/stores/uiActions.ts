@@ -31,7 +31,8 @@ export type ModalName =
   | "bookmarkManager"
   | "whiteboard"
   | "quickNotes"
-  | "timerDashboard";
+  | "timerDashboard"
+  | "htmlPreview";
 
 export type ModalState = {
   form: boolean;
@@ -52,6 +53,7 @@ export type ModalState = {
   whiteboard: boolean;
   quickNotes: boolean;
   timerDashboard: boolean;
+  htmlPreview: boolean;
 };
 
 const initialModalState: ModalState = {
@@ -73,6 +75,7 @@ const initialModalState: ModalState = {
   whiteboard: false,
   quickNotes: false,
   timerDashboard: false,
+  htmlPreview: false,
 };
 
 export const modals = writable<ModalState>(initialModalState);
