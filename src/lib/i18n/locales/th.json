@@ -1332,5 +1332,6 @@
 	"testCases__add_step": "เพิ่มขั้นตอน",
 	"testCases__import": "นำเข้า (Import)",
 	"testCases__export": "ส่งออก (Export)",
-	"testCases__download_template": "ดาวน์โหลดเทมเพลต"
+	"testCases__download_template": "ดาวน์โหลดเทมเพลต",
+	"testCases__public_view": "มุมมองสาธารณะ"
 }

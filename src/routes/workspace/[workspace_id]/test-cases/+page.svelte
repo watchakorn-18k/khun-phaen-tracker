@@ -353,6 +353,23 @@
     }
   }
 
+  async function handleConvertToTask(id: string) {
+    try {
+      const resp = await api.data.testCases.convertToTask(id);
+      if (resp.ok) {
+        const data = await resp.json();
+        ui.showMessage("Task created successfully", "success");
+        // Redirect to task detail
+        goto(`${base}/workspace/${workspaceId}/task/${data.task_id}`);
+      } else {
+        const error = await resp.text();
+        ui.showMessage(`Failed to create task: ${error}`, "error");
+      }
+    } catch (e) {
+      ui.showMessage("An error occurred", "error");
+    }
+  }
+
   function focusOnInit(node: HTMLElement) {
     node.focus();
   }
@@ -1036,24 +1053,44 @@
     document.body.removeChild(link);
   }
 
-  function exportToCSV() {
-    const headers = [
-      "Suite",
-      "Test Case No",
-      "Test Name",
-      "Status",
-      "Assign Tester",
-      "Assign Dev",
-      "Precondition",
-      "Input",
-      "Expected Result",
-      "Actual Result",
-      "Test Step",
-    ];
-    let rows: string[][] = [];
+  async function exportToCSV() {
+    if (!workspaceId) return;
+    try {
+      ui.showMessage("Preparing export...", "info");
+      
+      // Fetch all cases in workspace
+      const casesResp = await api.data.testCases.all(workspaceId);
+      if (!casesResp.ok) {
+        ui.showMessage("Failed to fetch test cases for export", "error");
+        return;
+      }
+      const allCasesData = await casesResp.json();
+      const allCases = allCasesData.map(mapBackendToFrontend);
 
-    suites.forEach((suite) => {
-      suite.cases.forEach((c) => {
+      // Fetch all suites for titles
+      const suitesResp = await api.data.testSuites.list(workspaceId);
+      const suitesData = await suitesResp.json();
+      const suiteMap = new Map<string, string>(
+        suitesData.map((s: any) => [s.id || s._id, String(s.title || "")]),
+      );
+      suiteMap.set("unassigned", "Unassigned");
+
+      const headers = [
+        "Suite",
+        "Test Case No",
+        "Test Name",
+        "Status",
+        "Assign Tester",
+        "Assign Dev",
+        "Precondition",
+        "Input",
+        "Expected Result",
+        "Actual Result",
+        "Test Step",
+      ];
+      let rows: string[][] = [];
+
+      allCases.forEach((c: TestCase) => {
         let steps = "";
         if (c.step_format === "gherkin") {
           steps = (c.gherkin_steps || [])
@@ -1066,39 +1103,43 @@
         }
 
         rows.push([
-          suite.title,
+          String(suiteMap.get(c.suite_id) || "Unassigned"),
           String(c.test_no),
-          c.title,
-          c.status,
-          c.assignee || "unassigned",
-          c.assign_dev || "unassigned",
-          c.preconditions || "",
-          c.input || "",
-          c.expected_result || "",
-          c.actual_result || "",
-          steps,
+          String(c.title || ""),
+          String(c.status || ""),
+          String(c.assignee || "unassigned"),
+          String(c.assign_dev || "unassigned"),
+          String(c.preconditions || ""),
+          String(c.input || ""),
+          String(c.expected_result || ""),
+          String(c.actual_result || ""),
+          String(steps || ""),
         ]);
       });
-    });
 
-    let csv = headers.join(",") + "\n";
-    rows.forEach((row) => {
-      csv +=
-        row.map((v) => `"${(v || "").replace(/"/g, '""')}"`).join(",") + "\n";
-    });
+      let csv = headers.join(",") + "\n";
+      rows.forEach((row) => {
+        csv +=
+          row.map((v) => `"${(v || "").replace(/"/g, '""')}"`).join(",") + "\n";
+      });
 
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `test_cases_export_${new Date().toISOString().split("T")[0]}.csv`,
-    );
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute(
+        "download",
+        `test_cases_export_${new Date().toISOString().split("T")[0]}.csv`,
+      );
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      ui.showMessage("Export complete", "success");
+    } catch (e) {
+      console.error("Export error:", e);
+      ui.showMessage("Failed to export test cases", "error");
+    }
   }
 
   function parseCSV(text: string): string[][] {
@@ -1469,9 +1510,9 @@
 
   $: workspaceId = $page.params.workspace_id;
   $: workspaceLabel = $currentWorkspaceName || "Current workspace";
-  $: suiteCount = suites.length;
+  $: suiteCount = suites.filter((s) => s.id !== "unassigned").length;
   $: caseCount = suites.reduce(
-    (total, suite) => total + (suite.cases?.length || 0),
+    (total, suite) => total + (suite.totalCount ?? suite.cases?.length ?? 0),
     0,
   );
   $: selectedSuite =
@@ -1734,7 +1775,7 @@
               {workspaceLabel} repository
             </h1>
             <span class="text-sm font-medium text-slate-500">
-              {caseCount} cases ({caseCount}) | {suiteCount} suites ({suiteCount})
+              {caseCount} cases | {suiteCount} suites
             </span>
           </div>
 
@@ -2020,6 +2061,24 @@
                       >
                         <FileDown size={16} class="text-slate-400" />
                         {$_("testCases__export")}
+                      </button>
+
+                      <div
+                        class="my-1 border-t border-slate-100 dark:border-gray-700"
+                      ></div>
+
+                      <button
+                        class="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-black text-slate-700 hover:bg-slate-50 dark:text-gray-200 dark:hover:bg-gray-700/50 transition-colors"
+                        on:click={() => {
+                          window.open(
+                            `${base}/public/${workspaceId}/test-cases/`,
+                            "_blank",
+                          );
+                          showActionsMenu = false;
+                        }}
+                      >
+                        <ExternalLink size={16} class="text-slate-400" />
+                        {$_("testCases__public_view")}
                       </button>
                     </div>
                   </div>
@@ -2356,6 +2415,14 @@
           </div>
 
           <div class="mt-4 flex flex-wrap items-center gap-2">
+            <button
+              class="flex h-9 items-center gap-2 rounded-lg bg-indigo-600 px-3 text-sm font-black text-white hover:bg-indigo-500 transition-colors shadow-sm"
+              title="Create Task"
+              on:click={() => handleConvertToTask(selectedCase.id)}
+            >
+              <Plus size={16} />
+              Create Task
+            </button>
             {#if isAuthorized}
               <button
                 class="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"

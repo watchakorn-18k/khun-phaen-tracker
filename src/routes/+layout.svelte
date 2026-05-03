@@ -225,7 +225,8 @@
   $: isAuthPage =
     $page.url.pathname.includes("/login") ||
     $page.url.pathname.includes("/create-account") ||
-    $page.url.pathname.includes("/setup-password");
+    $page.url.pathname.includes("/setup-password") ||
+    $page.url.pathname.includes("/public/");
   $: isDashboard = $page.url.pathname.includes("/dashboard");
   $: isWorkspacePage = $page.url.pathname.includes("/workspace/");
   $: isMyTasksWorkspacePage = $page.url.pathname.includes(

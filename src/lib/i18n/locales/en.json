@@ -1320,5 +1320,6 @@
 	"testCases__add_step": "Add step",
 	"testCases__import": "Import CSV",
 	"testCases__export": "Export CSV",
-	"testCases__download_template": "Download Template"
+	"testCases__download_template": "Download Template",
+	"testCases__public_view": "Public View"
 }

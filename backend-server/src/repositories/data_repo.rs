@@ -754,6 +754,16 @@ impl DataRepository {
         Ok(assignees)
     }
 
+    pub async fn find_assignee_by_user_id_and_workspace(
+        &self,
+        user_id_hex: &str,
+        workspace_id: &ObjectId,
+    ) -> mongodb::error::Result<Option<AssigneeDocument>> {
+        self.assignees
+            .find_one(doc! { "user_id": user_id_hex, "workspace_id": workspace_id }, None)
+            .await
+    }
+
     pub async fn count_tasks_by_project_names(
         &self,
         workspace_id: &ObjectId,

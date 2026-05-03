@@ -988,6 +988,12 @@ export const api = {
           credentials: "include",
         });
       },
+      all: (wsId: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-cases/all`, {
+          headers: api.data._headers(),
+          credentials: "include",
+        });
+      },
       get: (id: string): Promise<Response> => {
         return fetch(`${API_BASE_URL}/test-cases/${id}`, {
           headers: api.data._headers(),
@@ -1079,6 +1085,13 @@ export const api = {
           body: JSON.stringify(payload),
         });
       },
+      convertToTask: (id: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/test-cases/${id}/convert-to-task`, {
+          method: "POST",
+          headers: api.data._headers(true),
+          credentials: "include",
+        });
+      },
       uploadAttachment: (wsId: string, testCaseId: string, formData: FormData): Promise<Response> => {
         const headers = api.data._headers();
         // Browser sets Content-Type automatically for FormData with boundary
@@ -1122,6 +1135,16 @@ export const api = {
           credentials: "include",
         });
       },
+    },
+  },
+  public: {
+    listSuites: (wsId: string): Promise<Response> => {
+      return fetch(`${API_BASE_URL}/public/workspaces/${wsId}/test-suites`);
+    },
+    listTestCases: (wsId: string, params?: { suite_id?: string; limit?: number; page?: number; q?: string; field?: string; priority?: string; status?: string; fixed?: string }): Promise<Response> => {
+      const cleanParams = Object.fromEntries(Object.entries(params || {}).filter(([_, v]) => v !== undefined));
+      const query = cleanParams && Object.keys(cleanParams).length > 0 ? "?" + new URLSearchParams(cleanParams as any).toString() : "";
+      return fetch(`${API_BASE_URL}/public/workspaces/${wsId}/test-cases${query}`);
     },
   },
 };

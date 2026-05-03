@@ -430,6 +430,10 @@ async fn main() {
             get(handlers::test_case_handler::get_test_case_counts),
         )
         .route(
+            "/api/workspaces/:ws_id/test-cases/all",
+            get(handlers::test_case_handler::get_all_test_cases),
+        )
+        .route(
             "/api/test-cases/:id",
             get(handlers::test_case_handler::get_test_case)
                 .patch(handlers::test_case_handler::update_test_case)
@@ -460,12 +464,25 @@ async fn main() {
             patch(handlers::test_case_handler::update_test_case_assign_tester),
         )
         .route(
+            "/api/test-cases/:id/convert-to-task",
+            post(handlers::test_case_handler::convert_test_case_to_task),
+        )
+        .route(
             "/api/test-cases/:id/notes",
             patch(handlers::test_case_handler::update_test_case_notes),
         )
         .route(
             "/api/workspaces/:ws_id/test-cases/:test_case_id/attachments",
             post(handlers::test_case_handler::upload_test_case_attachment),
+        )
+        // Public routes (no auth required)
+        .route(
+            "/api/public/workspaces/:ws_id/test-suites",
+            get(handlers::test_case_handler::list_suites),
+        )
+        .route(
+            "/api/public/workspaces/:ws_id/test-cases",
+            get(handlers::test_case_handler::list_test_cases),
         )
         .route("/ws", get(handlers::ws_handler::ws_handler))
         .layer(

@@ -1,5 +1,7 @@
 use crate::handlers::auth_handler::extract_claims;
+use crate::models::data::TaskDocument;
 use crate::models::test_case::{CreateTestCaseRequest, CreateTestSuiteRequest, TestCaseAttachment};
+use crate::repositories::data_repo::DataRepository;
 use crate::repositories::profile_repo::ProfileRepository;
 use crate::repositories::test_case_repo::TestCaseRepository;
 use crate::repositories::test_suite_repo::TestSuiteRepository;
@@ -675,12 +677,17 @@ pub async fn update_test_case_fixed(
     Path(id): Path<String>,
     Json(req): Json<UpdateTestCaseFixedRequest>,
 ) -> impl IntoResponse {
-    let _claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
+    let claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
         Some(c) => c,
         None => return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response(),
     };
 
-    // All roles can update the 'fixed' status as requested by the user.
+    let user_repo = UserRepository::new(&state.db);
+    let profile_repo = ProfileRepository::new(&state.db);
+
+    if !AuthService::can_mutate_test_cases(&user_repo, &profile_repo, &claims).await {
+        return (StatusCode::FORBIDDEN, "Permission denied").into_response();
+    }
 
     let repo = TestCaseRepository::new(&state.db);
 
@@ -927,6 +934,125 @@ pub async fn delete_test_case(
     match repo.delete(&id).await {
         Ok(true) => (StatusCode::OK, "Test case deleted").into_response(),
         Ok(false) => (StatusCode::NOT_FOUND, "Test case not found").into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+/// POST /api/test-cases/:id/convert-to-task
+pub async fn convert_test_case_to_task(
+    State(state): State<Arc<AppState>>,
+    jar: CookieJar,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    let claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
+        Some(c) => c,
+        None => return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response(),
+    };
+
+    let user_repo = UserRepository::new(&state.db);
+    let profile_repo = ProfileRepository::new(&state.db);
+
+    if !AuthService::can_mutate_test_cases(&user_repo, &profile_repo, &claims).await {
+        return (StatusCode::FORBIDDEN, "Permission denied").into_response();
+    }
+
+    let repo = TestCaseRepository::new(&state.db);
+    let data_repo = DataRepository::new(&state.db);
+
+    let test_case = match repo.find_by_id(&id).await {
+        Ok(Some(tc)) => tc,
+        Ok(None) => return (StatusCode::NOT_FOUND, "Test case not found").into_response(),
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+
+    let next_number = match data_repo.get_next_task_number(&test_case.workspace_id).await {
+        Ok(num) => num,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+
+    let mut notes = test_case.description.unwrap_or_default();
+    if let Some(pre) = test_case.preconditions {
+        if !pre.is_empty() {
+            notes.push_str(&format!("\n\n**Pre-conditions:**\n{}", pre));
+        }
+    }
+    if let Some(post) = test_case.postconditions {
+        if !post.is_empty() {
+            notes.push_str(&format!("\n\n**Post-conditions:**\n{}", post));
+        }
+    }
+    if let Some(inp) = test_case.input {
+        if !inp.is_empty() {
+            notes.push_str(&format!("\n\n**Input:**\n{}", inp));
+        }
+    }
+    if let Some(exp) = test_case.expected_result {
+        if !exp.is_empty() {
+            notes.push_str(&format!("\n\n**Expected Result:**\n{}", exp));
+        }
+    }
+
+    // Find assignee for the current user in this workspace
+    let assignee_id = match data_repo
+        .find_assignee_by_user_id_and_workspace(&claims.sub, &test_case.workspace_id)
+        .await
+    {
+        Ok(Some(a)) => a.id.map(|oid| oid.to_hex()),
+        _ => None,
+    };
+
+    let task = TaskDocument {
+        id: None,
+        workspace_id: test_case.workspace_id,
+        title: test_case.name,
+        task_number: Some(next_number),
+        project: "อื่นๆ".to_string(),
+        duration_minutes: 0,
+        start_date: None,
+        date: Some(chrono::Utc::now().format("%Y-%m-%d").to_string()),
+        end_date: None,
+        due_date: None,
+        status: "todo".to_string(),
+        priority: test_case.priority,
+        category: "อื่นๆ".to_string(),
+        notes,
+        attachments: None,
+        assignee_ids: assignee_id.map(|id| vec![id]),
+        sprint_id: None,
+        is_archived: false,
+        checklist: None,
+        created_at: None,
+        updated_at: None,
+    };
+
+    match data_repo.create_task(task).await {
+        Ok(created_task) => (
+            StatusCode::CREATED,
+            Json(serde_json::json!({
+                "success": true,
+                "task_id": created_task.id.unwrap().to_hex()
+            })),
+        )
+            .into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+/// GET /api/workspaces/:ws_id/test-cases/all
+pub async fn get_all_test_cases(
+    State(state): State<Arc<AppState>>,
+    Path(ws_id): Path<String>,
+) -> impl IntoResponse {
+    let ws_oid = match ObjectId::parse_str(&ws_id) {
+        Ok(oid) => oid,
+        Err(_) => return (StatusCode::BAD_REQUEST, "Invalid workspace ID").into_response(),
+    };
+
+    let repo = TestCaseRepository::new(&state.db);
+    
+    match repo.find_by_workspace(&ws_oid, None, None, None, None, None, None, None, None, None).await {
+        Ok(cases) => (StatusCode::OK, Json(cases)).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
