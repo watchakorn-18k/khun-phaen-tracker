@@ -6,6 +6,10 @@
   import TimerDashboard from "$lib/components/TimerDashboard.svelte";
   import WhiteboardModal from "$lib/components/WhiteboardModal.svelte";
   import HtmlPreview from "$lib/components/HtmlPreview.svelte";
+  import RegexTester from "$lib/components/RegexTester.svelte";
+  import JsonYamlConverter from "$lib/components/JsonYamlConverter.svelte";
+  import DeepLinkTester from "$lib/components/DeepLinkTester.svelte";
+  import ApiTester from "$lib/components/ApiTester.svelte";
   import ProfileModal from "$lib/components/ProfileModal.svelte";
   import GlobalConfirmModal from "$lib/components/GlobalConfirmModal.svelte";
   import { modals, createUIActions } from "$lib/stores/uiActions";
@@ -70,6 +74,22 @@
 
   {#if $modals.htmlPreview}
     <HtmlPreview on:close={() => ui.closeModal("htmlPreview")} />
+  {/if}
+
+  {#if $modals.regexTester}
+    <RegexTester on:close={() => ui.closeModal("regexTester")} />
+  {/if}
+
+  {#if $modals.jsonYamlConverter}
+    <JsonYamlConverter on:close={() => ui.closeModal("jsonYamlConverter")} />
+  {/if}
+
+  {#if $modals.deepLinkTester}
+    <DeepLinkTester on:close={() => ui.closeModal("deepLinkTester")} />
+  {/if}
+
+  {#if $modals.apiTester}
+    <ApiTester on:close={() => ui.closeModal("apiTester")} />
   {/if}
 
   {#if $modals.whiteboard}

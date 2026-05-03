@@ -12,6 +12,8 @@
   let copied = $state(false);
   let isFullscreen = $state(false);
   let splitRatio = $state(50);
+  let isDragging = $state(false);
+  let containerEl: HTMLElement | null = null;
 
   onMount(() => {
     if (browser) {
@@ -49,8 +51,10 @@
 
   function handleDividerDrag(e: MouseEvent) {
     e.preventDefault();
-    const container = (e.target as HTMLElement).closest(".split-container") as HTMLElement;
-    if (!container) return;
+    if (!containerEl) return;
+
+    isDragging = true;
+    const container = containerEl;
 
     const onMove = (moveEvent: MouseEvent) => {
       const rect = container.getBoundingClientRect();
@@ -59,6 +63,7 @@
     };
 
     const onUp = () => {
+      isDragging = false;
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
       document.body.style.cursor = "";
@@ -140,7 +145,11 @@
       </div>
 
       <!-- Split Content -->
-      <div class="flex-1 flex overflow-hidden split-container">
+      <div class="flex-1 flex overflow-hidden split-container" bind:this={containerEl}>
+        <!-- Drag overlay to block iframe from capturing mouse events -->
+        {#if isDragging}
+          <div class="fixed inset-0 z-[99999] cursor-col-resize"></div>
+        {/if}
         <!-- Left: Code Editor -->
         <div class="flex flex-col overflow-hidden border-r border-gray-200 dark:border-gray-700" style="width: {splitRatio}%;">
           <div class="flex items-center gap-2 px-4 py-2 bg-gray-50 dark:bg-gray-900/30 border-b border-gray-200 dark:border-gray-700 shrink-0">

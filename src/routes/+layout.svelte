@@ -22,6 +22,10 @@
   import ProfileModal from "$lib/components/ProfileModal.svelte";
   import TimerDashboard from "$lib/components/TimerDashboard.svelte";
   import HtmlPreview from "$lib/components/HtmlPreview.svelte";
+  import RegexTester from "$lib/components/RegexTester.svelte";
+  import JsonYamlConverter from "$lib/components/JsonYamlConverter.svelte";
+  import DeepLinkTester from "$lib/components/DeepLinkTester.svelte";
+  import ApiTester from "$lib/components/ApiTester.svelte";
   import GlobalConfirmModal from "$lib/components/GlobalConfirmModal.svelte";
   import { _ } from "svelte-i18n";
   import { initAuth, user, authLoading } from "$lib/stores/auth";
@@ -393,6 +397,22 @@
 
     {#if $modals.htmlPreview}
       <HtmlPreview on:close={() => ui.closeModal("htmlPreview")} />
+    {/if}
+
+    {#if $modals.regexTester}
+      <RegexTester on:close={() => ui.closeModal("regexTester")} />
+    {/if}
+
+    {#if $modals.jsonYamlConverter}
+      <JsonYamlConverter on:close={() => ui.closeModal("jsonYamlConverter")} />
+    {/if}
+
+    {#if $modals.deepLinkTester}
+      <DeepLinkTester on:close={() => ui.closeModal("deepLinkTester")} />
+    {/if}
+
+    {#if $modals.apiTester}
+      <ApiTester on:close={() => ui.closeModal("apiTester")} />
     {/if}
 
     {#if $modals.whiteboard}

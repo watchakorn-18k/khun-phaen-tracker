@@ -32,7 +32,11 @@ export type ModalName =
   | "whiteboard"
   | "quickNotes"
   | "timerDashboard"
-  | "htmlPreview";
+  | "htmlPreview"
+  | "regexTester"
+  | "jsonYamlConverter"
+  | "deepLinkTester"
+  | "apiTester";
 
 export type ModalState = {
   form: boolean;
@@ -54,6 +58,10 @@ export type ModalState = {
   quickNotes: boolean;
   timerDashboard: boolean;
   htmlPreview: boolean;
+  regexTester: boolean;
+  jsonYamlConverter: boolean;
+  deepLinkTester: boolean;
+  apiTester: boolean;
 };
 
 const initialModalState: ModalState = {
@@ -76,6 +84,10 @@ const initialModalState: ModalState = {
   quickNotes: false,
   timerDashboard: false,
   htmlPreview: false,
+  regexTester: false,
+  jsonYamlConverter: false,
+  deepLinkTester: false,
+  apiTester: false,
 };
 
 export const modals = writable<ModalState>(initialModalState);

@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
+	import { _ } from 'svelte-i18n';
 
 	onMount(() => {
 		goto(`${base}/dashboard`, { replaceState: true });

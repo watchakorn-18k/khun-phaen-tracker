@@ -3328,7 +3328,7 @@
                         <div class="flex items-center gap-1">
                           <button
                             class="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-white hover:text-slate-700 dark:hover:bg-gray-800 dark:hover:text-white transition-colors"
-                            title={isAuthorized ? "Edit Case" : "View Case"}
+                            title={isAuthorized ? $_("tc__title_edit") : $_("tc__title_view_case_auth")}
                             on:click={() =>
                               openTestCaseEditor(suite.id, testCase.id)}
                           >
@@ -4026,7 +4026,7 @@
               <textarea
                 class="w-full rounded-xl border border-gray-200 bg-slate-50 p-3 text-sm text-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:!bg-transparent dark:text-gray-200"
                 rows="6"
-                placeholder="Add dev notes..."
+                placeholder={$_("tc__ph_dev_notes")}
                 bind:value={devNote}
               ></textarea>
             </section>
@@ -4131,12 +4131,12 @@
             >{workspaceLabel}</span
           >
           <span class="text-gray-600">›</span>
-          <span class="text-gray-400">Create test case</span>
+          <span class="text-gray-400">{$_("tc__create_test_case")}</span>
         </div>
         <button
           type="button"
           class="p-1.5 text-gray-400 hover:text-white hover:!bg-transparent rounded-md transition-all"
-          title="Close"
+          title={$_("tc__close")}
           on:click={closeTestCaseModal}
         >
           <X size={18} />
@@ -4149,7 +4149,7 @@
             <input
               bind:value={testCaseForm.name}
               class="w-full !bg-transparent px-0 py-2 text-xl font-bold text-white placeholder:text-gray-600 border-none outline-none"
-              placeholder="Example: Validate invite-link signup flow..."
+              placeholder={$_("tc__ph_title")}
             />
           </div>
 
@@ -4157,7 +4157,7 @@
             <textarea
               bind:value={testCaseForm.description}
               class="min-h-[120px] w-full resize-none !bg-transparent px-0 text-[15px] leading-relaxed text-gray-300 placeholder:text-gray-600 border-none outline-none"
-              placeholder="Additional details..."
+              placeholder={$_("tc__ph_details")}
             ></textarea>
           </div>
 
@@ -4167,7 +4167,7 @@
                 id="test-case-suite"
                 bind:value={testCaseForm.suiteId}
                 options={suiteOptions}
-                placeholder="Search suites..."
+                placeholder={$_("tc__ph_search_suites")}
                 emptyText="No suites found"
                 minimal={true}
               />
@@ -4188,7 +4188,7 @@
                 id="test-case-assignee"
                 bind:value={testCaseForm.assignee}
                 options={assigneeOptions}
-                placeholder="Search assignees..."
+                placeholder={$_("tc__ph_search_assignees")}
                 emptyText="No assignees found"
                 minimal={true}
               />
@@ -4200,24 +4200,24 @@
               <label>
                 <span
                   class="text-[12px] font-black uppercase tracking-widest text-gray-500"
-                  >Pre-conditions</span
+                  >{$_("tc__preconditions")}</span
                 >
                 <textarea
                   bind:value={testCaseForm.preconditions}
                   class="mt-3 min-h-28 w-full resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20"
-                  placeholder="Conditions required before this test starts..."
+                  placeholder={$_("tc__ph_preconditions")}
                 ></textarea>
               </label>
 
               <label>
                 <span
                   class="text-[12px] font-black uppercase tracking-widest text-gray-500"
-                  >Post-conditions</span
+                  >{$_("tc__postconditions")}</span
                 >
                 <textarea
                   bind:value={testCaseForm.postconditions}
                   class="mt-3 min-h-28 w-full resize-none rounded-xl border border-white/10 !bg-transparent px-3 py-2 text-sm font-medium leading-6 text-gray-200 outline-none placeholder:text-gray-600 focus:border-white/20"
-                  placeholder="Expected state after this test finishes..."
+                  placeholder={$_("tc__ph_postconditions")}
                 ></textarea>
               </label>
             </div>
@@ -4243,8 +4243,8 @@
                 <div
                   class="flex items-center gap-4 text-xs font-black text-gray-500"
                 >
-                  <span>Raw</span>
-                  <span class="text-indigo-400">Steps</span>
+                  <span>{$_("tc__raw")}</span>
+                  <span class="text-indigo-400">{$_("tc__steps")}</span>
                 </div>
               {/if}
             </div>
@@ -4322,7 +4322,7 @@
           type="text"
           bind:value={newSuiteName}
           class="mt-3 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 outline-none focus:border-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:border-indigo-400"
-          placeholder="e.g. Authentication, Dashboard..."
+          placeholder={$_("tc__ph_suite_name")}
           autofocus
           on:keydown={(e) => e.key === "Enter" && handleCreateSuite()}
         />
@@ -4364,7 +4364,7 @@
         <label
           for="edit-suite-name"
           class="block text-[12px] font-black uppercase tracking-widest text-slate-500"
-          >Suite Name</label
+          >{$_("tc__suite_name")}</label
         >
         <!-- svelte-ignore a11y_autofocus -->
         <input
@@ -4379,12 +4379,12 @@
       <div class="mt-8 flex items-center justify-end gap-3">
         <button
           class="rounded-xl px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
-          on:click={() => (editingSuite = null)}>Cancel</button
+          on:click={() => (editingSuite = null)}>{$_("tc__cancel")}</button
         >
         <button
           class="rounded-xl bg-indigo-600 px-6 py-2 text-sm font-black text-white hover:bg-indigo-500 disabled:opacity-50"
           disabled={!editingSuite.title.trim()}
-          on:click={handleUpdateSuite}>Save Changes</button
+          on:click={handleUpdateSuite}>{$_("tc__save_changes")}</button
         >
       </div>
     </div>
@@ -4481,7 +4481,7 @@
             class="flex items-center gap-3 text-rose-600 dark:text-rose-400 mb-2"
           >
             <AlertCircle size={18} />
-            <p class="text-sm font-bold">Critical Action</p>
+            <p class="text-sm font-bold">{$_("tc__critical_action")}</p>
           </div>
           <p class="text-xs text-slate-600 dark:text-gray-400 leading-relaxed">
             Deleting the <span class="font-bold">Unassigned</span> collection will
@@ -4494,11 +4494,11 @@
       <div class="mt-8 flex items-center justify-end gap-3">
         <button
           class="rounded-xl px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
-          on:click={() => (showDeleteSuiteModal = false)}>Cancel</button
+          on:click={() => (showDeleteSuiteModal = false)}>{$_("tc__cancel")}</button
         >
         <button
           class="rounded-xl bg-rose-600 px-6 py-2 text-sm font-black text-white hover:bg-rose-500"
-          on:click={handleDeleteSuite}>Delete Suite</button
+          on:click={handleDeleteSuite}>{$_("tc__delete_suite")}</button
         >
       </div>
     </div>
@@ -4533,7 +4533,7 @@
             type="text"
             bind:value={newTestRunForm.name}
             class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 outline-none focus:border-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:border-indigo-400"
-            placeholder="Test run name"
+            placeholder={$_("tc__ph_run_name")}
           />
         </div>
 
@@ -4542,7 +4542,7 @@
           <!-- svelte-ignore a11y_label_has_associated_control -->
           <label
             class="block text-sm font-black text-slate-700 dark:text-gray-200 mb-2"
-            >Description</label
+            >{$_("tc__description")}</label
           >
           <textarea
             bind:value={newTestRunForm.description}
@@ -4558,7 +4558,7 @@
             <!-- svelte-ignore a11y_label_has_associated_control -->
             <label
               class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-gray-400 mb-2"
-              >Default assignee</label
+              >{$_("tc__default_assignee")}</label
             >
             <div class="property-select w-full">
               <SearchableSelect
@@ -4574,7 +4574,7 @@
             <!-- svelte-ignore a11y_label_has_associated_control -->
             <label
               class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-gray-400 mb-2"
-              >Operating System</label
+              >{$_("tc__operating_system")}</label
             >
             <div class="property-select w-full">
               <SearchableSelect
@@ -4613,7 +4613,7 @@
                 <input
                   bind:value={testRunSearchQuery}
                   class="min-w-0 flex-1 border-0 bg-transparent text-sm font-bold text-slate-700 outline-none placeholder:text-slate-400 dark:!bg-transparent dark:text-gray-200"
-                  placeholder="Search test cases, ID, description..."
+                  placeholder={$_("tc__ph_search")}
                 />
                 {#if testRunSearchQuery}
                   <button
@@ -4808,7 +4808,7 @@
             <div
               class="text-[11px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 dark:bg-gray-800/50 px-4 py-2 border-b border-slate-200 dark:border-gray-700"
             >
-              <span>Test case</span>
+              <span>{$_("tc__test_case")}</span>
             </div>
             <div
               class="max-h-56 overflow-y-auto divide-y divide-slate-100 dark:divide-gray-800"
@@ -4917,12 +4917,12 @@
       >
         <button
           class="rounded-xl px-5 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
-          on:click={() => (showNewTestRunModal = false)}>Cancel</button
+          on:click={() => (showNewTestRunModal = false)}>{$_("tc__cancel")}</button
         >
         <button
           class="rounded-xl bg-indigo-600 px-6 py-2 text-sm font-black text-white hover:bg-indigo-500 disabled:opacity-50"
           disabled={!newTestRunForm.name.trim()}
-          on:click={handleCreateTestRun}>Start run</button
+          on:click={handleCreateTestRun}>{$_("tc__start_run")}</button
         >
       </div>
     </div>
@@ -4989,14 +4989,14 @@
           >
             <AlertCircle size={16} />
             <p class="text-xs font-bold uppercase tracking-wider">
-              Do Not Refresh
+              {$_("tc__do_not_refresh")}
             </p>
           </div>
           <p
             class="text-[11px] text-amber-700/80 dark:text-amber-400/80 leading-relaxed"
           >
-            ระบบกำลังนำข้อมูลเข้า กรุณาอย่ารีเฟรชหรือปิดหน้านี้จนกว่าจะเสร็จสิ้น
-            เพื่อความถูกต้องของข้อมูล
+            {$_("tc__import_warning")}
+
           </p>
         </div>
 
@@ -5040,45 +5040,45 @@
         type="button"
         on:click={lbZoomIn}
         class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors"
-        title="Zoom in"><ZoomIn size={18} /></button
+        title={$_("tc__title_zoom_in")}><ZoomIn size={18} /></button
       >
       <button
         type="button"
         on:click={lbZoomOut}
         class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors"
-        title="Zoom out"><ZoomOut size={18} /></button
+        title={$_("tc__title_zoom_out")}><ZoomOut size={18} /></button
       >
       <button
         type="button"
         on:click={lbRotateRight}
         class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors"
-        title="Rotate"><RotateCw size={18} /></button
+        title={$_("tc__title_rotate")}><RotateCw size={18} /></button
       >
       <button
         type="button"
         on:click={lbResetView}
         class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors"
-        title="Reset"><RotateCcw size={18} /></button
+        title={$_("tc__title_reset")}><RotateCcw size={18} /></button
       >
       <div class="w-px h-5 bg-white/20"></div>
       <button
         type="button"
         on:click={() => void lbDownload()}
         class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors"
-        title="Download"><Download size={18} /></button
+        title={$_("tc__title_download")}><Download size={18} /></button
       >
       <button
         type="button"
         on:click={lbOpenInNewTab}
         class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors"
-        title="Open in new tab"><ExternalLink size={18} /></button
+        title={$_("tc__title_open_new_tab")}><ExternalLink size={18} /></button
       >
       <div class="w-px h-5 bg-white/20"></div>
       <button
         type="button"
         on:click={closeLightbox}
         class="p-2 bg-black/40 hover:bg-red-600/80 text-white rounded-lg transition-colors"
-        title="Close"><X size={18} /></button
+        title={$_("tc__close")}><X size={18} /></button
       >
     </div>
 
@@ -5087,7 +5087,7 @@
         type="button"
         on:click={lbNavigatePrev}
         class="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-black/40 hover:bg-black/60 text-white rounded-full transition-colors z-10"
-        title="Previous"
+        title={$_("tc__title_previous")}
       >
         <ChevronLeft size={24} />
       </button>
@@ -5095,7 +5095,7 @@
         type="button"
         on:click={lbNavigateNext}
         class="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-black/40 hover:bg-black/60 text-white rounded-full transition-colors z-10"
-        title="Next"
+        title={$_("tc__title_next")}
       >
         <ChevronRight size={24} />
       </button>
@@ -5132,10 +5132,10 @@
 
 <ConfirmModal
   show={showDeleteRunModal}
-  title="Delete Test Run"
-  message="Are you sure you want to delete this test run? This action cannot be undone."
-  confirmText="Delete"
-  cancelText="Cancel"
+  title={$_("tc__confirm_delete_run_title")}
+  message={$_("tc__confirm_delete_run_msg")}
+  confirmText={$_("tc__confirm_delete")}
+  cancelText={$_("tc__cancel")}
   type="danger"
   onConfirm={confirmDeleteTestRun}
   onClose={() => (showDeleteRunModal = false)}
@@ -5143,10 +5143,10 @@
 
 <ConfirmModal
   show={showDeleteModal}
-  title="Delete Test Case"
-  message="Are you sure you want to delete this test case? This action cannot be undone."
-  confirmText="Delete"
-  cancelText="Cancel"
+  title={$_("tc__confirm_delete_case_title")}
+  message={$_("tc__confirm_delete_case_msg")}
+  confirmText={$_("tc__confirm_delete")}
+  cancelText={$_("tc__cancel")}
   type="danger"
   onConfirm={confirmDeleteTestCase}
   onClose={() => {
