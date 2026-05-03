@@ -64,9 +64,11 @@
   $: routeTaskId = $page.params.task_id;
   $: isMyTasksWorkspace = activeWorkspaceId === MY_TASKS_WORKSPACE_ID || $page.url.pathname.includes('/dashboard');
   $: workspaceName =
-    $currentWorkspaceName || (isMyTasksWorkspace ? $_("sidebar__focus_hub") : $_("sidebar__workspace"));
-  $: workspaceColor = $currentWorkspaceColor || "#6366f1";
-  $: workspaceIcon = $currentWorkspaceIcon;
+    isDashboardActive
+      ? $_("sidebar__workspace")
+      : ($currentWorkspaceName || (isMyTasksWorkspace ? $_("sidebar__focus_hub") : $_("sidebar__workspace")));
+  $: workspaceColor = isDashboardActive ? "#6b7280" : ($currentWorkspaceColor || "#6366f1");
+  $: workspaceIcon = isDashboardActive ? null : $currentWorkspaceIcon;
 
   $: currentPath = $page.url.pathname;
   $: normalizedCurrentPath = normalizePath(currentPath);
@@ -113,34 +115,11 @@
     return match?.[1] || "";
   }
 
-  function isDashboardActive(): boolean {
-    return normalizedCurrentPath === "/dashboard";
-  }
-
-  function isMyTasksActive(): boolean {
-    return activeWorkspaceId === MY_TASKS_WORKSPACE_ID && !activeWorkspaceSection;
-  }
-
-  function isWorkspaceOverviewActive(): boolean {
-    return (
-      activeWorkspaceId !== MY_TASKS_WORKSPACE_ID &&
-      activeWorkspaceSection === "overview"
-    );
-  }
-
-  function isWorkspaceBoardActive(): boolean {
-    return (
-      activeWorkspaceId !== MY_TASKS_WORKSPACE_ID &&
-      !activeWorkspaceSection
-    );
-  }
-
-  function isWorkspaceTestCasesActive(): boolean {
-    return (
-      activeWorkspaceId !== MY_TASKS_WORKSPACE_ID &&
-      activeWorkspaceSection === "test-cases"
-    );
-  }
+  $: isDashboardActive = normalizedCurrentPath === "/dashboard";
+  $: isMyTasksActive = activeWorkspaceId === MY_TASKS_WORKSPACE_ID && !activeWorkspaceSection;
+  $: isWorkspaceOverviewActive = activeWorkspaceId !== MY_TASKS_WORKSPACE_ID && activeWorkspaceSection === "overview";
+  $: isWorkspaceBoardActive = activeWorkspaceId !== MY_TASKS_WORKSPACE_ID && !!pathWorkspaceId && !normalizedCurrentPath.includes('/test-cases') && !normalizedCurrentPath.includes('/overview');
+  $: isWorkspaceTestCasesActive = activeWorkspaceId !== MY_TASKS_WORKSPACE_ID && normalizedCurrentPath.includes('/test-cases');
 
   function isPinnedTaskActive(task: any): boolean {
     return normalizedCurrentPath === getPinnedTaskPath(task);
@@ -368,7 +347,7 @@
                   <Target size={12} />
                 </div>
                 <span class="flex-1 truncate font-medium">{$_("sidebar__focus_hub")}</span>
-                {#if workspaceId === MY_TASKS_WORKSPACE_ID || isMyTasksWorkspace}
+                {#if !isDashboardActive && (workspaceId === MY_TASKS_WORKSPACE_ID || isMyTasksWorkspace)}
                   <Check size={14} class="text-indigo-500 shrink-0" />
                 {/if}
               </a>
@@ -486,11 +465,11 @@
         <a
           href="{base}/dashboard"
           title={$_("sidebar__dashboard")}
-          class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isDashboardActive()
+          class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isDashboardActive
             ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-black shadow-[inset_0_0_12px_rgba(99,102,241,0.05)]'
             : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white'} {isSidebarCollapsed ? 'justify-center px-0' : ''}"
         >
-          {#if isDashboardActive()}
+          {#if isDashboardActive}
             <div class="absolute left-0 w-1 h-4 bg-indigo-500 rounded-r-full"></div>
           {/if}
           <LayoutDashboard size={isSidebarCollapsed ? 22 : 18} class="shrink-0 transition-transform group-hover:scale-110" />
@@ -501,11 +480,11 @@
         <a
           href="{base}/workspace/{MY_TASKS_WORKSPACE_ID}"
           title={$_("sidebar__my_tasks")}
-          class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isMyTasksActive()
+          class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isMyTasksActive
             ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-black shadow-[inset_0_0_12px_rgba(99,102,241,0.05)]'
             : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white'} {isSidebarCollapsed ? 'justify-center px-0' : ''}"
         >
-          {#if isMyTasksActive()}
+          {#if isMyTasksActive}
             <div class="absolute left-0 w-1 h-4 bg-indigo-500 rounded-r-full"></div>
           {/if}
           <Target size={isSidebarCollapsed ? 22 : 18} class="shrink-0 transition-transform group-hover:scale-110" />
@@ -585,11 +564,11 @@
           <a
             href="{base}/workspace/{sidebarWorkspaceId}/overview{$page.url.search}"
             title={$_("sidebar__overview")}
-            class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isWorkspaceOverviewActive()
+            class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isWorkspaceOverviewActive
               ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-black shadow-[inset_0_0_12px_rgba(99,102,241,0.05)]'
               : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white'} {isSidebarCollapsed ? 'justify-center px-0' : ''}"
           >
-            {#if isWorkspaceOverviewActive()}
+            {#if isWorkspaceOverviewActive}
               <div class="absolute left-0 w-1 h-4 bg-indigo-500 rounded-r-full"></div>
             {/if}
             <LayoutDashboard size={isSidebarCollapsed ? 22 : 18} class="shrink-0 transition-transform group-hover:scale-110" />
@@ -600,11 +579,11 @@
           <a
             href={workspaceHref}
             title={$_("sidebar__issues")}
-            class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isWorkspaceBoardActive()
+            class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isWorkspaceBoardActive
               ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-black shadow-[inset_0_0_12px_rgba(99,102,241,0.05)]'
               : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white'} {isSidebarCollapsed ? 'justify-center px-0' : ''}"
           >
-            {#if isWorkspaceBoardActive()}
+            {#if isWorkspaceBoardActive}
               <div class="absolute left-0 w-1 h-4 bg-indigo-500 rounded-r-full"></div>
             {/if}
             <ListTodo size={isSidebarCollapsed ? 22 : 18} class="shrink-0 transition-transform group-hover:scale-110" />
@@ -615,11 +594,11 @@
           <a
             href="{base}/workspace/{sidebarWorkspaceId}/test-cases{$page.url.search}"
             title={$_("sidebar__test_cases")}
-            class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isWorkspaceTestCasesActive()
+            class="group flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-300 relative {isWorkspaceTestCasesActive
               ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-black shadow-[inset_0_0_12px_rgba(99,102,241,0.05)]'
               : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white'} {isSidebarCollapsed ? 'justify-center px-0' : ''}"
           >
-            {#if isWorkspaceTestCasesActive()}
+            {#if isWorkspaceTestCasesActive}
               <div class="absolute left-0 w-1 h-4 bg-indigo-500 rounded-r-full"></div>
             {/if}
             <ClipboardCheck size={isSidebarCollapsed ? 22 : 18} class="shrink-0 transition-transform group-hover:scale-110" />
