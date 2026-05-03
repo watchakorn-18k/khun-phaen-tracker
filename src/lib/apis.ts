@@ -982,6 +982,12 @@ export const api = {
           credentials: "include",
         });
       },
+      counts: (wsId: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-cases/counts`, {
+          headers: api.data._headers(),
+          credentials: "include",
+        });
+      },
       get: (id: string): Promise<Response> => {
         return fetch(`${API_BASE_URL}/test-cases/${id}`, {
           headers: api.data._headers(),

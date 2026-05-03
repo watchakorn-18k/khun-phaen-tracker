@@ -426,6 +426,10 @@ async fn main() {
             get(handlers::test_case_handler::get_next_test_case_number),
         )
         .route(
+            "/api/workspaces/:ws_id/test-cases/counts",
+            get(handlers::test_case_handler::get_test_case_counts),
+        )
+        .route(
             "/api/test-cases/:id",
             get(handlers::test_case_handler::get_test_case)
                 .patch(handlers::test_case_handler::update_test_case)

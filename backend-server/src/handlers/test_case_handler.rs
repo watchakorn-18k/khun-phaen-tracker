@@ -303,6 +303,34 @@ pub async fn get_next_test_case_number(
     }
 }
 
+/// GET /api/workspaces/:ws_id/test-cases/counts
+pub async fn get_test_case_counts(
+    State(state): State<Arc<AppState>>,
+    Path(ws_id): Path<String>,
+) -> impl IntoResponse {
+    let ws_oid = match ObjectId::parse_str(&ws_id) {
+        Ok(oid) => oid,
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": "Invalid workspace ID"})),
+            )
+                .into_response()
+        }
+    };
+
+    let repo = TestCaseRepository::new(&state.db);
+
+    match repo.count_by_workspace(&ws_oid).await {
+        Ok(counts) => (StatusCode::OK, Json(serde_json::json!(counts))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": e.to_string()})),
+        )
+            .into_response(),
+    }
+}
+
 /// POST /api/workspaces/:ws_id/test-cases
 pub async fn create_test_case(
     State(state): State<Arc<AppState>>,

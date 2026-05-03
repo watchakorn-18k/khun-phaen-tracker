@@ -47,6 +47,7 @@
     Paperclip,
     Copy,
     RotateCcw,
+    FileCheck,
   } from "lucide-svelte";
   import { _ } from "svelte-i18n";
   import TestCaseStepList from "$lib/components/TestCaseStepList.svelte";
@@ -101,6 +102,7 @@
     cases: TestCase[];
     page: number;
     hasMore: boolean;
+    totalCount?: number;
   };
 
   type TestCaseForm = {
@@ -210,6 +212,15 @@
   let showDeleteSuiteModal = false;
   let suiteToDelete: Suite | null = null;
   let deleteMode: "move" | "delete" = "move";
+
+  let showImportModal = false;
+  let importProgress = { current: 0, total: 0, status: "" };
+  let importSummary: {
+    success: number;
+    failed: number;
+    failedNames: string[];
+    skipped: { row: number; reason: string; name?: string }[];
+  } | null = null;
 
   let quickTestInputSuiteId = "";
   let quickTestTitle = "";
@@ -854,96 +865,124 @@
       const prevSelectedSuiteId = selectedSuiteId;
       const prevSelectedCaseId = selectedCaseId;
 
-      const priorityQuery =
-        activeFilters.priority?.length > 0
-          ? activeFilters.priority.join(",")
-          : undefined;
-      const statusQuery =
-        activeFilters.status?.length > 0
-          ? activeFilters.status.join(",")
-          : undefined;
-      const fixedQuery =
-        activeFilters.fixed?.length > 0
-          ? activeFilters.fixed.join(",")
-          : undefined;
-
-      const [suiteResp, caseResp] = await Promise.all([
-        api.data.testSuites.list(workspaceId),
-        api.data.testCases.list(workspaceId, {
-          q: q || query,
-          field: searchField || field,
-          priority: priorityQuery,
-          status: statusQuery,
-          fixed: fixedQuery,
-          assign_dev: activeFilters.assign_dev?.length > 0
+      const filterParams: Record<string, string | undefined> = {
+        q: q || query || undefined,
+        field: searchField || field || undefined,
+        priority:
+          activeFilters.priority?.length > 0
+            ? activeFilters.priority.join(",")
+            : undefined,
+        status:
+          activeFilters.status?.length > 0
+            ? activeFilters.status.join(",")
+            : undefined,
+        fixed:
+          activeFilters.fixed?.length > 0
+            ? activeFilters.fixed.join(",")
+            : undefined,
+        assign_dev:
+          activeFilters.assign_dev?.length > 0
             ? activeFilters.assign_dev.join(",")
             : undefined,
-        }),
+      };
+
+      // Fetch suites and counts in parallel
+      const [suiteResp, countsResp] = await Promise.all([
+        api.data.testSuites.list(workspaceId),
+        api.data.testCases.counts(workspaceId),
       ]);
 
-      if (suiteResp.ok && caseResp.ok) {
-        const suiteData = await suiteResp.json();
-        const caseData = await caseResp.json();
+      if (!suiteResp.ok) return;
+      const suiteData = await suiteResp.json();
+      const countsData: Record<string, number> = countsResp.ok
+        ? await countsResp.json()
+        : {};
 
-        const mappedCases = caseData.map(mapBackendToFrontend);
+      const suitesWithId = suiteData.map((s: any) => ({
+        ...s,
+        id: s.id || s._id,
+      }));
 
-        const suitesWithId = suiteData.map((s: any) => ({
-          ...s,
-          id: s.id || s._id,
-        }));
-
-        const suiteIds = new Set(suitesWithId.map((s: any) => s.id));
-        const unassignedCases = mappedCases.filter(
-          (c: TestCase) => !suiteIds.has(c.suite_id),
-        );
-
-        let newSuites = suitesWithId.map((s: any) => ({
-          ...s,
-          cases: mappedCases.filter((c: TestCase) => c.suite_id === s.id),
-          page: keepState ? prevPages.get(s.id) || 1 : 1,
-          hasMore:
-            mappedCases.filter((c: TestCase) => c.suite_id === s.id).length >=
-            10,
-        }));
-
-        if (unassignedCases.length > 0) {
-          newSuites = [
-            ...newSuites,
-            {
-              id: "unassigned",
-              title: "Unassigned",
-              description: "",
-              cases: unassignedCases,
-              page: keepState ? prevPages.get("unassigned") || 1 : 1,
-              hasMore: unassignedCases.length >= 10,
-            },
-          ];
+      // Calculate unassigned count (empty string key in counts)
+      const suiteIds = new Set(suitesWithId.map((s: any) => s.id));
+      let unassignedCount = 0;
+      for (const [key, count] of Object.entries(countsData)) {
+        if (!key || !suiteIds.has(key)) {
+          unassignedCount += count as number;
         }
+      }
 
-        suites = newSuites;
+      // Build suite list with counts, then load cases per-suite
+      const suiteList = [
+        ...suitesWithId.map((s: any) => ({
+          ...s,
+          totalCount: (countsData[s.id] as number) || 0,
+        })),
+        ...(unassignedCount > 0
+          ? [
+              {
+                id: "unassigned",
+                title: "Unassigned",
+                description: "",
+                totalCount: unassignedCount,
+              },
+            ]
+          : []),
+      ];
 
-        if (suites.length > 0) {
-          // Only reset selection if not keepState or if previous selection is invalid
-          const suiteExists = suites.some((s) => s.id === prevSelectedSuiteId);
-          if (!keepState || !prevSelectedSuiteId || !suiteExists) {
-            selectedSuiteId = suites[0].id;
-            testCaseForm.suiteId =
-              suites[0].id === "unassigned" ? "" : suites[0].id;
-            if (suites[0].cases.length > 0) {
-              selectedCaseId = suites[0].cases[0].id;
-            }
-          } else {
-            selectedSuiteId = prevSelectedSuiteId;
-            // Validate selected case exists in new data
-            const currentSuite = suites.find((s) => s.id === selectedSuiteId);
-            const caseExists = currentSuite?.cases.some(
-              (c) => c.id === prevSelectedCaseId,
-            );
-            if (caseExists) {
-              selectedCaseId = prevSelectedCaseId;
-            } else if (currentSuite && currentSuite.cases.length > 0) {
-              selectedCaseId = currentSuite.cases[0].id;
-            }
+      // Load cases per-suite in parallel
+      const casesPromises = suiteList.map((s: any) => {
+        const page = keepState ? prevPages.get(s.id) || 1 : 1;
+        return api.data.testCases.list(workspaceId!, {
+          suite_id: s.id === "unassigned" ? "none" : s.id,
+          page: page,
+          limit: 10,
+          ...Object.fromEntries(
+            Object.entries(filterParams).filter(([_, v]) => v !== undefined),
+          ),
+        });
+      });
+
+      const casesResponses = await Promise.all(casesPromises);
+
+      let newSuites = [];
+      for (let i = 0; i < suiteList.length; i++) {
+        const s = suiteList[i];
+        const page = keepState ? prevPages.get(s.id) || 1 : 1;
+        let cases: any[] = [];
+        if (casesResponses[i].ok) {
+          const data = await casesResponses[i].json();
+          cases = data.map(mapBackendToFrontend);
+        }
+        newSuites.push({
+          ...s,
+          cases,
+          page,
+          hasMore: cases.length >= 10,
+        });
+      }
+
+      suites = newSuites;
+
+      if (suites.length > 0) {
+        const suiteExists = suites.some((s) => s.id === prevSelectedSuiteId);
+        if (!keepState || !prevSelectedSuiteId || !suiteExists) {
+          selectedSuiteId = suites[0].id;
+          testCaseForm.suiteId =
+            suites[0].id === "unassigned" ? "" : suites[0].id;
+          if (suites[0].cases.length > 0) {
+            selectedCaseId = suites[0].cases[0].id;
+          }
+        } else {
+          selectedSuiteId = prevSelectedSuiteId;
+          const currentSuite = suites.find((s) => s.id === selectedSuiteId);
+          const caseExists = currentSuite?.cases.some(
+            (c) => c.id === prevSelectedCaseId,
+          );
+          if (caseExists) {
+            selectedCaseId = prevSelectedCaseId;
+          } else if (currentSuite && currentSuite.cases.length > 0) {
+            selectedCaseId = currentSuite.cases[0].id;
           }
         }
       }
@@ -1101,9 +1140,12 @@
     let currentField = "";
     let inQuotes = false;
 
-    for (let i = 0; i < text.length; i++) {
-      const char = text[i];
-      const nextChar = text[i + 1];
+    // Normalize line endings to \n
+    const normalizedText = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+    for (let i = 0; i < normalizedText.length; i++) {
+      const char = normalizedText[i];
+      const nextChar = normalizedText[i + 1];
 
       if (char === '"') {
         if (inQuotes && nextChar === '"') {
@@ -1115,15 +1157,11 @@
       } else if (char === "," && !inQuotes) {
         currentRow.push(currentField);
         currentField = "";
-      } else if (
-        (char === "\n" || (char === "\r" && nextChar === "\n")) &&
-        !inQuotes
-      ) {
+      } else if (char === "\n" && !inQuotes) {
         currentRow.push(currentField);
         rows.push(currentRow);
         currentRow = [];
         currentField = "";
-        if (char === "\r") i++;
       } else {
         currentField += char;
       }
@@ -1134,7 +1172,8 @@
       rows.push(currentRow);
     }
 
-    return rows;
+    // Filter out rows that are entirely empty
+    return rows.filter((r) => r.some((field) => field.trim().length > 0));
   }
 
   async function handleImport(event: Event) {
@@ -1147,20 +1186,28 @@
     reader.onload = async (e) => {
       const text = e.target?.result as string;
       const rows = parseCSV(text);
-      if (rows.length <= 1) return;
+      if (rows.length <= 1) {
+        ui.showMessage("CSV file appears to be empty or has only headers.", "error");
+        return;
+      }
 
-      const headers = rows[0].map((h) => h.trim());
+      const headers = rows[0].map((h, i) => {
+        let cleaned = h.trim().toLowerCase();
+        if (i === 0) cleaned = cleaned.replace(/^\uFEFF/, "");
+        return cleaned;
+      });
+      
       const casesToCreate = [];
 
       // Mapping for suite titles to IDs
       const suiteMap = new Map<string, string>();
       suites.forEach((s) => {
         if (s.id !== "unassigned") {
-          suiteMap.set(s.title.toLowerCase(), s.id);
+          suiteMap.set(s.title.toLowerCase().trim(), s.id);
         }
       });
 
-      ui.showMessage("Analyzing suites and cases...", "success");
+      const skipped: { row: number; reason: string }[] = [];
 
       for (let i = 1; i < rows.length; i++) {
         const values = rows[i];
@@ -1171,13 +1218,26 @@
           row[h] = (values[idx] || "").trim();
         });
 
-        const title = row["Test Name"] || row["title"];
-        if (!title) continue;
+        const title =
+          row["test name"] ||
+          row["title"] ||
+          row["test name "] ||
+          row["name"] ||
+          row["testname"];
+
+        if (!title) {
+          skipped.push({
+            row: i + 1,
+            reason: 'Missing "Test Name" column or value.',
+          });
+          continue;
+        }
 
         // Handle Suite logic
         let suiteId: string | null =
           selectedSuiteId === "unassigned" ? null : selectedSuiteId;
-        const suiteName = row["Suite"] || row["suite"];
+        const suiteName =
+          row["suite"] || row["collection"] || row["test suite"] || row["suit"];
 
         if (suiteName && suiteName.trim()) {
           const normalizedName = suiteName.trim().toLowerCase();
@@ -1195,7 +1255,6 @@
                   const newSId = newS.id || newS._id;
                   suiteMap.set(normalizedName, newSId);
                   suiteId = newSId;
-                  // Add to local suites list to keep it in sync
                   suites = [
                     ...suites,
                     {
@@ -1209,12 +1268,17 @@
                 }
               }
             } catch (err) {
-              console.error("Failed to create suite during import:", err);
+              console.error("Failed to create suite:", err);
             }
           }
         }
 
-        const stepsStr = row["Test Step"] || row["steps"] || "";
+        const stepsStr =
+          row["test step"] ||
+          row["steps"] ||
+          row["step"] ||
+          row["test steps"] ||
+          "";
         const classicSteps = stepsStr
           .split("\n")
           .map((s) => s.trim())
@@ -1227,17 +1291,17 @@
 
         casesToCreate.push({
           name: title,
-          description: "",
-          preconditions: row["Precondition"] || "",
-          postconditions: "",
-          input: row["Input"] || "",
-          expected_result: row["Expected Result"] || "",
-          actual_result: row["Actual Result"] || "",
-          status: row["Status"] || "actual",
-          priority: "medium",
-          fixed: "no",
-          assign_dev: row["Assign Dev"] || "unassigned",
-          assign_tester: row["Assign Tester"] || "unassigned",
+          description: row["description"] || "",
+          preconditions: row["precondition"] || row["pre-condition"] || "",
+          postconditions: row["postcondition"] || row["post-condition"] || "",
+          input: row["input"] || "",
+          expected_result: row["expected result"] || row["expected"] || "",
+          actual_result: row["actual result"] || row["actual"] || "",
+          status: row["status"] || "actual",
+          priority: row["priority"] || "medium",
+          fixed: row["fixed"] || "no",
+          assign_dev: row["assign dev"] || row["developer"] || "unassigned",
+          assign_tester: row["assign tester"] || row["tester"] || "unassigned",
           step_format: "classic",
           classic_steps: classicSteps.length > 0 ? classicSteps : undefined,
           suite_id: suiteId,
@@ -1245,22 +1309,57 @@
       }
 
       if (casesToCreate.length > 0) {
+        showImportModal = true;
+        importProgress = {
+          current: 0,
+          total: casesToCreate.length,
+          status: "Starting import...",
+        };
+
         let successCount = 0;
-        ui.showMessage(
-          `Importing ${casesToCreate.length} test cases. Please do not refresh or close this page until the process is complete...`,
-          "success",
-        );
-        for (const tc of casesToCreate) {
+        let failedCount = 0;
+        const failedNames: string[] = [];
+
+        for (let i = 0; i < casesToCreate.length; i++) {
+          const tc = casesToCreate[i];
+          importProgress = {
+            current: i + 1,
+            total: casesToCreate.length,
+            status: `Creating: ${tc.name}`,
+          };
+
           try {
             if (!workspaceId) continue;
             const resp = await api.data.testCases.create(workspaceId, tc);
-            if (resp.ok) successCount++;
+            if (resp.ok) {
+              successCount++;
+            } else {
+              failedCount++;
+              failedNames.push(tc.name);
+              console.error(`Failed "${tc.name}":`, await resp.text());
+            }
           } catch (err) {
+            failedCount++;
+            failedNames.push(tc.name);
             console.error("Import error:", err);
           }
         }
-        ui.showMessage(`Imported ${successCount} test cases`, "success");
+
+        importProgress.status = "Refreshing data...";
         await loadData();
+        showImportModal = false;
+        importSummary = {
+          success: successCount,
+          failed: failedCount,
+          failedNames,
+          skipped,
+        };
+      } else {
+        const detectedHeaders = headers.join(", ");
+        ui.showMessage(
+          `No test cases found. Detected headers: ${detectedHeaders}`,
+          "error",
+        );
       }
     };
 
@@ -2001,7 +2100,7 @@
                 <ChevronDown size={14} class="shrink-0 text-slate-500" />
                 <span class="min-w-0 flex-1 truncate">{suite.title}</span>
                 <span class="text-xs font-black text-slate-500"
-                  >{suite.cases?.length || 0}</span
+                  >{suite.totalCount ?? suite.cases?.length ?? 0}</span
                 >
                 <MoreHorizontal
                   size={14}
@@ -3294,7 +3393,83 @@
     </div>
   </div>
 {/if}
-
+ 
+{#if showImportModal}
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+    transition:fade={{ duration: 150 }}
+  >
+    <div
+      class="w-full max-w-sm rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900"
+    >
+      <div class="flex flex-col items-center text-center">
+        <div class="relative mb-6">
+          <svg class="h-20 w-20 transform -rotate-90">
+            <circle
+              cx="40"
+              cy="40"
+              r="36"
+              stroke="currentColor"
+              stroke-width="8"
+              fill="transparent"
+              class="text-slate-100 dark:text-gray-800"
+            />
+            <circle
+              cx="40"
+              cy="40"
+              r="36"
+              stroke="currentColor"
+              stroke-width="8"
+              fill="transparent"
+              stroke-dasharray={2 * Math.PI * 36}
+              stroke-dashoffset={2 *
+                Math.PI *
+                36 *
+                (1 - importProgress.current / (importProgress.total || 1))}
+              stroke-linecap="round"
+              class="text-indigo-600 transition-all duration-300"
+            />
+          </svg>
+          <div
+            class="absolute inset-0 flex items-center justify-center text-sm font-black text-indigo-600"
+          >
+            {Math.round(
+              (importProgress.current / (importProgress.total || 1)) * 100,
+            )}%
+          </div>
+        </div>
+ 
+        <h3 class="text-lg font-black text-slate-800 dark:text-white">
+          Importing Test Cases
+        </h3>
+        <p class="mt-2 text-sm text-slate-500 dark:text-gray-400">
+          {importProgress.current} of {importProgress.total} processed
+        </p>
+ 
+        <div
+          class="mt-6 w-full rounded-xl bg-amber-50 p-4 border border-amber-100 dark:bg-amber-900/10 dark:border-amber-900/20"
+        >
+          <div class="flex items-center gap-2 text-amber-600 dark:text-amber-500 mb-1">
+            <AlertCircle size={16} />
+            <p class="text-xs font-bold uppercase tracking-wider">
+              Do Not Refresh
+            </p>
+          </div>
+          <p class="text-[11px] text-amber-700/80 dark:text-amber-400/80 leading-relaxed">
+            ระบบกำลังนำข้อมูลเข้า กรุณาอย่ารีเฟรชหรือปิดหน้านี้จนกว่าจะเสร็จสิ้น เพื่อความถูกต้องของข้อมูล
+          </p>
+        </div>
+ 
+        <p
+          class="mt-4 truncate w-full text-[10px] font-mono text-slate-400 dark:text-gray-500"
+        >
+          {importProgress.status}
+        </p>
+      </div>
+    </div>
+  </div>
+{/if}
+ 
 {#if lightboxOpen}
   <div
     class="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/95 backdrop-blur-md"
@@ -3427,6 +3602,96 @@
     caseToDeleteId = "";
   }}
 />
+
+{#if importSummary}
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+    transition:fade={{ duration: 150 }}
+  >
+    <div
+      class="w-full max-w-lg rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900"
+    >
+      <div class="flex items-center gap-3 mb-6">
+        <div class="grid h-12 w-12 place-items-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400">
+          <FileCheck size={24} />
+        </div>
+        <div>
+          <h2 class="text-xl font-black text-slate-800 dark:text-white">
+            Import Summary
+          </h2>
+          <p class="text-sm text-slate-500 dark:text-gray-400">Process completed</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-4 mb-8">
+        <div class="rounded-xl bg-slate-50 p-4 dark:bg-gray-800/50">
+          <p class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Success</p>
+          <p class="text-2xl font-black text-emerald-600 dark:text-emerald-400">{importSummary.success}</p>
+        </div>
+        <div class="rounded-xl bg-slate-50 p-4 dark:bg-gray-800/50">
+          <p class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Failed</p>
+          <p class="text-2xl font-black text-rose-600 dark:text-rose-400">{importSummary.failed}</p>
+        </div>
+        <div class="rounded-xl bg-slate-50 p-4 dark:bg-gray-800/50">
+          <p class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Skipped</p>
+          <p class="text-2xl font-black text-amber-600 dark:text-amber-400">{importSummary.skipped.length}</p>
+        </div>
+      </div>
+
+      {#if importSummary.failedNames.length > 0}
+        <div class="mb-6">
+          <p class="text-xs font-bold text-rose-600 dark:text-rose-400 mb-2">Failed Cases</p>
+          <div class="rounded-xl border border-rose-100 bg-rose-50/50 p-3 dark:border-rose-900/30 dark:bg-rose-900/10">
+            {#each importSummary.failedNames.slice(0, 3) as name}
+              <div class="flex items-center gap-2 py-1.5">
+                <XCircle size={12} class="text-rose-400 shrink-0" />
+                <span class="text-[12px] font-semibold text-rose-700 dark:text-rose-300 truncate">{name}</span>
+              </div>
+            {/each}
+            {#if importSummary.failedNames.length > 3}
+              <p class="text-[11px] font-bold text-rose-400 dark:text-rose-500 mt-1 pl-5">
+                ...and {importSummary.failedNames.length - 3} more
+              </p>
+            {/if}
+          </div>
+        </div>
+      {/if}
+
+      {#if importSummary.skipped.length > 0}
+        <div class="mb-6">
+          <p class="text-xs font-bold text-amber-600 dark:text-amber-400 mb-2">Skipped Rows</p>
+          <div class="rounded-xl border border-amber-100 bg-amber-50/50 p-3 dark:border-amber-900/30 dark:bg-amber-900/10">
+            {#each importSummary.skipped.slice(0, 3) as item}
+              <div class="flex items-start gap-2 py-1.5">
+                <AlertCircle size={12} class="text-amber-400 shrink-0 mt-0.5" />
+                <div class="min-w-0">
+                  <span class="text-[12px] font-semibold text-amber-700 dark:text-amber-300">
+                    Row {item.row}{item.name ? `: ${item.name}` : ""}
+                  </span>
+                  <p class="text-[11px] text-amber-500 dark:text-amber-500">{item.reason}</p>
+                </div>
+              </div>
+            {/each}
+            {#if importSummary.skipped.length > 3}
+              <p class="text-[11px] font-bold text-amber-400 dark:text-amber-500 mt-1 pl-5">
+                ...and {importSummary.skipped.length - 3} more
+              </p>
+            {/if}
+          </div>
+        </div>
+      {/if}
+
+      <div class="flex justify-end">
+        <button
+          class="rounded-xl bg-indigo-600 px-8 py-2 text-sm font-black text-white hover:bg-indigo-500 shadow-lg shadow-indigo-600/20"
+          on:click={() => (importSummary = null)}
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <WorkspaceModals
   modals={$modals}

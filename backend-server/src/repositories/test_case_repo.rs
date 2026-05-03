@@ -5,6 +5,7 @@ use mongodb::{
     options::FindOneOptions,
     Collection, Database,
 };
+use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct TestCaseRepository {
@@ -252,5 +253,35 @@ impl TestCaseRepository {
             None
         ).await?;
         Ok(res.deleted_count)
+    }
+
+    /// Count test cases per suite_id for a workspace
+    pub async fn count_by_workspace(
+        &self,
+        workspace_id: &ObjectId,
+    ) -> mongodb::error::Result<HashMap<String, i64>> {
+        let pipeline = vec![
+            doc! { "$match": { "workspace_id": workspace_id } },
+            doc! { "$group": {
+                "_id": { "$ifNull": ["$suite_id", ""] },
+                "count": { "$sum": 1 }
+            }},
+        ];
+
+        let mut cursor = self.collection.aggregate(pipeline, None).await?;
+        let mut counts = HashMap::new();
+
+        while let Some(result) = cursor.next().await {
+            match result {
+                Ok(d) => {
+                    let suite_id = d.get_str("_id").unwrap_or("").to_string();
+                    let count = d.get_i32("count").unwrap_or(0) as i64;
+                    counts.insert(suite_id, count);
+                }
+                Err(e) => return Err(e),
+            }
+        }
+
+        Ok(counts)
     }
 }

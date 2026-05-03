@@ -33,26 +33,8 @@ impl TestCaseService {
                     return Err(mongodb::error::Error::custom(format!("Suite with ID '{}' not found", sid)));
                 }
             }
-            _ => {
-                // If no suite_id provided, find or create "General" suite
-                let suites = self.suite_repo.find_by_workspace(&workspace_id).await?;
-                if let Some(general) = suites.iter().find(|s| s.title == "General") {
-                    general.id.clone()
-                } else {
-                    // Create General suite
-                    let now = chrono::Utc::now().to_rfc3339();
-                    let new_suite = crate::models::test_case::TestSuite {
-                        id: Uuid::now_v7().to_string(),
-                        workspace_id,
-                        title: "General".to_string(),
-                        description: Some("Default suite for unassigned test cases".to_string()),
-                        created_at: Some(now.clone()),
-                        updated_at: Some(now),
-                    };
-                    let created = self.suite_repo.create(new_suite).await?;
-                    created.id
-                }
-            }
+            Some(sid) if sid.is_empty() => "".to_string(),
+            _ => "".to_string(), // Default to unassigned instead of forcing General
         };
 
         let now = chrono::Utc::now().to_rfc3339();
