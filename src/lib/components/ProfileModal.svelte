@@ -2,7 +2,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import { 
         X, User, Lock, Mail, Save, Fingerprint, AtSign,
-        Monitor, Server, Database, Smartphone, Palette, CheckCircle2, Layers 
+        Monitor, Server, Database, Smartphone, Palette, CheckCircle2, Layers, Terminal 
     } from 'lucide-svelte';
 	import { _ } from 'svelte-i18n';
 	import { api } from '$lib/apis';
@@ -32,6 +32,7 @@
         { value: 'Full Stack Developer', label: 'Full Stack Developer', icon: Layers },
         { value: 'Frontend Developer', label: 'Frontend Developer', icon: Monitor },
         { value: 'Backend Developer', label: 'Backend Developer', icon: Server },
+        { value: 'DevOps', label: 'DevOps', icon: Terminal },
         { value: 'QA Tester', label: 'QA Tester', icon: CheckCircle2 },
         { value: 'Data Scientist', label: 'Data Scientist', icon: Database },
         { value: 'UX/UI Designer', label: 'UX/UI Designer', icon: Palette },

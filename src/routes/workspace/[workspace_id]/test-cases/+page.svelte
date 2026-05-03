@@ -137,7 +137,7 @@
 
   let suites: Suite[] = [];
   const ui = createUIActions();
-  
+
   const ws = createWorkspacePageStore();
   const {
     assignees: wsAssignees,
@@ -360,9 +360,13 @@
         const data = await resp.json();
         ui.showMessage("Task created successfully", "success");
         // Redirect to task detail
-        const urlRoom = $page.url.searchParams.get("room") || (browser ? localStorage.getItem("sync-room-code") : null);
+        const urlRoom =
+          $page.url.searchParams.get("room") ||
+          (browser ? localStorage.getItem("sync-room-code") : null);
         const roomParam = urlRoom ? `?room=${urlRoom}` : "";
-        goto(`${base}/workspace/${workspaceId}/task/${data.task_id}${roomParam}`);
+        goto(
+          `${base}/workspace/${workspaceId}/task/${data.task_id}${roomParam}`,
+        );
       } else {
         const error = await resp.text();
         ui.showMessage(`Failed to create task: ${error}`, "error");
@@ -1065,11 +1069,14 @@
       const usersData = await usersResp.json();
       const userPositionMap = new Map<string, string>();
       const userNameMap = new Map<string, string>();
-      
+
       if (usersData.success && Array.isArray(usersData.users)) {
         usersData.users.forEach((u: any) => {
           const id = u.id || u.user_id;
-          userNameMap.set(id, u.profile?.nickname || u.profile?.first_name || u.email);
+          userNameMap.set(
+            id,
+            u.profile?.nickname || u.profile?.first_name || u.email,
+          );
           userPositionMap.set(id, u.profile?.position || "");
         });
       }
@@ -1128,9 +1135,17 @@
           String(c.test_no),
           String(c.title || ""),
           String(c.status || ""),
-          String(userNameMap.get(testerId) || (testerId === "unassigned" ? $_("testCase__unassigned") : testerId)),
+          String(
+            userNameMap.get(testerId) ||
+              (testerId === "unassigned"
+                ? $_("testCase__unassigned")
+                : testerId),
+          ),
           String(userPositionMap.get(testerId) || ""),
-          String(userNameMap.get(devId) || (devId === "unassigned" ? $_("testCase__unassigned") : devId)),
+          String(
+            userNameMap.get(devId) ||
+              (devId === "unassigned" ? $_("testCase__unassigned") : devId),
+          ),
           String(userPositionMap.get(devId) || ""),
           String(c.preconditions || ""),
           String(c.input || ""),
@@ -1218,7 +1233,10 @@
       const text = e.target?.result as string;
       const rows = parseCSV(text);
       if (rows.length <= 1) {
-        ui.showMessage("CSV file appears to be empty or has only headers.", "error");
+        ui.showMessage(
+          "CSV file appears to be empty or has only headers.",
+          "error",
+        );
         return;
       }
 
@@ -1227,7 +1245,7 @@
         if (i === 0) cleaned = cleaned.replace(/^\uFEFF/, "");
         return cleaned;
       });
-      
+
       const casesToCreate = [];
 
       // Mapping for suite titles to IDs
@@ -1439,7 +1457,7 @@
     { value: "comments", label: "Comments" },
     { value: "steps", label: "Steps" },
   ];
-  
+
   const priorityOptions = [
     { value: "high", label: "High" },
     { value: "medium", label: "Medium" },
@@ -1563,6 +1581,15 @@
   function selectSuite(suite: Suite) {
     selectedSuiteId = suite.id;
     selectedCaseId = suite.cases[0]?.id || selectedCaseId;
+
+    if (browser) {
+      setTimeout(() => {
+        const element = document.getElementById(`suite-${suite.id}`);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 0);
+    }
   }
 
   function selectCase(suite: Suite, testCase: TestCase) {
@@ -1849,7 +1876,11 @@
                       >{filterProperties.find((p) => p.id === prop)?.label ||
                         prop}:</span
                     >
-                    <span>{values.map((v) => getFilterLabel(prop, v)).join(", ")}</span>
+                    <span
+                      >{values
+                        .map((v) => getFilterLabel(prop, v))
+                        .join(", ")}</span
+                    >
                     <button
                       class="ml-1 rounded-full p-0.5 hover:bg-indigo-200 dark:hover:bg-indigo-500/30 transition-colors"
                       on:click={() => {
@@ -1904,7 +1935,9 @@
                             <ChevronRight size={14} class="opacity-30" />
                           </button>
                         {/each}
-                        <div class="h-px bg-slate-100 dark:bg-gray-700 my-1"></div>
+                        <div
+                          class="h-px bg-slate-100 dark:bg-gray-700 my-1"
+                        ></div>
                         <button
                           class="px-4 py-2 text-sm font-black text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/10 text-center w-full transition-colors"
                           on:click={() => {
@@ -1922,7 +1955,9 @@
                         </button>
                       </div>
                     {:else}
-                      <div class="flex flex-col py-1 max-h-[400px] overflow-y-auto">
+                      <div
+                        class="flex flex-col py-1 max-h-[400px] overflow-y-auto"
+                      >
                         <div class="flex items-center gap-2 px-3 py-2">
                           <button
                             class="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg dark:hover:bg-gray-700 dark:hover:text-gray-200 transition-colors"
@@ -1937,7 +1972,9 @@
                             )?.label}</span
                           >
                         </div>
-                        <div class="h-px bg-slate-100 dark:bg-gray-700 mb-1"></div>
+                        <div
+                          class="h-px bg-slate-100 dark:bg-gray-700 mb-1"
+                        ></div>
 
                         <!-- Render options based on property -->
                         {#if activeFilterProperty === "priority"}
@@ -1968,7 +2005,9 @@
                               <input
                                 type="checkbox"
                                 class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 w-4 h-4"
-                                checked={activeFilters.status.includes(opt.value)}
+                                checked={activeFilters.status.includes(
+                                  opt.value,
+                                )}
                                 on:change={() =>
                                   toggleFilterValue("status", opt.value)}
                               />
@@ -1986,7 +2025,9 @@
                               <input
                                 type="checkbox"
                                 class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 w-4 h-4"
-                                checked={activeFilters.fixed.includes(opt.value)}
+                                checked={activeFilters.fixed.includes(
+                                  opt.value,
+                                )}
                                 on:change={() =>
                                   toggleFilterValue("fixed", opt.value)}
                               />
@@ -2165,9 +2206,9 @@
         >
           <div class="space-y-7">
             {#each filteredSuites as suite}
-              <section>
+              <section id="suite-{suite.id}" class="scroll-mt-4">
                 <div
-                  class="flex min-h-12 items-center gap-3 rounded-t-lg bg-slate-100 px-5 dark:bg-gray-900"
+                  class="flex min-h-12 items-center gap-3 rounded-t-lg px-5 transition-colors duration-300 {selectedSuiteId === suite.id ? 'bg-indigo-50 dark:bg-indigo-500/10 border-b border-indigo-100 dark:border-indigo-500/20' : 'bg-slate-100 dark:bg-gray-900'}"
                 >
                   <h3
                     class="min-w-0 flex-1 truncate text-base font-black text-slate-700 dark:text-white"
@@ -2194,7 +2235,8 @@
                       title="Delete suite"
                       on:click={() => {
                         suiteToDelete = suite;
-                        deleteMode = suite.id === "unassigned" ? "delete" : "move";
+                        deleteMode =
+                          suite.id === "unassigned" ? "delete" : "move";
                         showDeleteSuiteModal = true;
                       }}
                     >
@@ -2367,7 +2409,7 @@
                       <div class="flex-1"></div>
                     {/if}
 
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 ml-auto">
                       {#if suite.page > 1 || suite.hasMore}
                         <button
                           class="flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-30 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-900"
@@ -2376,7 +2418,7 @@
                             loadSuitePage(suite.id, suite.page - 1)}
                         >
                           <ChevronLeft size={14} />
-                          Previous
+                          {$_("pagination__previous")}
                         </button>
                         <button
                           class="flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-30 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-900"
@@ -2384,7 +2426,7 @@
                           on:click={() =>
                             loadSuitePage(suite.id, suite.page + 1)}
                         >
-                          Next
+                          {$_("pagination__next")}
                           <ChevronRight size={14} />
                         </button>
                       {/if}
@@ -2508,7 +2550,9 @@
             <!-- Description -->
             <section>
               <div class="flex items-center justify-between group">
-                <h3 class="text-sm font-black text-slate-700 dark:text-gray-200">
+                <h3
+                  class="text-sm font-black text-slate-700 dark:text-gray-200"
+                >
                   Description
                 </h3>
                 {#if isAuthorized && editingField !== "description"}
@@ -2665,7 +2709,8 @@
                   {#if isAuthorized && editingField !== "input"}
                     <button
                       class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-gray-200 transition-colors"
-                      on:click={() => startEditing("input", selectedCase.input || "")}
+                      on:click={() =>
+                        startEditing("input", selectedCase.input || "")}
                     >
                       <Edit3 size={14} />
                     </button>
@@ -2693,7 +2738,9 @@
                     </div>
                   </div>
                 {:else}
-                  <p class="mt-2 text-sm font-medium text-slate-500 whitespace-pre-wrap">
+                  <p
+                    class="mt-2 text-sm font-medium text-slate-500 whitespace-pre-wrap"
+                  >
                     {selectedCase.input || "No input data"}
                   </p>
                 {/if}
@@ -2742,7 +2789,9 @@
                     </div>
                   </div>
                 {:else}
-                  <p class="mt-2 text-sm font-medium text-slate-500 whitespace-pre-wrap">
+                  <p
+                    class="mt-2 text-sm font-medium text-slate-500 whitespace-pre-wrap"
+                  >
                     {selectedCase.expected_result || "No expected result"}
                   </p>
                 {/if}
@@ -2791,7 +2840,9 @@
                     </div>
                   </div>
                 {:else}
-                  <p class="mt-2 text-sm font-medium text-slate-500 whitespace-pre-wrap">
+                  <p
+                    class="mt-2 text-sm font-medium text-slate-500 whitespace-pre-wrap"
+                  >
                     {selectedCase.actual_result || "No actual result"}
                   </p>
                 {/if}
@@ -2878,14 +2929,14 @@
                 Priority
               </h3>
               <div class="property-select w-full">
-                  <SearchableSelect
-                    id="sidebar-prop-priority-update"
-                    value={selectedCase.priority}
-                    options={priorityOptions}
-                    showSearch={false}
-                    disabled={!isAuthorized}
-                    on:select={(e) => updatePriority(selectedCase, e.detail)}
-                  />
+                <SearchableSelect
+                  id="sidebar-prop-priority-update"
+                  value={selectedCase.priority}
+                  options={priorityOptions}
+                  showSearch={false}
+                  disabled={!isAuthorized}
+                  on:select={(e) => updatePriority(selectedCase, e.detail)}
+                />
               </div>
             </section>
 
@@ -2896,14 +2947,14 @@
                 Status
               </h3>
               <div class="property-select w-full">
-                  <SearchableSelect
-                    id="sidebar-prop-status-update"
-                    value={selectedCase.status}
-                    options={statusOptions}
-                    showSearch={false}
-                    disabled={!isAuthorized}
-                    on:select={(e) => updateStatus(selectedCase, e.detail)}
-                  />
+                <SearchableSelect
+                  id="sidebar-prop-status-update"
+                  value={selectedCase.status}
+                  options={statusOptions}
+                  showSearch={false}
+                  disabled={!isAuthorized}
+                  on:select={(e) => updateStatus(selectedCase, e.detail)}
+                />
               </div>
             </section>
 
@@ -2948,14 +2999,14 @@
                 Assign Tester
               </h3>
               <div class="property-select w-full">
-                  <SearchableSelect
-                    id="sidebar-prop-assigntester-update"
-                    value={selectedCase.assignee || "unassigned"}
-                    options={assigneeOptions}
-                    showSearch={true}
-                    disabled={!isAuthorized}
-                    on:select={(e) => updateAssignTester(selectedCase, e.detail)}
-                  />
+                <SearchableSelect
+                  id="sidebar-prop-assigntester-update"
+                  value={selectedCase.assignee || "unassigned"}
+                  options={assigneeOptions}
+                  showSearch={true}
+                  disabled={!isAuthorized}
+                  on:select={(e) => updateAssignTester(selectedCase, e.detail)}
+                />
               </div>
             </section>
           </div>
@@ -3048,7 +3099,9 @@
                 >
                   <Paperclip size={32} />
                 </div>
-                <h3 class="text-sm font-black text-slate-700 dark:text-gray-200">
+                <h3
+                  class="text-sm font-black text-slate-700 dark:text-gray-200"
+                >
                   No attachments yet
                 </h3>
                 <p class="mt-1 text-xs text-slate-500">
@@ -3426,13 +3479,19 @@
           </button>
         </div>
       {:else}
-        <div class="mt-6 p-4 rounded-xl bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/20">
-          <div class="flex items-center gap-3 text-rose-600 dark:text-rose-400 mb-2">
+        <div
+          class="mt-6 p-4 rounded-xl bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/20"
+        >
+          <div
+            class="flex items-center gap-3 text-rose-600 dark:text-rose-400 mb-2"
+          >
             <AlertCircle size={18} />
             <p class="text-sm font-bold">Critical Action</p>
           </div>
           <p class="text-xs text-slate-600 dark:text-gray-400 leading-relaxed">
-            Deleting the <span class="font-bold">Unassigned</span> collection will permanently remove all test cases that do not belong to any suite. This action cannot be undone.
+            Deleting the <span class="font-bold">Unassigned</span> collection will
+            permanently remove all test cases that do not belong to any suite. This
+            action cannot be undone.
           </p>
         </div>
       {/if}
@@ -3450,7 +3509,7 @@
     </div>
   </div>
 {/if}
- 
+
 {#if showImportModal}
   <div
     class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
@@ -3495,28 +3554,33 @@
             )}%
           </div>
         </div>
- 
+
         <h3 class="text-lg font-black text-slate-800 dark:text-white">
           Importing Test Cases
         </h3>
         <p class="mt-2 text-sm text-slate-500 dark:text-gray-400">
           {importProgress.current} of {importProgress.total} processed
         </p>
- 
+
         <div
           class="mt-6 w-full rounded-xl bg-amber-50 p-4 border border-amber-100 dark:bg-amber-900/10 dark:border-amber-900/20"
         >
-          <div class="flex items-center gap-2 text-amber-600 dark:text-amber-500 mb-1">
+          <div
+            class="flex items-center gap-2 text-amber-600 dark:text-amber-500 mb-1"
+          >
             <AlertCircle size={16} />
             <p class="text-xs font-bold uppercase tracking-wider">
               Do Not Refresh
             </p>
           </div>
-          <p class="text-[11px] text-amber-700/80 dark:text-amber-400/80 leading-relaxed">
-            ระบบกำลังนำข้อมูลเข้า กรุณาอย่ารีเฟรชหรือปิดหน้านี้จนกว่าจะเสร็จสิ้น เพื่อความถูกต้องของข้อมูล
+          <p
+            class="text-[11px] text-amber-700/80 dark:text-amber-400/80 leading-relaxed"
+          >
+            ระบบกำลังนำข้อมูลเข้า กรุณาอย่ารีเฟรชหรือปิดหน้านี้จนกว่าจะเสร็จสิ้น
+            เพื่อความถูกต้องของข้อมูล
           </p>
         </div>
- 
+
         <p
           class="mt-4 truncate w-full text-[10px] font-mono text-slate-400 dark:text-gray-500"
         >
@@ -3526,7 +3590,7 @@
     </div>
   </div>
 {/if}
- 
+
 {#if lightboxOpen}
   <div
     class="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/95 backdrop-blur-md"
@@ -3627,7 +3691,8 @@
         ? 'cursor-grabbing'
         : 'cursor-grab transition-transform duration-150'}"
       style="transform: scale({lightboxZoom}) translate({lightboxX /
-        lightboxZoom}px, {lightboxY / lightboxZoom}px) rotate({lightboxRotation}deg);"
+        lightboxZoom}px, {lightboxY /
+        lightboxZoom}px) rotate({lightboxRotation}deg);"
       on:mousedown={handleLightboxMouseDown}
       on:mousemove={handleLightboxMouseMove}
       on:mouseup={handleLightboxMouseUp}
@@ -3669,44 +3734,75 @@
       class="w-full max-w-lg rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900"
     >
       <div class="flex items-center gap-3 mb-6">
-        <div class="grid h-12 w-12 place-items-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400">
+        <div
+          class="grid h-12 w-12 place-items-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400"
+        >
           <FileCheck size={24} />
         </div>
         <div>
           <h2 class="text-xl font-black text-slate-800 dark:text-white">
             Import Summary
           </h2>
-          <p class="text-sm text-slate-500 dark:text-gray-400">Process completed</p>
+          <p class="text-sm text-slate-500 dark:text-gray-400">
+            Process completed
+          </p>
         </div>
       </div>
 
       <div class="grid grid-cols-3 gap-4 mb-8">
         <div class="rounded-xl bg-slate-50 p-4 dark:bg-gray-800/50">
-          <p class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Success</p>
-          <p class="text-2xl font-black text-emerald-600 dark:text-emerald-400">{importSummary.success}</p>
+          <p
+            class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1"
+          >
+            Success
+          </p>
+          <p class="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+            {importSummary.success}
+          </p>
         </div>
         <div class="rounded-xl bg-slate-50 p-4 dark:bg-gray-800/50">
-          <p class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Failed</p>
-          <p class="text-2xl font-black text-rose-600 dark:text-rose-400">{importSummary.failed}</p>
+          <p
+            class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1"
+          >
+            Failed
+          </p>
+          <p class="text-2xl font-black text-rose-600 dark:text-rose-400">
+            {importSummary.failed}
+          </p>
         </div>
         <div class="rounded-xl bg-slate-50 p-4 dark:bg-gray-800/50">
-          <p class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Skipped</p>
-          <p class="text-2xl font-black text-amber-600 dark:text-amber-400">{importSummary.skipped.length}</p>
+          <p
+            class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1"
+          >
+            Skipped
+          </p>
+          <p class="text-2xl font-black text-amber-600 dark:text-amber-400">
+            {importSummary.skipped.length}
+          </p>
         </div>
       </div>
 
       {#if importSummary.failedNames.length > 0}
         <div class="mb-6">
-          <p class="text-xs font-bold text-rose-600 dark:text-rose-400 mb-2">Failed Cases</p>
-          <div class="rounded-xl border border-rose-100 bg-rose-50/50 p-3 dark:border-rose-900/30 dark:bg-rose-900/10">
+          <p class="text-xs font-bold text-rose-600 dark:text-rose-400 mb-2">
+            Failed Cases
+          </p>
+          <div
+            class="rounded-xl border border-rose-100 bg-rose-50/50 p-3 dark:border-rose-900/30 dark:bg-rose-900/10"
+          >
             {#each importSummary.failedNames.slice(0, 3) as name}
               <div class="flex items-center gap-2 py-1.5">
                 <XCircle size={12} class="text-rose-400 shrink-0" />
-                <span class="text-[12px] font-semibold text-rose-700 dark:text-rose-300 truncate">{name}</span>
+                <span
+                  class="text-[12px] font-semibold text-rose-700 dark:text-rose-300 truncate"
+                  >{name}</span
+                >
               </div>
             {/each}
             {#if importSummary.failedNames.length > 3}
-              <p class="text-[11px] font-bold text-rose-400 dark:text-rose-500 mt-1 pl-5">
+              <p
+                class="text-[11px] font-bold text-rose-400 dark:text-rose-500 mt-1 pl-5"
+              >
                 ...and {importSummary.failedNames.length - 3} more
               </p>
             {/if}
@@ -3716,21 +3812,31 @@
 
       {#if importSummary.skipped.length > 0}
         <div class="mb-6">
-          <p class="text-xs font-bold text-amber-600 dark:text-amber-400 mb-2">Skipped Rows</p>
-          <div class="rounded-xl border border-amber-100 bg-amber-50/50 p-3 dark:border-amber-900/30 dark:bg-amber-900/10">
+          <p class="text-xs font-bold text-amber-600 dark:text-amber-400 mb-2">
+            Skipped Rows
+          </p>
+          <div
+            class="rounded-xl border border-amber-100 bg-amber-50/50 p-3 dark:border-amber-900/30 dark:bg-amber-900/10"
+          >
             {#each importSummary.skipped.slice(0, 3) as item}
               <div class="flex items-start gap-2 py-1.5">
                 <AlertCircle size={12} class="text-amber-400 shrink-0 mt-0.5" />
                 <div class="min-w-0">
-                  <span class="text-[12px] font-semibold text-amber-700 dark:text-amber-300">
+                  <span
+                    class="text-[12px] font-semibold text-amber-700 dark:text-amber-300"
+                  >
                     Row {item.row}{item.name ? `: ${item.name}` : ""}
                   </span>
-                  <p class="text-[11px] text-amber-500 dark:text-amber-500">{item.reason}</p>
+                  <p class="text-[11px] text-amber-500 dark:text-amber-500">
+                    {item.reason}
+                  </p>
                 </div>
               </div>
             {/each}
             {#if importSummary.skipped.length > 3}
-              <p class="text-[11px] font-bold text-amber-400 dark:text-amber-500 mt-1 pl-5">
+              <p
+                class="text-[11px] font-bold text-amber-400 dark:text-amber-500 mt-1 pl-5"
+              >
                 ...and {importSummary.skipped.length - 3} more
               </p>
             {/if}
@@ -3794,7 +3900,7 @@
   t={(key, options) => $_(key, options)}
   toggleTheme={() => theme.toggle()}
   switchView={(v) => {
-    if (v === 'test-cases') return;
+    if (v === "test-cases") return;
     goto(`${base}/workspace/${workspaceId}${$page.url.search}`);
   }}
   openTask={(t) => {
