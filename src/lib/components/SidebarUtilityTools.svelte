@@ -12,8 +12,10 @@
     Code2,
     Regex,
     Braces,
-    Link,
     Globe,
+    GitCompare,
+    Table,
+    Key,
   } from "lucide-svelte";
   import { _ } from "svelte-i18n";
   import { timerStore, formattedTime } from "$lib/stores/timerStore";
@@ -129,17 +131,6 @@
       </button>
 
       <button
-        on:click={() => ui.openModal("deepLinkTester")}
-        title={$_("deepLinkTester__title") || "Deep Link Tester"}
-        class="group w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white transition-all duration-300 {isCollapsed ? 'justify-center px-0' : ''}"
-      >
-        <Link size={isCollapsed ? 22 : 18} class="shrink-0 transition-transform group-hover:scale-110" />
-        {#if !isCollapsed}
-          <span>{$_("deepLinkTester__title") || "Deep Link"}</span>
-        {/if}
-      </button>
-
-      <button
         on:click={() => ui.openModal("apiTester")}
         title={$_("apiTester__title") || "API Tester"}
         class="group w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white transition-all duration-300 {isCollapsed ? 'justify-center px-0' : ''}"
@@ -147,6 +138,39 @@
         <Globe size={isCollapsed ? 22 : 18} class="shrink-0 transition-transform group-hover:scale-110" />
         {#if !isCollapsed}
           <span>{$_("apiTester__title") || "API Tester"}</span>
+        {/if}
+      </button>
+
+      <button
+        on:click={() => ui.openModal("diffChecker")}
+        title={$_("diffChecker__title") || "Diff Checker"}
+        class="group w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white transition-all duration-300 {isCollapsed ? 'justify-center px-0' : ''}"
+      >
+        <GitCompare size={isCollapsed ? 22 : 18} class="shrink-0 transition-transform group-hover:scale-110" />
+        {#if !isCollapsed}
+          <span>{$_("diffChecker__title") || "Diff Checker"}</span>
+        {/if}
+      </button>
+
+      <button
+        on:click={() => ui.openModal("csvJsonViewer")}
+        title={$_("csvJsonViewer__title") || "CSV/JSON Viewer"}
+        class="group w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white transition-all duration-300 {isCollapsed ? 'justify-center px-0' : ''}"
+      >
+        <Table size={isCollapsed ? 22 : 18} class="shrink-0 transition-transform group-hover:scale-110" />
+        {#if !isCollapsed}
+          <span>{$_("csvJsonViewer__title") || "CSV/JSON"}</span>
+        {/if}
+      </button>
+
+      <button
+        on:click={() => ui.openModal("encoderDecoder")}
+        title="Encoder / Decoder"
+        class="group w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white transition-all duration-300 {isCollapsed ? 'justify-center px-0' : ''}"
+      >
+        <Key size={isCollapsed ? 22 : 18} class="shrink-0 transition-transform group-hover:scale-110" />
+        {#if !isCollapsed}
+          <span>Encoder</span>
         {/if}
       </button>
     </div>

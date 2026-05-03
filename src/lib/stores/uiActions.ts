@@ -35,8 +35,10 @@ export type ModalName =
   | "htmlPreview"
   | "regexTester"
   | "jsonYamlConverter"
-  | "deepLinkTester"
-  | "apiTester";
+  | "apiTester"
+  | "diffChecker"
+  | "csvJsonViewer"
+  | "encoderDecoder";
 
 export type ModalState = {
   form: boolean;
@@ -60,8 +62,10 @@ export type ModalState = {
   htmlPreview: boolean;
   regexTester: boolean;
   jsonYamlConverter: boolean;
-  deepLinkTester: boolean;
   apiTester: boolean;
+  diffChecker: boolean;
+  csvJsonViewer: boolean;
+  encoderDecoder: boolean;
 };
 
 const initialModalState: ModalState = {
@@ -86,8 +90,10 @@ const initialModalState: ModalState = {
   htmlPreview: false,
   regexTester: false,
   jsonYamlConverter: false,
-  deepLinkTester: false,
   apiTester: false,
+  diffChecker: false,
+  csvJsonViewer: false,
+  encoderDecoder: false,
 };
 
 export const modals = writable<ModalState>(initialModalState);

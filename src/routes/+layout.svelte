@@ -24,8 +24,10 @@
   import HtmlPreview from "$lib/components/HtmlPreview.svelte";
   import RegexTester from "$lib/components/RegexTester.svelte";
   import JsonYamlConverter from "$lib/components/JsonYamlConverter.svelte";
-  import DeepLinkTester from "$lib/components/DeepLinkTester.svelte";
   import ApiTester from "$lib/components/ApiTester.svelte";
+  import DiffChecker from "$lib/components/DiffChecker.svelte";
+  import CsvJsonViewer from "$lib/components/CsvJsonViewer.svelte";
+  import EncoderDecoder from "$lib/components/EncoderDecoder.svelte";
   import GlobalConfirmModal from "$lib/components/GlobalConfirmModal.svelte";
   import { _ } from "svelte-i18n";
   import { initAuth, user, authLoading } from "$lib/stores/auth";
@@ -407,12 +409,20 @@
       <JsonYamlConverter on:close={() => ui.closeModal("jsonYamlConverter")} />
     {/if}
 
-    {#if $modals.deepLinkTester}
-      <DeepLinkTester on:close={() => ui.closeModal("deepLinkTester")} />
-    {/if}
-
     {#if $modals.apiTester}
       <ApiTester on:close={() => ui.closeModal("apiTester")} />
+    {/if}
+
+    {#if $modals.diffChecker}
+      <DiffChecker on:close={() => ui.closeModal("diffChecker")} />
+    {/if}
+
+    {#if $modals.csvJsonViewer}
+      <CsvJsonViewer on:close={() => ui.closeModal("csvJsonViewer")} />
+    {/if}
+
+    {#if $modals.encoderDecoder}
+      <EncoderDecoder on:close={() => ui.closeModal("encoderDecoder")} />
     {/if}
 
     {#if $modals.whiteboard}
