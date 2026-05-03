@@ -2,12 +2,12 @@
   import { createEventDispatcher, onMount } from "svelte";
   import {
     Braces, X, Copy, Check, ArrowLeftRight, AlertCircle,
-    FileJson, FileText, Table2, Code2, Palette,
+    FileJson, FileText, Table2, Code2, Palette, Clock, Hash,
   } from "lucide-svelte";
   import { browser } from "$app/environment";
 
   const dispatch = createEventDispatcher<{ close: void }>();
-  type Tab = "jsonYaml" | "jsonCsv" | "jsonModel" | "color";
+  type Tab = "jsonYaml" | "jsonCsv" | "jsonModel" | "color" | "timestamp" | "numbase";
   let activeTab = $state<Tab>("jsonYaml");
 
   // ─── JSON/YAML ──────────────────────────────────
@@ -385,6 +385,99 @@
     return lines.join("\n");
   }
 
+  // ─── Timestamp Converter ──────────────────────
+  let tsInput = $state("");
+  let tsCopied = $state("");
+
+  function relativeTime(date: Date): string {
+    const now = Date.now();
+    const diff = now - date.getTime();
+    const abs = Math.abs(diff);
+    const suffix = diff > 0 ? "ago" : "from now";
+    if (abs < 60_000) return `${Math.floor(abs / 1000)}s ${suffix}`;
+    if (abs < 3_600_000) return `${Math.floor(abs / 60_000)}m ${suffix}`;
+    if (abs < 86_400_000) return `${Math.floor(abs / 3_600_000)}h ${suffix}`;
+    if (abs < 2_592_000_000) return `${Math.floor(abs / 86_400_000)}d ${suffix}`;
+    return `${(abs / 2_592_000_000).toFixed(1)}mo ${suffix}`;
+  }
+
+  let tsParsed = $derived.by(() => {
+    const raw = tsInput.trim();
+    if (!raw) return null;
+    let date: Date | null = null;
+    // epoch seconds
+    if (/^\d{10}$/.test(raw)) date = new Date(Number(raw) * 1000);
+    // epoch milliseconds
+    else if (/^\d{13}$/.test(raw)) date = new Date(Number(raw));
+    // epoch microseconds
+    else if (/^\d{16}$/.test(raw)) date = new Date(Number(raw) / 1000);
+    // ISO string
+    else {
+      const d = new Date(raw);
+      if (!isNaN(d.getTime())) date = d;
+    }
+    if (!date) return null;
+    return {
+      iso: date.toISOString(),
+      isoLocal: date.toLocaleString("sv-SE", { dateStyle: "long", timeStyle: "medium" }),
+      epochSec: Math.floor(date.getTime() / 1000),
+      epochMs: date.getTime(),
+      relative: relativeTime(date),
+      utc: date.toUTCString(),
+      rfc2822: date.toUTCString().replace("GMT", "+0000"),
+      dayOfWeek: date.toLocaleDateString("en-US", { weekday: "long" }),
+      dateOnly: date.toISOString().slice(0, 10),
+      timeOnly: date.toISOString().slice(11, 19),
+      unixCmd: `date -d @${Math.floor(date.getTime() / 1000)}`,
+    };
+  });
+
+  function setTsNow() {
+    tsInput = String(Math.floor(Date.now() / 1000));
+  }
+
+  // ─── Number Base Converter ─────────────────────
+  let nbInput = $state("255");
+  let nbBase = $state<2 | 8 | 10 | 16>(10);
+  let nbCopied = $state("");
+
+  let nbParsed = $derived.by(() => {
+    const raw = nbInput.trim();
+    if (!raw) return null;
+    let dec: number;
+    try {
+      dec = parseInt(raw, nbBase);
+      if (isNaN(dec)) return null;
+    } catch { return null; }
+    const hex = dec.toString(16).toUpperCase();
+    const decStr = dec.toString(10);
+    const oct = dec.toString(8);
+    const bin = dec.toString(2);
+    return {
+      hex: hex,
+      hexPrefixed: `0x${hex}`,
+      dec: decStr,
+      oct: oct,
+      octPrefixed: `0o${oct}`,
+      bin: bin,
+      binPrefixed: `0b${bin}`,
+      char: dec >= 32 && dec <= 126 ? `'${String.fromCharCode(dec)}'` : dec >= 0 && dec <= 0x10FFFF ? `U+${hex.padStart(4, "0")}` : "",
+      bits: bin.length,
+      byteHex: dec >= 0 && dec <= 255 ? `0x${hex.padStart(2, "0")}` : "",
+    };
+  });
+
+  const nbQuickValues = [
+    { label: "255", base: 10 as const, value: "255" },
+    { label: "0xFF", base: 16 as const, value: "FF" },
+    { label: "0b11111111", base: 2 as const, value: "11111111" },
+    { label: "16", base: 10 as const, value: "16" },
+    { label: "0x1A", base: 16 as const, value: "1A" },
+    { label: "127", base: 10 as const, value: "127" },
+    { label: "65535", base: 10 as const, value: "65535" },
+    { label: "0o777", base: 8 as const, value: "777" },
+  ];
+
   // ─── Lifecycle ──────────────────────────────────
   function handleKeydown(e: KeyboardEvent) { if (e.key === "Escape") handleClose(); }
   function handleClose() { dispatch("close"); }
@@ -408,6 +501,8 @@
     { id: "jsonCsv" as Tab, label: "JSON / CSV", icon: Table2 },
     { id: "jsonModel" as Tab, label: "JSON to Model", icon: Code2 },
     { id: "color" as Tab, label: "Color", icon: Palette },
+    { id: "timestamp" as Tab, label: "Timestamp", icon: Clock },
+    { id: "numbase" as Tab, label: "Number Base", icon: Hash },
   ];
 
   const presetColors = [
@@ -432,7 +527,7 @@
           </div>
           <div>
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Converter</h3>
-            <p class="text-xs text-gray-500 dark:text-gray-400">JSON, YAML, CSV, Model, Color</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">JSON, YAML, CSV, Model, Color, Timestamp, NumBase</p>
           </div>
         </div>
         <button onclick={handleClose} class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
@@ -602,6 +697,177 @@
                   </button>
                 </div>
               {/each}
+            </div>
+          </div>
+
+        <!-- ═══ Timestamp ═══ -->
+        {:else if activeTab === "timestamp"}
+          <div class="flex-1 overflow-y-auto p-5 space-y-4">
+            <!-- Input -->
+            <div class="flex items-center gap-2">
+              <div class="relative flex-1">
+                <Clock size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  bind:value={tsInput}
+                  class="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl pl-9 pr-4 py-2.5 text-sm font-mono text-gray-800 dark:text-gray-200 outline-none focus:border-violet-400 dark:focus:border-violet-600 transition-colors placeholder-gray-400"
+                  placeholder="1700000000 or 2024-01-15T12:00:00Z"
+                  onkeydown={(e) => { if (e.key === "Enter") {} }}
+                />
+              </div>
+              <button
+                onclick={setTsNow}
+                class="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-violet-600 hover:bg-violet-700 transition-all shrink-0"
+              >Now</button>
+            </div>
+
+            {#if tsParsed}
+              <!-- Results -->
+              <div class="space-y-1.5">
+                {#each [
+                  { label: "ISO 8601", value: tsParsed.iso },
+                  { label: "Local", value: tsParsed.isoLocal },
+                  { label: "UTC", value: tsParsed.utc },
+                  { label: "RFC 2822", value: tsParsed.rfc2822 },
+                  { label: "Epoch (seconds)", value: String(tsParsed.epochSec) },
+                  { label: "Epoch (ms)", value: String(tsParsed.epochMs) },
+                  { label: "Relative", value: tsParsed.relative },
+                  { label: "Day", value: tsParsed.dayOfWeek },
+                  { label: "Date", value: tsParsed.dateOnly },
+                  { label: "Time (UTC)", value: tsParsed.timeOnly },
+                  { label: "Unix cmd", value: tsParsed.unixCmd },
+                ] as f}
+                  <div class="flex items-center gap-2 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 group">
+                    <span class="text-[10px] font-bold text-violet-500 bg-violet-100 dark:bg-violet-900/30 px-2 py-0.5 rounded-md shrink-0 min-w-[120px] text-center">{f.label}</span>
+                    <code class="flex-1 text-xs font-mono text-gray-800 dark:text-gray-200 truncate">{f.value}</code>
+                    <button
+                      onclick={() => { navigator.clipboard.writeText(f.value); tsCopied = f.label; setTimeout(() => tsCopied = "", 2000); }}
+                      class="p-1 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-violet-600 transition-all shrink-0"
+                    >
+                      {#if tsCopied === f.label}<Check size={14} class="text-green-500" />{:else}<Copy size={14} />{/if}
+                    </button>
+                  </div>
+                {/each}
+              </div>
+            {:else if tsInput.trim()}
+              <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3 text-sm text-red-600 dark:text-red-400 font-mono">
+                Invalid timestamp — enter epoch (10/13/16 digits) or ISO date string
+              </div>
+            {:else}
+              <div class="text-sm text-gray-400 dark:text-gray-500 text-center py-12">
+                Enter a Unix epoch, ISO date, or any parseable date string
+              </div>
+            {/if}
+
+            <!-- Quick reference -->
+            <div class="bg-violet-50 dark:bg-violet-900/15 border border-violet-200 dark:border-violet-800/50 rounded-xl p-4">
+              <p class="text-[10px] font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wider mb-2">Quick Reference</p>
+              <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
+                <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">Epoch seconds</span><code class="font-mono text-gray-700 dark:text-gray-300">10 digits</code></div>
+                <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">Epoch millis</span><code class="font-mono text-gray-700 dark:text-gray-300">13 digits</code></div>
+                <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">Epoch micros</span><code class="font-mono text-gray-700 dark:text-gray-300">16 digits</code></div>
+                <div class="flex justify-between"><span class="text-gray-500 dark:text-gray-400">ISO 8601</span><code class="font-mono text-gray-700 dark:text-gray-300">2024-01-15T…</code></div>
+              </div>
+            </div>
+          </div>
+
+        <!-- ═══ Number Base ═══ -->
+        {:else if activeTab === "numbase"}
+          <div class="flex-1 overflow-y-auto p-5 space-y-4">
+            <!-- Input -->
+            <div class="flex items-center gap-2">
+              <div class="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                {#each [
+                  { base: 16 as const, label: "HEX" },
+                  { base: 10 as const, label: "DEC" },
+                  { base: 8 as const, label: "OCT" },
+                  { base: 2 as const, label: "BIN" },
+                ] as b}
+                  <button
+                    onclick={() => (nbBase = b.base)}
+                    class="px-2.5 py-1 rounded-md text-[10px] font-bold transition-all {nbBase === b.base
+                      ? 'bg-white dark:bg-gray-600 text-orange-600 dark:text-orange-400 shadow-sm'
+                      : 'text-gray-500 dark:text-gray-400'}"
+                  >{b.label}</button>
+                {/each}
+              </div>
+              <input
+                type="text"
+                bind:value={nbInput}
+                class="flex-1 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm font-mono text-gray-800 dark:text-gray-200 outline-none focus:border-orange-400 dark:focus:border-orange-600 transition-colors placeholder-gray-400"
+                placeholder="Enter number..."
+                spellcheck="false"
+              />
+            </div>
+
+            {#if nbParsed}
+              <div class="space-y-1.5">
+                {#each [
+                  { label: "Hexadecimal", value: nbParsed.hex, prefix: nbParsed.hexPrefixed },
+                  { label: "Decimal", value: nbParsed.dec, prefix: "" },
+                  { label: "Octal", value: nbParsed.oct, prefix: nbParsed.octPrefixed },
+                  { label: "Binary", value: nbParsed.bin, prefix: nbParsed.binPrefixed },
+                ] as f}
+                  <div class="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2.5 group">
+                    <div class="flex items-center gap-2">
+                      <span class="text-[10px] font-bold text-orange-500 bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded-md shrink-0 min-w-[100px] text-center">{f.label}</span>
+                      <code class="flex-1 text-sm font-mono text-gray-800 dark:text-gray-200 break-all">{f.value}</code>
+                      <button
+                        onclick={() => { navigator.clipboard.writeText(f.prefix || f.value); nbCopied = f.label; setTimeout(() => nbCopied = "", 2000); }}
+                        class="p-1 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-orange-600 transition-all shrink-0"
+                      >
+                        {#if nbCopied === f.label}<Check size={14} class="text-green-500" />{:else}<Copy size={14} />{/if}
+                      </button>
+                    </div>
+                    {#if f.prefix}
+                      <div class="mt-1 text-[10px] font-mono text-gray-400 pl-[112px]">{f.prefix}</div>
+                    {/if}
+                  </div>
+                {/each}
+
+                <!-- Extra info -->
+                {#if nbParsed.char || nbParsed.bits}
+                  <div class="flex flex-wrap gap-2 mt-2">
+                    {#if nbParsed.char}
+                      <div class="flex items-center gap-2 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5">
+                        <span class="text-[10px] font-bold text-orange-500 bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded-md">Char</span>
+                        <code class="text-sm font-mono text-gray-800 dark:text-gray-200">{nbParsed.char}</code>
+                      </div>
+                    {/if}
+                    <div class="flex items-center gap-2 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5">
+                      <span class="text-[10px] font-bold text-orange-500 bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded-md">Bits</span>
+                      <code class="text-sm font-mono text-gray-800 dark:text-gray-200">{nbParsed.bits}</code>
+                    </div>
+                    {#if nbParsed.byteHex}
+                      <div class="flex items-center gap-2 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5">
+                        <span class="text-[10px] font-bold text-orange-500 bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded-md">Byte</span>
+                        <code class="text-sm font-mono text-gray-800 dark:text-gray-200">{nbParsed.byteHex}</code>
+                      </div>
+                    {/if}
+                  </div>
+                {/if}
+              </div>
+            {:else if nbInput.trim()}
+              <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3 text-sm text-red-600 dark:text-red-400 font-mono">
+                Invalid number for base {nbBase}
+              </div>
+            {:else}
+              <div class="text-sm text-gray-400 dark:text-gray-500 text-center py-12">
+                Enter a number in the selected base
+              </div>
+            {/if}
+
+            <!-- Quick values -->
+            <div class="bg-orange-50 dark:bg-orange-900/15 border border-orange-200 dark:border-orange-800/50 rounded-xl p-4">
+              <p class="text-[10px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider mb-2">Quick Values</p>
+              <div class="flex flex-wrap gap-1.5">
+                {#each nbQuickValues as qv}
+                  <button
+                    onclick={() => { nbBase = qv.base; nbInput = qv.value; }}
+                    class="px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300 dark:hover:border-orange-700 hover:text-orange-600 dark:hover:text-orange-400 transition-all"
+                  >{qv.label}</button>
+                {/each}
+              </div>
             </div>
           </div>
         {/if}

@@ -404,6 +404,47 @@
 
       <!-- Content -->
       <div class="flex-1 overflow-y-auto p-5 space-y-4">
+        <!-- Help Guide -->
+        {#if showHelp}
+          <div class="bg-cyan-50 dark:bg-cyan-900/15 border border-cyan-200 dark:border-cyan-800/50 rounded-xl p-4 space-y-3">
+            <h4 class="text-sm font-bold text-cyan-700 dark:text-cyan-300 uppercase tracking-wider">
+              {$_('csvJsonViewer__help_title') || 'How to use CSV / JSON Viewer'}
+            </h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-[12px]">
+              <div class="space-y-2">
+                <p class="font-bold text-cyan-600 dark:text-cyan-400">{$_('csvJsonViewer__help_import_title') || 'Import Data'}</p>
+                <ul class="space-y-1 text-gray-600 dark:text-gray-400 list-disc pl-4">
+                  <li>{$_('csvJsonViewer__help_1') || 'Drag & drop .csv / .json / .tsv file onto the drop zone'}</li>
+                  <li>{$_('csvJsonViewer__help_2') || 'Click "Browse file" to select a file'}</li>
+                  <li>{$_('csvJsonViewer__help_3') || 'Paste data directly (Ctrl+V) into the text area'}</li>
+                  <li>{$_('csvJsonViewer__help_4') || 'Switch between CSV and JSON mode with the toggle'}</li>
+                </ul>
+                <p class="font-bold text-cyan-600 dark:text-cyan-400 mt-2">{$_('csvJsonViewer__help_csv_title') || 'CSV Format'}</p>
+                <ul class="space-y-1 text-gray-600 dark:text-gray-400 list-disc pl-4">
+                  <li>{$_('csvJsonViewer__help_5') || 'First line = column headers'}</li>
+                  <li>{$_('csvJsonViewer__help_6') || 'Change delimiter: comma, semicolon, tab, or pipe'}</li>
+                  <li>{$_('csvJsonViewer__help_7') || 'Values with commas/quotes are auto-handled'}</li>
+                </ul>
+              </div>
+              <div class="space-y-2">
+                <p class="font-bold text-cyan-600 dark:text-cyan-400">{$_('csvJsonViewer__help_table_title') || 'Table Features'}</p>
+                <ul class="space-y-1 text-gray-600 dark:text-gray-400 list-disc pl-4">
+                  <li>{$_('csvJsonViewer__help_8') || 'Click column header to sort (asc → desc → none)'}</li>
+                  <li>{$_('csvJsonViewer__help_9') || 'Use the search box to search across all columns'}</li>
+                  <li>{$_('csvJsonViewer__help_10') || 'Select a column from the dropdown to filter by value'}</li>
+                  <li>{$_('csvJsonViewer__help_11') || 'Copy table to clipboard (tab-separated, paste into Excel)'}</li>
+                </ul>
+                <p class="font-bold text-cyan-600 dark:text-cyan-400 mt-2">{$_('csvJsonViewer__help_stats_title') || 'Statistics'}</p>
+                <ul class="space-y-1 text-gray-600 dark:text-gray-400 list-disc pl-4">
+                  <li>{$_('csvJsonViewer__help_12') || 'Click "Stats" to see per-column statistics'}</li>
+                  <li>{$_('csvJsonViewer__help_13') || 'Numeric columns: Count, Unique, Mean, Median, Min, Max'}</li>
+                  <li>{$_('csvJsonViewer__help_14') || 'Text columns: Count, Unique, Top values'}</li>
+                  <li>{$_('csvJsonViewer__help_15') || 'Export filtered data as CSV or JSON'}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        {/if}
         <!-- Input Area (shown when no data or explicitly) -->
         {#if rows.length === 0 && !parseError || rawInput === ""}
           <!-- Drop Zone -->

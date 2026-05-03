@@ -108,7 +108,10 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (e.key === "Escape") handleClose();
+    if (e.key === "Escape") {
+      if (showHelp) { showHelp = false; return; }
+      handleClose();
+    }
   }
 
   $effect(() => {
@@ -303,7 +306,11 @@
             {/if}
           </div>
           <div class="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-mono text-gray-800 dark:text-gray-200 min-h-[80px] break-all whitespace-pre-wrap">
-            {base64Output || <span class="text-gray-400">Output will appear here...</span>}
+            {#if base64Output}
+              {base64Output}
+            {:else}
+              <span class="text-gray-400">Output will appear here...</span>
+            {/if}
           </div>
         </div>
 
