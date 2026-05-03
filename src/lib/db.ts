@@ -139,6 +139,7 @@ function docToTask(doc: any): Task {
     sprint_id: doc.sprint_id || null,
     is_archived: doc.is_archived || false,
     checklist: doc.checklist || undefined,
+    links: doc.links || undefined,
     created_at: doc.created_at || "",
     updated_at: doc.updated_at || "",
   };
@@ -252,6 +253,7 @@ export async function addTask(
     sprint_id: task.sprint_id ? String(task.sprint_id) : null,
     is_archived: task.is_archived || false,
     checklist: task.checklist || null,
+    links: task.links || null,
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Failed to create task");
@@ -295,6 +297,8 @@ export async function updateTask(
     payload.is_archived = updates.is_archived;
   if (updates.checklist !== undefined)
     payload.checklist = updates.checklist || null;
+  if (updates.links !== undefined)
+    payload.links = updates.links && updates.links.length > 0 ? updates.links : null;
 
   const res = await api.data.tasks.update(
     resolveTaskWorkspaceId(updates),

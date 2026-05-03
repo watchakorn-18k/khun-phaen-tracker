@@ -209,6 +209,7 @@ pub async fn list_my_tasks(
                         "sprint_id": task.sprint_id,
                         "is_archived": task.is_archived,
                         "checklist": task.checklist,
+                        "links": task.links,
                         "created_at": task.created_at,
                         "updated_at": task.updated_at,
                     })
@@ -336,6 +337,7 @@ pub async fn create_task(
             attachments: None,
             is_archived: payload.is_archived,
             checklist: payload.checklist.clone(),
+            links: payload.links.clone(),
             created_at: None,
             updated_at: None,
         };
@@ -468,6 +470,17 @@ pub async fn update_task(
             }
             None => {
                 updates.insert("checklist", mongodb::bson::Bson::Null);
+            }
+        }
+    }
+    if let Some(v) = payload.links {
+        match v {
+            Some(l) => {
+                let bson_val = mongodb::bson::to_bson(&l).unwrap_or(mongodb::bson::Bson::Null);
+                updates.insert("links", bson_val);
+            }
+            None => {
+                updates.insert("links", mongodb::bson::Bson::Null);
             }
         }
     }

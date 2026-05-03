@@ -1381,7 +1381,7 @@
                     bind:value={commentContent}
                     placeholder={$_("taskForm__comments_placeholder")}
                     rows={commentRows}
-                    class="w-full bg-transparent px-4 pt-3 pb-10 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none resize-none"
+                    class="w-full !bg-transparent px-4 pt-3 pb-10 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none resize-none"
                     on:paste={handlePaste}
                     on:keydown={(e) => {
                       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {

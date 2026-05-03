@@ -119,6 +119,8 @@ pub struct TaskDocument {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub checklist: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub links: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub created_at: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub updated_at: Option<String>,
@@ -165,6 +167,8 @@ pub struct CreateTaskRequest {
     pub is_archived: bool,
     #[serde(default)]
     pub checklist: Option<serde_json::Value>,
+    #[serde(default)]
+    pub links: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -185,6 +189,7 @@ pub struct UpdateTaskRequest {
     pub sprint_id: Option<Option<String>>,
     pub is_archived: Option<bool>,
     pub checklist: Option<Option<serde_json::Value>>,
+    pub links: Option<Option<Vec<String>>>,
 }
 
 // ===== Project Document =====

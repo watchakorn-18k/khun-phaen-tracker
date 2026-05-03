@@ -1008,6 +1008,7 @@ pub async fn convert_test_case_to_task(
         sprint_id: None,
         is_archived: false,
         checklist: None,
+        links: None,
         created_at: None,
         updated_at: None,
     };

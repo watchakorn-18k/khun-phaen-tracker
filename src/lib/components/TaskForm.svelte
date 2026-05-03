@@ -76,6 +76,7 @@
   import AssigneeSelector from "./AssigneeSelector.svelte";
   import BranchDialog from "./BranchDialog.svelte";
   import ChecklistManager from "./ChecklistManager.svelte";
+  import LinkPreview from "./LinkPreview.svelte";
   import CustomDatePicker from "./CustomDatePicker.svelte";
   import MarkdownEditor from "./MarkdownEditor.svelte";
   import Pagination from "./Pagination.svelte";
@@ -110,6 +111,8 @@
   let sprint_id: string | number | null = null;
   let checklist: ChecklistItem[] = [];
   let dependencies: (string | number)[] = [];
+  let links: string[] = [];
+  let newLinkInput = "";
   let showBranchDialog = false;
   let formInitKey = "closed";
   let copySuccess = false;
@@ -231,9 +234,8 @@
       );
       sprint_id = editingTask.sprint_id || null;
       checklist = editingTask.checklist ? [...editingTask.checklist] : [];
-      dependencies = editingTask.dependencies
-        ? [...editingTask.dependencies]
-        : [];
+      dependencies = editingTask.dependencies ? [...editingTask.dependencies] : [];
+      links = editingTask.links ? [...editingTask.links] : [];
     } else {
       title = "";
       project = $taskDefaults.project || "";
@@ -256,6 +258,7 @@
       sprint_id = activeSprint?.id || null;
       checklist = [];
       dependencies = [];
+      links = [];
       void loadNextTaskNumber();
     }
 
@@ -1061,6 +1064,7 @@
       assignee_id: assignee_ids.length > 0 ? assignee_ids[0] : null,
       sprint_id,
       checklist: checklist.length > 0 ? checklist : undefined,
+      links: links.length > 0 ? links : undefined,
     });
 
     if (createAnother && !editingTask) {
@@ -1076,6 +1080,20 @@
       // Close immediately for optimistic UX; parent continues async save.
       dispatch("close");
     }
+  }
+
+  function addLink() {
+    const url = newLinkInput.trim();
+    if (!url) return;
+    const withProtocol = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+    if (!links.includes(withProtocol)) links = [...links, withProtocol];
+    newLinkInput = "";
+    if (editingTask?.id) dispatch("addTask", { ...editingTask, links });
+  }
+
+  function removeLink(url: string) {
+    links = links.filter((l) => l !== url);
+    if (editingTask?.id) dispatch("addTask", { ...editingTask, links });
   }
 
   function handleClose() {
@@ -1313,6 +1331,46 @@
                   autoDispatch={!!editingTask}
                   on:update={handleChecklistUpdate}
                 />
+              </div>
+
+              <!-- Links -->
+              <div class="pt-4 border-t border-white/5">
+                <div class="flex items-center gap-2 mb-3">
+                  <Link size={14} class="text-gray-400" />
+                  <span class="text-sm font-medium text-gray-300">Links</span>
+                </div>
+
+                {#if links.length > 0}
+                  <div class="space-y-2 mb-3">
+                    {#each links as url (url)}
+                      <LinkPreview
+                        {url}
+                        readonly={!isOwner}
+                        onRemove={isOwner ? () => removeLink(url) : null}
+                      />
+                    {/each}
+                  </div>
+                {/if}
+
+                {#if isOwner}
+                  <div class="flex gap-2">
+                    <input
+                      type="url"
+                      bind:value={newLinkInput}
+                      placeholder="วาง URL หรือ Figma link..."
+                      class="flex-1 px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-gray-200 placeholder:text-gray-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30"
+                      on:keydown={(e) => e.key === "Enter" && (e.preventDefault(), addLink())}
+                    />
+                    <button
+                      type="button"
+                      on:click={addLink}
+                      disabled={!newLinkInput.trim()}
+                      class="px-3 py-2 text-sm font-medium bg-primary/20 hover:bg-primary/30 disabled:opacity-40 text-primary rounded-lg transition-colors"
+                    >
+                      เพิ่ม
+                    </button>
+                  </div>
+                {/if}
               </div>
             </div>
               {#if editingTask?.id}

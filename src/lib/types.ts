@@ -71,6 +71,7 @@ export interface Task {
   end_date?: string; // YYYY-MM-DD
   dependencies?: (string | number)[];
   checklist?: ChecklistItem[];
+  links?: string[];
 }
 
 export interface CommentImage {
