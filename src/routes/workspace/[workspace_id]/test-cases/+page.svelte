@@ -1973,6 +1973,7 @@
                       title="Delete suite"
                       on:click={() => {
                         suiteToDelete = suite;
+                        deleteMode = suite.id === "unassigned" ? "delete" : "move";
                         showDeleteSuiteModal = true;
                       }}
                     >
@@ -3130,70 +3131,82 @@
         >?
       </p>
 
-      <div class="mt-6 space-y-3">
-        <p
-          class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400"
-        >
-          Handle associated cases
-        </p>
-        <button
-          class="flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all {deleteMode ===
-          'move'
-            ? 'border-indigo-500 bg-indigo-500/5 ring-1 ring-indigo-500'
-            : 'border-slate-200 hover:border-slate-300 dark:border-gray-700'}"
-          on:click={() => (deleteMode = "move")}
-        >
-          <div
-            class="grid h-8 w-8 shrink-0 place-items-center rounded-lg {deleteMode ===
+      {#if suiteToDelete.id !== "unassigned"}
+        <div class="mt-6 space-y-3">
+          <p
+            class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400"
+          >
+            Handle associated cases
+          </p>
+          <button
+            class="flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all {deleteMode ===
             'move'
-              ? 'bg-indigo-600 text-white'
-              : 'bg-slate-100 text-slate-500 dark:bg-gray-800'}"
+              ? 'border-indigo-500 bg-indigo-500/5 ring-1 ring-indigo-500'
+              : 'border-slate-200 hover:border-slate-300 dark:border-gray-700'}"
+            on:click={() => (deleteMode = "move")}
           >
-            <Folder size={16} />
-          </div>
-          <div>
-            <p
-              class="text-sm font-bold {deleteMode === 'move'
-                ? 'text-indigo-600 dark:text-indigo-400'
-                : 'text-slate-700 dark:text-gray-200'}"
+            <div
+              class="grid h-8 w-8 shrink-0 place-items-center rounded-lg {deleteMode ===
+              'move'
+                ? 'bg-indigo-600 text-white'
+                : 'bg-slate-100 text-slate-500 dark:bg-gray-800'}"
             >
-              Move to Unassigned
-            </p>
-            <p class="text-[11px] text-slate-500">
-              Keep test cases but remove them from this suite
-            </p>
-          </div>
-        </button>
+              <Folder size={16} />
+            </div>
+            <div>
+              <p
+                class="text-sm font-bold {deleteMode === 'move'
+                  ? 'text-indigo-600 dark:text-indigo-400'
+                  : 'text-slate-700 dark:text-gray-200'}"
+              >
+                Move to Unassigned
+              </p>
+              <p class="text-[11px] text-slate-500">
+                Keep test cases but remove them from this suite
+              </p>
+            </div>
+          </button>
 
-        <button
-          class="flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all {deleteMode ===
-          'delete'
-            ? 'border-rose-500 bg-rose-500/5 ring-1 ring-rose-500'
-            : 'border-slate-200 hover:border-slate-300 dark:border-gray-700'}"
-          on:click={() => (deleteMode = "delete")}
-        >
-          <div
-            class="grid h-8 w-8 shrink-0 place-items-center rounded-lg {deleteMode ===
+          <button
+            class="flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all {deleteMode ===
             'delete'
-              ? 'bg-rose-600 text-white'
-              : 'bg-slate-100 text-slate-500 dark:bg-gray-800'}"
+              ? 'border-rose-500 bg-rose-500/5 ring-1 ring-rose-500'
+              : 'border-slate-200 hover:border-slate-300 dark:border-gray-700'}"
+            on:click={() => (deleteMode = "delete")}
           >
-            <Trash2 size={16} />
-          </div>
-          <div>
-            <p
-              class="text-sm font-bold {deleteMode === 'delete'
-                ? 'text-rose-600 dark:text-rose-400'
-                : 'text-slate-700 dark:text-gray-200'}"
+            <div
+              class="grid h-8 w-8 shrink-0 place-items-center rounded-lg {deleteMode ===
+              'delete'
+                ? 'bg-rose-600 text-white'
+                : 'bg-slate-100 text-slate-500 dark:bg-gray-800'}"
             >
-              Delete Everything
-            </p>
-            <p class="text-[11px] text-slate-500">
-              Permanently remove this suite and all its test cases
-            </p>
+              <Trash2 size={16} />
+            </div>
+            <div>
+              <p
+                class="text-sm font-bold {deleteMode === 'delete'
+                  ? 'text-rose-600 dark:text-rose-400'
+                  : 'text-slate-700 dark:text-gray-200'}"
+              >
+                Delete Everything
+              </p>
+              <p class="text-[11px] text-slate-500">
+                Permanently remove this suite and all its test cases
+              </p>
+            </div>
+          </button>
+        </div>
+      {:else}
+        <div class="mt-6 p-4 rounded-xl bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/20">
+          <div class="flex items-center gap-3 text-rose-600 dark:text-rose-400 mb-2">
+            <AlertCircle size={18} />
+            <p class="text-sm font-bold">Critical Action</p>
           </div>
-        </button>
-      </div>
+          <p class="text-xs text-slate-600 dark:text-gray-400 leading-relaxed">
+            Deleting the <span class="font-bold">Unassigned</span> collection will permanently remove all test cases that do not belong to any suite. This action cannot be undone.
+          </p>
+        </div>
+      {/if}
 
       <div class="mt-8 flex items-center justify-end gap-3">
         <button
