@@ -842,9 +842,18 @@
     }
   }
 
-  async function loadData(q?: string, searchField?: string) {
+  async function loadData(
+    q?: string,
+    searchField?: string,
+    keepState: boolean = false,
+  ) {
     if (!workspaceId) return;
     try {
+      // Store current state if needed
+      const prevPages = new Map(suites.map((s) => [s.id, s.page]));
+      const prevSelectedSuiteId = selectedSuiteId;
+      const prevSelectedCaseId = selectedCaseId;
+
       const priorityQuery =
         activeFilters.priority?.length > 0
           ? activeFilters.priority.join(",")
@@ -861,8 +870,8 @@
       const [suiteResp, caseResp] = await Promise.all([
         api.data.testSuites.list(workspaceId),
         api.data.testCases.list(workspaceId, {
-          q,
-          field: searchField,
+          q: q || query,
+          field: searchField || field,
           priority: priorityQuery,
           status: statusQuery,
           fixed: fixedQuery,
@@ -878,7 +887,6 @@
 
         const mappedCases = caseData.map(mapBackendToFrontend);
 
-        // Map suites and ensure they have 'id'
         const suitesWithId = suiteData.map((s: any) => ({
           ...s,
           id: s.id || s._id,
@@ -889,36 +897,53 @@
           (c: TestCase) => !suiteIds.has(c.suite_id),
         );
 
-        suites = suitesWithId.map((s: any) => ({
+        let newSuites = suitesWithId.map((s: any) => ({
           ...s,
           cases: mappedCases.filter((c: TestCase) => c.suite_id === s.id),
-          page: 1,
+          page: keepState ? prevPages.get(s.id) || 1 : 1,
           hasMore:
             mappedCases.filter((c: TestCase) => c.suite_id === s.id).length >=
             10,
         }));
 
-        // Add 'Unassigned' virtual suite if there are unassigned cases
         if (unassignedCases.length > 0) {
-          suites = [
-            ...suites,
+          newSuites = [
+            ...newSuites,
             {
               id: "unassigned",
               title: "Unassigned",
               description: "",
               cases: unassignedCases,
-              page: 1,
+              page: keepState ? prevPages.get("unassigned") || 1 : 1,
               hasMore: unassignedCases.length >= 10,
             },
           ];
         }
 
+        suites = newSuites;
+
         if (suites.length > 0) {
-          selectedSuiteId = suites[0].id;
-          testCaseForm.suiteId =
-            suites[0].id === "unassigned" ? "" : suites[0].id;
-          if (suites[0].cases.length > 0) {
-            selectedCaseId = suites[0].cases[0].id;
+          // Only reset selection if not keepState or if previous selection is invalid
+          const suiteExists = suites.some((s) => s.id === prevSelectedSuiteId);
+          if (!keepState || !prevSelectedSuiteId || !suiteExists) {
+            selectedSuiteId = suites[0].id;
+            testCaseForm.suiteId =
+              suites[0].id === "unassigned" ? "" : suites[0].id;
+            if (suites[0].cases.length > 0) {
+              selectedCaseId = suites[0].cases[0].id;
+            }
+          } else {
+            selectedSuiteId = prevSelectedSuiteId;
+            // Validate selected case exists in new data
+            const currentSuite = suites.find((s) => s.id === selectedSuiteId);
+            const caseExists = currentSuite?.cases.some(
+              (c) => c.id === prevSelectedCaseId,
+            );
+            if (caseExists) {
+              selectedCaseId = prevSelectedCaseId;
+            } else if (currentSuite && currentSuite.cases.length > 0) {
+              selectedCaseId = currentSuite.cases[0].id;
+            }
           }
         }
       }
@@ -937,11 +962,27 @@
 
   $: monthlySummary = buildMonthlySummary($allTasksIncludingArchived);
 
+  let refreshInterval: any;
+
   onMount(async () => {
     document.addEventListener("keydown", keyboardHandler);
     assignees = await getAssignees(true);
     await loadData();
     ws.loadData();
+
+    // Auto refresh every 5 minutes (300,000 ms)
+    refreshInterval = setInterval(() => {
+      loadData(undefined, undefined, true);
+    }, 300000);
+  });
+
+  onDestroy(() => {
+    if (browser) {
+      document.removeEventListener("keydown", keyboardHandler);
+    }
+    if (refreshInterval) {
+      clearInterval(refreshInterval);
+    }
   });
   function downloadTemplate() {
     const headers = [
@@ -1054,28 +1095,46 @@
     document.body.removeChild(link);
   }
 
-  function parseCSVLine(line: string): string[] {
-    const result = [];
-    let current = "";
+  function parseCSV(text: string): string[][] {
+    const rows: string[][] = [];
+    let currentRow: string[] = [];
+    let currentField = "";
     let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      const nextChar = text[i + 1];
+
       if (char === '"') {
-        if (inQuotes && line[i + 1] === '"') {
-          current += '"';
+        if (inQuotes && nextChar === '"') {
+          currentField += '"';
           i++;
         } else {
           inQuotes = !inQuotes;
         }
       } else if (char === "," && !inQuotes) {
-        result.push(current);
-        current = "";
+        currentRow.push(currentField);
+        currentField = "";
+      } else if (
+        (char === "\n" || (char === "\r" && nextChar === "\n")) &&
+        !inQuotes
+      ) {
+        currentRow.push(currentField);
+        rows.push(currentRow);
+        currentRow = [];
+        currentField = "";
+        if (char === "\r") i++;
       } else {
-        current += char;
+        currentField += char;
       }
     }
-    result.push(current);
-    return result;
+
+    if (currentField || currentRow.length > 0) {
+      currentRow.push(currentField);
+      rows.push(currentRow);
+    }
+
+    return rows;
   }
 
   async function handleImport(event: Event) {
@@ -1087,18 +1146,26 @@
 
     reader.onload = async (e) => {
       const text = e.target?.result as string;
-      const lines = text.split(/\r?\n/);
-      if (lines.length <= 1) return;
+      const rows = parseCSV(text);
+      if (rows.length <= 1) return;
 
-      const headers = lines[0]
-        .split(",")
-        .map((h) => h.replace(/^"|"$/g, "").trim());
-
+      const headers = rows[0].map((h) => h.trim());
       const casesToCreate = [];
-      for (let i = 1; i < lines.length; i++) {
-        if (!lines[i].trim()) continue;
 
-        const values = parseCSVLine(lines[i]);
+      // Mapping for suite titles to IDs
+      const suiteMap = new Map<string, string>();
+      suites.forEach((s) => {
+        if (s.id !== "unassigned") {
+          suiteMap.set(s.title.toLowerCase(), s.id);
+        }
+      });
+
+      ui.showMessage("Analyzing suites and cases...", "success");
+
+      for (let i = 1; i < rows.length; i++) {
+        const values = rows[i];
+        if (values.length === 0) continue;
+
         const row: Record<string, string> = {};
         headers.forEach((h, idx) => {
           row[h] = (values[idx] || "").trim();
@@ -1107,15 +1174,56 @@
         const title = row["Test Name"] || row["title"];
         if (!title) continue;
 
+        // Handle Suite logic
+        let suiteId: string | null =
+          selectedSuiteId === "unassigned" ? null : selectedSuiteId;
+        const suiteName = row["Suite"] || row["suite"];
+
+        if (suiteName && suiteName.trim()) {
+          const normalizedName = suiteName.trim().toLowerCase();
+          if (suiteMap.has(normalizedName)) {
+            suiteId = suiteMap.get(normalizedName) || null;
+          } else {
+            // Create new suite
+            try {
+              if (workspaceId) {
+                const sResp = await api.data.testSuites.create(workspaceId, {
+                  title: suiteName.trim(),
+                });
+                if (sResp.ok) {
+                  const newS = await sResp.json();
+                  const newSId = newS.id || newS._id;
+                  suiteMap.set(normalizedName, newSId);
+                  suiteId = newSId;
+                  // Add to local suites list to keep it in sync
+                  suites = [
+                    ...suites,
+                    {
+                      ...newS,
+                      id: newSId,
+                      cases: [],
+                      page: 1,
+                      hasMore: false,
+                    },
+                  ];
+                }
+              }
+            } catch (err) {
+              console.error("Failed to create suite during import:", err);
+            }
+          }
+        }
+
         const stepsStr = row["Test Step"] || row["steps"] || "";
         const classicSteps = stepsStr
           .split("\n")
+          .map((s) => s.trim())
+          .filter((s) => s)
           .map((s) => ({
-            action: s.trim(),
+            action: s,
             data: "",
             expected: "",
-          }))
-          .filter((s) => s.action);
+          }));
 
         casesToCreate.push({
           name: title,
@@ -1132,13 +1240,16 @@
           assign_tester: row["Assign Tester"] || "unassigned",
           step_format: "classic",
           classic_steps: classicSteps.length > 0 ? classicSteps : undefined,
-          suite_id: selectedSuiteId === "unassigned" ? null : selectedSuiteId,
+          suite_id: suiteId,
         });
       }
 
       if (casesToCreate.length > 0) {
         let successCount = 0;
-        ui.showMessage(`Importing ${casesToCreate.length} cases...`, "success");
+        ui.showMessage(
+          `Importing ${casesToCreate.length} test cases. Please do not refresh or close this page until the process is complete...`,
+          "success",
+        );
         for (const tc of casesToCreate) {
           try {
             if (!workspaceId) continue;
@@ -1149,45 +1260,7 @@
           }
         }
         ui.showMessage(`Imported ${successCount} test cases`, "success");
-        // Refetch suites
-        if (workspaceId) {
-          const suiteResp = await api.data.testSuites.list(workspaceId);
-          const caseResp = await api.data.testCases.list(workspaceId);
-          if (suiteResp.ok && caseResp.ok) {
-            const suiteData = await suiteResp.json();
-            const caseData = await caseResp.json();
-            const mappedCases = caseData.map(mapBackendToFrontend);
-            const suitesWithId = suiteData.map((s: any) => ({
-              ...s,
-              id: s.id || s._id,
-            }));
-            const suiteIds = new Set(suitesWithId.map((s: any) => s.id));
-            const unassignedCases = mappedCases.filter(
-              (c: TestCase) => !suiteIds.has(c.suite_id),
-            );
-            suites = suitesWithId.map((s: any) => ({
-              ...s,
-              cases: mappedCases.filter((c: TestCase) => c.suite_id === s.id),
-              page: 1,
-              hasMore:
-                mappedCases.filter((c: TestCase) => c.suite_id === s.id)
-                  .length >= 10,
-            }));
-            if (unassignedCases.length > 0) {
-              suites = [
-                ...suites,
-                {
-                  id: "unassigned",
-                  title: "Unassigned",
-                  description: "",
-                  cases: unassignedCases,
-                  page: 1,
-                  hasMore: unassignedCases.length >= 10,
-                },
-              ];
-            }
-          }
-        }
+        await loadData();
       }
     };
 
