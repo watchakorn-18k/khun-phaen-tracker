@@ -1025,12 +1025,24 @@ pub async fn convert_test_case_to_task(
     }
 }
 
+#[derive(serde::Deserialize)]
+pub struct AllTestCasesQuery {
+    pub suite_id: Option<String>,
+    pub q: Option<String>,
+    pub field: Option<String>,
+    pub priority: Option<String>,
+    pub status: Option<String>,
+    pub fixed: Option<String>,
+    pub assign_dev: Option<String>,
+}
+
 /// GET /api/workspaces/:ws_id/test-cases/all
 pub async fn get_all_test_cases(
     State(state): State<Arc<AppState>>,
     jar: CookieJar,
     headers: HeaderMap,
     Path(ws_id): Path<String>,
+    axum::extract::Query(query): axum::extract::Query<AllTestCasesQuery>,
 ) -> impl IntoResponse {
     let _claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
         Some(c) => c,
@@ -1043,16 +1055,29 @@ pub async fn get_all_test_cases(
     };
 
     let repo = TestCaseRepository::new(&state.db);
-    
-    match repo.find_by_workspace(&ws_oid, None, None, None, None, None, None, None, None, None).await {
+
+    match repo.find_by_workspace(
+        &ws_oid,
+        query.suite_id,
+        query.q,
+        query.field,
+        query.priority,
+        query.status,
+        query.fixed,
+        query.assign_dev,
+        None,
+        None,
+    ).await {
         Ok(cases) => (StatusCode::OK, Json(cases)).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
-/// GET /api/public/:ws_id/all-test-cases
+
+/// GET /api/public/workspaces/:ws_id/all-test-cases
 pub async fn get_all_test_cases_public(
     State(state): State<Arc<AppState>>,
     Path(ws_id): Path<String>,
+    axum::extract::Query(query): axum::extract::Query<AllTestCasesQuery>,
 ) -> impl IntoResponse {
     let ws_oid = match ObjectId::parse_str(&ws_id) {
         Ok(oid) => oid,
@@ -1060,8 +1085,19 @@ pub async fn get_all_test_cases_public(
     };
 
     let repo = TestCaseRepository::new(&state.db);
-    
-    match repo.find_by_workspace(&ws_oid, None, None, None, None, None, None, None, None, None).await {
+
+    match repo.find_by_workspace(
+        &ws_oid,
+        query.suite_id,
+        query.q,
+        query.field,
+        query.priority,
+        query.status,
+        query.fixed,
+        query.assign_dev,
+        None,
+        None,
+    ).await {
         Ok(cases) => (StatusCode::OK, Json(cases)).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }

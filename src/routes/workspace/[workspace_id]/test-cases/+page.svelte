@@ -135,6 +135,24 @@
     expected: string;
   };
 
+  type TestRun = {
+    id: string;
+    name: string;
+    description: string;
+    defaultAssignee: string;
+    operatingSystem: string;
+    testCaseIds: string[];
+    createdAt: string;
+    status: "pending" | "running" | "completed";
+  };
+
+  type NewTestRunForm = {
+    name: string;
+    description: string;
+    defaultAssignee: string;
+    operatingSystem: string;
+  };
+
   let suites: Suite[] = [];
   const ui = createUIActions();
 
@@ -249,6 +267,131 @@
 
   let showDeleteModal = false;
   let caseToDeleteId = "";
+
+  let testRuns: TestRun[] = [];
+  let showNewTestRunModal = false;
+  let newTestRunForm: NewTestRunForm = {
+    name: "",
+    description: "",
+    defaultAssignee: "unassigned",
+    operatingSystem: "",
+  };
+  let selectedTestCaseIds: Set<string> = new Set();
+  let testRunSearchQuery = "";
+  let testRunSearchField = "all";
+  let isTestRunsOpen = true;
+  let showTestRunFilterDropdown = false;
+  let testRunActiveFilterProperty: string | null = null;
+  let testRunActiveFilters: Record<string, string[]> = {
+    priority: [],
+    status: [],
+  };
+
+  const testRunFilterProperties = [
+    { id: "priority", label: "Priority" },
+    { id: "status", label: "Status" },
+  ];
+
+  function toggleTestRunFilter(property: string, value: string) {
+    if (!testRunActiveFilters[property]) testRunActiveFilters[property] = [];
+    const idx = testRunActiveFilters[property].indexOf(value);
+    if (idx >= 0) {
+      testRunActiveFilters[property] = testRunActiveFilters[property].filter(v => v !== value);
+    } else {
+      testRunActiveFilters[property] = [...testRunActiveFilters[property], value];
+    }
+    testRunActiveFilters = { ...testRunActiveFilters };
+  }
+
+  $: hasTestRunFilters = Object.values(testRunActiveFilters).some(v => v.length > 0);
+
+  const osOptions = [
+    { value: "", label: "Select value" },
+    { value: "windows", label: "Windows" },
+    { value: "macos", label: "macOS" },
+    { value: "linux", label: "Linux" },
+    { value: "ios", label: "iOS" },
+    { value: "android", label: "Android" },
+    { value: "other", label: "Other" },
+  ];
+
+  function getAutoTestRunName(): string {
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, "0");
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const yyyy = now.getFullYear();
+    return `Test run ${dd}/${mm}/${yyyy} (auto)`;
+  }
+
+  function openNewTestRunModal() {
+    newTestRunForm = {
+      name: getAutoTestRunName(),
+      description: "",
+      defaultAssignee: "unassigned",
+      operatingSystem: "",
+    };
+    selectedTestCaseIds = new Set(
+      suites.flatMap((s) => s.cases.map((c) => c.id)),
+    );
+    testRunSearchQuery = "";
+    testRunSearchField = "all";
+    testRunActiveFilters = { priority: [], status: [] };
+    testRunActiveFilterProperty = null;
+    showTestRunFilterDropdown = false;
+    showNewTestRunModal = true;
+  }
+
+  function toggleTestCaseSelection(id: string) {
+    const next = new Set(selectedTestCaseIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    selectedTestCaseIds = next;
+  }
+
+  function toggleSuiteSelection(suite: Suite) {
+    const allSelected = suite.cases.every((c) => selectedTestCaseIds.has(c.id));
+    const next = new Set(selectedTestCaseIds);
+    suite.cases.forEach((c) =>
+      allSelected ? next.delete(c.id) : next.add(c.id),
+    );
+    selectedTestCaseIds = next;
+  }
+
+  function handleCreateTestRun() {
+    if (!newTestRunForm.name.trim()) return;
+    const run: TestRun = {
+      id: crypto.randomUUID(),
+      name: newTestRunForm.name.trim(),
+      description: newTestRunForm.description.trim(),
+      defaultAssignee: newTestRunForm.defaultAssignee,
+      operatingSystem: newTestRunForm.operatingSystem,
+      testCaseIds: Array.from(selectedTestCaseIds),
+      createdAt: new Date().toISOString(),
+      status: "pending",
+    };
+    testRuns = [run, ...testRuns];
+    saveTestRunsToStorage();
+    showNewTestRunModal = false;
+    ui.showMessage("Test run created", "success");
+  }
+
+  function saveTestRunsToStorage() {
+    try {
+      localStorage.setItem(
+        `test-runs-${workspaceId}`,
+        JSON.stringify(testRuns),
+      );
+    } catch {}
+  }
+
+  function loadTestRunsFromStorage() {
+    try {
+      const raw = localStorage.getItem(`test-runs-${workspaceId}`);
+      testRuns = raw ? JSON.parse(raw) : [];
+    } catch {
+      testRuns = [];
+    }
+  }
 
   let editingField: string | null = null;
   let tempFieldValue = "";
@@ -998,6 +1141,7 @@
     assignees = await getAssignees(true);
     await loadData();
     ws.loadData();
+    loadTestRunsFromStorage();
 
     // Auto refresh every 5 minutes (300,000 ms)
     refreshInterval = setInterval(() => {
@@ -1548,6 +1692,22 @@
         .map((o) =>
           String(o.user_id) === String($user?.id) ? { ...o, label: "me" } : o,
         );
+
+  $: testRunAssigneeOptions = (() => {
+    const meEntry = assignees.find(a => String(a.user_id) === String($user?.id));
+    const rest = assigneeOptions.filter(o => o.value !== "unassigned" && String(o.user_id) !== String($user?.id));
+    return [
+      { value: "unassigned", label: "Unassigned", user_id: null, avatarColor: "#64748b" },
+      ...(meEntry ? [{
+        value: String(meEntry.id),
+        label: "Me",
+        user_id: meEntry.user_id,
+        avatarUrl: meEntry.avatar_url || meEntry.avatarUrl,
+        avatarColor: meEntry.color || "#6366f1",
+      }] : []),
+      ...rest,
+    ];
+  })();
 
   $: workspaceId = $page.params.workspace_id;
   $: workspaceLabel = $currentWorkspaceName || "Current workspace";
@@ -2198,6 +2358,48 @@
                 />
               </button>
             {/each}
+          </div>
+
+          <!-- Test Runs Section -->
+          <div class="mt-6 border-t border-gray-100 dark:border-gray-800 pt-4">
+            <div class="mb-2 flex items-center gap-2">
+              <button
+                class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors"
+                title="Toggle test runs"
+                on:click={() => (isTestRunsOpen = !isTestRunsOpen)}
+              >
+                <ChevronDown size={16} class="transition-transform duration-200 {isTestRunsOpen ? '' : '-rotate-90'}" />
+              </button>
+              <h2 class="text-lg font-black text-slate-800 dark:text-white flex-1">
+                Test Runs
+              </h2>
+              <span class="text-xs font-black text-slate-400">{testRuns.length}</span>
+              {#if isAuthorized}
+                <button
+                  class="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                  title="New test run"
+                  on:click={openNewTestRunModal}
+                >
+                  <Plus size={16} />
+                </button>
+              {/if}
+            </div>
+
+            {#if isTestRunsOpen}
+              {#if testRuns.length === 0}
+                <p class="px-2 py-2 text-xs text-slate-400 dark:text-gray-500">No test runs yet</p>
+              {:else}
+                <div class="space-y-1">
+                  {#each testRuns as run}
+                    <div class="group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm font-bold text-slate-600 hover:bg-slate-50 dark:text-gray-400 dark:hover:bg-gray-900 transition-colors">
+                      <div class="h-2 w-2 shrink-0 rounded-full {run.status === 'completed' ? 'bg-emerald-500' : run.status === 'running' ? 'bg-amber-400' : 'bg-slate-300 dark:bg-gray-600'}"></div>
+                      <span class="min-w-0 flex-1 truncate">{run.name}</span>
+                      <span class="text-xs font-black text-slate-400">{run.testCaseIds.length}</span>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+            {/if}
           </div>
         </aside>
 
@@ -3505,6 +3707,310 @@
           class="rounded-xl bg-rose-600 px-6 py-2 text-sm font-black text-white hover:bg-rose-500"
           on:click={handleDeleteSuite}>Delete Suite</button
         >
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if showNewTestRunModal}
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+    transition:fade={{ duration: 150 }}
+  >
+    <div class="w-full max-w-2xl rounded-2xl bg-white shadow-2xl dark:bg-gray-900 flex flex-col h-[85vh]">
+      <!-- Header -->
+      <div class="flex items-center justify-between px-8 pt-8 pb-4 shrink-0">
+        <h2 class="text-xl font-black text-slate-800 dark:text-white">New test run</h2>
+        <button
+          class="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-gray-800"
+          on:click={() => (showNewTestRunModal = false)}
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      <div class="overflow-y-auto flex-1 px-8 pb-2 space-y-5">
+        <!-- Name -->
+        <div>
+          <input
+            type="text"
+            bind:value={newTestRunForm.name}
+            class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 outline-none focus:border-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:border-indigo-400"
+            placeholder="Test run name"
+          />
+        </div>
+
+        <!-- Description -->
+        <div>
+          <!-- svelte-ignore a11y_label_has_associated_control -->
+          <label class="block text-sm font-black text-slate-700 dark:text-gray-200 mb-2">Description</label>
+          <textarea
+            bind:value={newTestRunForm.description}
+            rows="2"
+            class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none focus:border-indigo-500 resize-none dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:border-indigo-400"
+            placeholder=""
+          ></textarea>
+        </div>
+
+        <!-- Assignee + OS row -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-gray-400 mb-2">Default assignee</label>
+            <div class="property-select w-full">
+              <SearchableSelect
+                id="new-test-run-assignee"
+                value={newTestRunForm.defaultAssignee}
+                options={testRunAssigneeOptions}
+                showSearch={true}
+                on:select={(e) => (newTestRunForm.defaultAssignee = e.detail)}
+              />
+            </div>
+          </div>
+          <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-gray-400 mb-2">Operating System</label>
+            <div class="property-select w-full">
+              <SearchableSelect
+                id="new-test-run-os"
+                value={newTestRunForm.operatingSystem}
+                options={osOptions}
+                showSearch={false}
+                on:select={(e) => (newTestRunForm.operatingSystem = e.detail)}
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- Test cases -->
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-black text-slate-700 dark:text-gray-200">Test cases</h3>
+            <span class="text-xs text-slate-400">{selectedTestCaseIds.size} selected</span>
+          </div>
+
+          <!-- Search -->
+          <div class="mb-3 flex items-center gap-2">
+            <div
+              class="group flex h-10 flex-1 rounded-xl border border-slate-200 bg-white shadow-sm transition-all focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 dark:border-gray-700 dark:bg-gray-900 dark:focus-within:border-indigo-400"
+            >
+              <!-- svelte-ignore a11y_label_has_associated_control -->
+              <label class="flex min-w-0 flex-1 items-center gap-2.5 px-3.5">
+                <Search size={16} class="shrink-0 text-slate-400 group-focus-within:text-indigo-500" />
+                <input
+                  bind:value={testRunSearchQuery}
+                  class="min-w-0 flex-1 border-0 bg-transparent text-sm font-bold text-slate-700 outline-none placeholder:text-slate-400 dark:!bg-transparent dark:text-gray-200"
+                  placeholder="Search test cases, ID, description..."
+                />
+                {#if testRunSearchQuery}
+                  <button
+                    on:click={() => (testRunSearchQuery = "")}
+                    class="p-1 hover:bg-slate-100 rounded-full dark:hover:bg-gray-800"
+                  >
+                    <X size={14} class="text-slate-400" />
+                  </button>
+                {/if}
+              </label>
+              <div class="flex h-full w-36 items-center rounded-r-xl border-l border-slate-200 bg-slate-50/50 dark:border-gray-700 dark:bg-gray-800/50">
+                <SearchableSelect
+                  id="test-run-search-field"
+                  bind:value={testRunSearchField}
+                  options={fieldOptions}
+                  showSearch={false}
+                  minimal={true}
+                />
+              </div>
+            </div>
+            <div class="relative shrink-0">
+              <button
+                class="flex h-10 items-center gap-2 rounded-xl px-4 text-[13px] font-black transition-all active:scale-95 {hasTestRunFilters ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-300' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'}"
+                on:click={() => {
+                  showTestRunFilterDropdown = !showTestRunFilterDropdown;
+                  testRunActiveFilterProperty = null;
+                }}
+              >
+                <Plus size={15} />
+                Add filter
+                {#if hasTestRunFilters}
+                  <span class="ml-0.5 h-4 w-4 rounded-full bg-indigo-600 text-[10px] font-black text-white flex items-center justify-center">
+                    {Object.values(testRunActiveFilters).reduce((s, v) => s + v.length, 0)}
+                  </span>
+                {/if}
+              </button>
+
+              {#if showTestRunFilterDropdown}
+                <!-- svelte-ignore a11y_consider_explicit_label -->
+                <button
+                  class="fixed inset-0 z-[60] h-full w-full cursor-default border-none bg-transparent"
+                  on:click={() => (showTestRunFilterDropdown = false)}
+                ></button>
+                <div
+                  class="absolute right-0 top-full z-[70] mt-1 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800"
+                >
+                  {#if !testRunActiveFilterProperty}
+                    <div class="flex flex-col py-1">
+                      <div class="px-4 py-2 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        Filter by
+                      </div>
+                      {#each testRunFilterProperties as prop}
+                        <button
+                          class="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm font-bold text-slate-700 hover:bg-slate-50 dark:text-gray-200 dark:hover:bg-gray-700/50 transition-colors"
+                          on:click={() => (testRunActiveFilterProperty = prop.id)}
+                        >
+                          <span>{prop.label}</span>
+                          <div class="flex items-center gap-1.5">
+                            {#if testRunActiveFilters[prop.id]?.length > 0}
+                              <span class="text-xs font-black text-indigo-500">{testRunActiveFilters[prop.id].length}</span>
+                            {/if}
+                            <ChevronRight size={14} class="opacity-30" />
+                          </div>
+                        </button>
+                      {/each}
+                      {#if hasTestRunFilters}
+                        <div class="h-px bg-slate-100 dark:bg-gray-700 my-1"></div>
+                        <button
+                          class="px-4 py-2 text-sm font-black text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/10 text-center w-full transition-colors"
+                          on:click={() => {
+                            testRunActiveFilters = { priority: [], status: [] };
+                            showTestRunFilterDropdown = false;
+                          }}
+                        >
+                          Clear all filters
+                        </button>
+                      {/if}
+                    </div>
+                  {:else}
+                    <div class="flex flex-col py-1 max-h-72 overflow-y-auto">
+                      <div class="flex items-center gap-2 px-3 py-2">
+                        <button
+                          class="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg dark:hover:bg-gray-700 transition-colors"
+                          on:click={() => (testRunActiveFilterProperty = null)}
+                        >
+                          <ChevronLeft size={16} />
+                        </button>
+                        <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                          {testRunFilterProperties.find(p => p.id === testRunActiveFilterProperty)?.label}
+                        </span>
+                      </div>
+                      <div class="h-px bg-slate-100 dark:bg-gray-700 mb-1"></div>
+                      {#if testRunActiveFilterProperty === "priority"}
+                        {#each priorityOptions as opt}
+                          <label class="flex cursor-pointer items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-gray-700/50 transition-colors">
+                            <input type="checkbox" class="rounded border-slate-300 accent-indigo-600 w-4 h-4"
+                              checked={testRunActiveFilters.priority.includes(opt.value)}
+                              on:change={() => toggleTestRunFilter("priority", opt.value)} />
+                            <span class="text-sm font-bold text-slate-700 dark:text-gray-200">{opt.label}</span>
+                          </label>
+                        {/each}
+                      {:else if testRunActiveFilterProperty === "status"}
+                        {#each statusOptions as opt}
+                          <label class="flex cursor-pointer items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-gray-700/50 transition-colors">
+                            <input type="checkbox" class="rounded border-slate-300 accent-indigo-600 w-4 h-4"
+                              checked={testRunActiveFilters.status.includes(opt.value)}
+                              on:change={() => toggleTestRunFilter("status", opt.value)} />
+                            <span class="text-sm font-bold text-slate-700 dark:text-gray-200">{opt.label}</span>
+                          </label>
+                        {/each}
+                      {/if}
+                    </div>
+                  {/if}
+                </div>
+              {/if}
+            </div>
+          </div>
+
+          <!-- Active filter chips -->
+          {#if hasTestRunFilters}
+            <div class="flex flex-wrap gap-1.5 mb-3">
+              {#each Object.entries(testRunActiveFilters) as [prop, values]}
+                {#each values as val}
+                  <span class="flex items-center gap-1 rounded-lg bg-indigo-50 border border-indigo-100 px-2.5 py-1 text-[12px] font-black text-indigo-700 dark:bg-indigo-500/10 dark:border-indigo-500/20 dark:text-indigo-300">
+                    <span class="opacity-60">{testRunFilterProperties.find(p => p.id === prop)?.label}:</span>
+                    <span>{val}</span>
+                    <button class="ml-0.5 rounded-full p-0.5 hover:bg-indigo-200 dark:hover:bg-indigo-500/30"
+                      on:click={() => toggleTestRunFilter(prop, val)}>
+                      <X size={11} strokeWidth={3} />
+                    </button>
+                  </span>
+                {/each}
+              {/each}
+            </div>
+          {/if}
+
+          <!-- Suite + Cases table -->
+          <div class="rounded-xl border border-slate-200 dark:border-gray-700 overflow-hidden">
+            <div class="text-[11px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 dark:bg-gray-800/50 px-4 py-2 border-b border-slate-200 dark:border-gray-700">
+              <span>Test case</span>
+            </div>
+            <div class="max-h-56 overflow-y-auto divide-y divide-slate-100 dark:divide-gray-800">
+              {#each suites.filter(s => s.cases.length > 0) as suite}
+                {@const filteredCases = suite.cases.filter(c => {
+                    if (testRunSearchQuery) {
+                      const q = testRunSearchQuery.toLowerCase();
+                      const matchSearch = testRunSearchField === "all"
+                        ? (c.title.toLowerCase().includes(q) || String(c.test_no).includes(q) || (c.description?.toLowerCase().includes(q) ?? false))
+                        : testRunSearchField === "test_no" ? String(c.test_no).includes(q)
+                        : testRunSearchField === "name" ? c.title.toLowerCase().includes(q)
+                        : testRunSearchField === "description" ? (c.description?.toLowerCase().includes(q) ?? false)
+                        : c.title.toLowerCase().includes(q);
+                      if (!matchSearch) return false;
+                    }
+                    if (testRunActiveFilters.priority.length > 0 && !testRunActiveFilters.priority.includes(c.priority)) return false;
+                    if (testRunActiveFilters.status.length > 0 && !testRunActiveFilters.status.includes(c.status)) return false;
+
+                    return true;
+                  })}
+                {#if filteredCases.length > 0}
+                  <!-- Suite header row -->
+                  <div class="grid grid-cols-[1fr_auto] items-center px-4 py-2 bg-slate-50 dark:bg-gray-800/30">
+                    <label class="flex items-center gap-2.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        class="rounded border-slate-300 accent-indigo-600"
+                        checked={suite.cases.every(c => selectedTestCaseIds.has(c.id))}
+                        indeterminate={suite.cases.some(c => selectedTestCaseIds.has(c.id)) && !suite.cases.every(c => selectedTestCaseIds.has(c.id))}
+                        on:change={() => toggleSuiteSelection(suite)}
+                      />
+                      <span class="text-xs font-black text-slate-600 dark:text-gray-300">{suite.title}</span>
+                      <span class="text-[10px] text-slate-400">{suite.totalCount ?? suite.cases.length}</span>
+                    </label>
+                  </div>
+                  <!-- Cases -->
+                  {#each filteredCases as tc}
+                    <div class="flex items-center px-4 py-1.5 hover:bg-slate-50 dark:hover:bg-gray-800/30">
+                      <!-- svelte-ignore a11y_label_has_associated_control -->
+                      <label class="flex items-center gap-2.5 cursor-pointer select-none min-w-0 flex-1">
+                        <input
+                          type="checkbox"
+                          class="shrink-0 rounded border-slate-300 accent-indigo-600"
+                          checked={selectedTestCaseIds.has(tc.id)}
+                          on:change={() => toggleTestCaseSelection(tc.id)}
+                        />
+                        {#if tc.test_no}
+                          <span class="shrink-0 text-[11px] font-black text-slate-400 dark:text-gray-500">TC-{tc.test_no}</span>
+                        {/if}
+                        <span class="text-xs text-slate-600 dark:text-gray-300 truncate">{tc.title}</span>
+                      </label>
+                    </div>
+                  {/each}
+                {/if}
+              {/each}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="flex items-center justify-end gap-3 px-8 py-5 border-t border-slate-100 dark:border-gray-800 shrink-0">
+        <button
+          class="rounded-xl px-5 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
+          on:click={() => (showNewTestRunModal = false)}
+        >Cancel</button>
+        <button
+          class="rounded-xl bg-indigo-600 px-6 py-2 text-sm font-black text-white hover:bg-indigo-500 disabled:opacity-50"
+          disabled={!newTestRunForm.name.trim()}
+          on:click={handleCreateTestRun}
+        >Start run</button>
       </div>
     </div>
   </div>

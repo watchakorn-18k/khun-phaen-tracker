@@ -988,8 +988,9 @@ export const api = {
           credentials: "include",
         });
       },
-      all: (wsId: string): Promise<Response> => {
-        return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-cases/all`, {
+      all: (wsId: string, params?: { suite_id?: string; q?: string; field?: string; priority?: string; status?: string; fixed?: string; assign_dev?: string }): Promise<Response> => {
+        const qs = params ? "?" + new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== "") as [string, string][]).toString() : "";
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-cases/all${qs}`, {
           headers: api.data._headers(),
           credentials: "include",
         });
@@ -1146,8 +1147,9 @@ export const api = {
       const query = cleanParams && Object.keys(cleanParams).length > 0 ? "?" + new URLSearchParams(cleanParams as any).toString() : "";
       return fetch(`${API_BASE_URL}/public/workspaces/${wsId}/test-cases${query}`);
     },
-    getAllTestCases: (wsId: string): Promise<Response> => {
-      return fetch(`${API_BASE_URL}/public/workspaces/${wsId}/all-test-cases`);
+    getAllTestCases: (wsId: string, params?: { suite_id?: string; q?: string; field?: string; priority?: string; status?: string; fixed?: string; assign_dev?: string }): Promise<Response> => {
+      const qs = params ? "?" + new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== "") as [string, string][]).toString() : "";
+      return fetch(`${API_BASE_URL}/public/workspaces/${wsId}/all-test-cases${qs}`);
     },
   },
 };
