@@ -886,49 +886,16 @@
             : undefined,
       };
 
-      // Fetch suites and counts in parallel
-      const [suiteResp, countsResp] = await Promise.all([
-        api.data.testSuites.list(workspaceId),
-        api.data.testCases.counts(workspaceId),
-      ]);
-
+      // Fetch suites (includes case_count and unassigned)
+      const suiteResp = await api.data.testSuites.list(workspaceId);
       if (!suiteResp.ok) return;
       const suiteData = await suiteResp.json();
-      const countsData: Record<string, number> = countsResp.ok
-        ? await countsResp.json()
-        : {};
 
-      const suitesWithId = suiteData.map((s: any) => ({
+      const suiteList = suiteData.map((s: any) => ({
         ...s,
         id: s.id || s._id,
+        totalCount: s.case_count ?? 0,
       }));
-
-      // Calculate unassigned count (empty string key in counts)
-      const suiteIds = new Set(suitesWithId.map((s: any) => s.id));
-      let unassignedCount = 0;
-      for (const [key, count] of Object.entries(countsData)) {
-        if (!key || !suiteIds.has(key)) {
-          unassignedCount += count as number;
-        }
-      }
-
-      // Build suite list with counts, then load cases per-suite
-      const suiteList = [
-        ...suitesWithId.map((s: any) => ({
-          ...s,
-          totalCount: (countsData[s.id] as number) || 0,
-        })),
-        ...(unassignedCount > 0
-          ? [
-              {
-                id: "unassigned",
-                title: "Unassigned",
-                description: "",
-                totalCount: unassignedCount,
-              },
-            ]
-          : []),
-      ];
 
       // Load cases per-suite in parallel
       const casesPromises = suiteList.map((s: any) => {

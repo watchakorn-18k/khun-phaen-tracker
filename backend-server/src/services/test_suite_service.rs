@@ -49,7 +49,44 @@ impl TestSuiteService {
         self.repo.delete(id).await
     }
 
-    pub async fn list_suites(&self, workspace_id: &ObjectId) -> mongodb::error::Result<Vec<TestSuite>> {
-        self.repo.find_by_workspace(workspace_id).await
+    pub async fn list_suites(
+        &self,
+        workspace_id: &ObjectId,
+    ) -> mongodb::error::Result<Vec<serde_json::Value>> {
+        let suites = self.repo.find_by_workspace(workspace_id).await?;
+        let counts = self.case_repo.count_by_workspace(workspace_id).await?;
+
+        let mut result = Vec::with_capacity(suites.len());
+        for s in suites {
+            let count = counts.get(&s.id).copied().unwrap_or(0);
+            let mut val = serde_json::to_value(&s).unwrap_or_default();
+            if let Some(obj) = val.as_object_mut() {
+                obj.insert("case_count".to_string(), serde_json::json!(count));
+            }
+            result.push(val);
+        }
+
+        // Calculate unassigned count (keys not matching any suite id)
+        let known_ids: std::collections::HashSet<String> = result
+            .iter()
+            .filter_map(|v| v.get("_id").and_then(|id| id.as_str()).map(|s| s.to_string()))
+            .collect();
+        let mut unassigned_count: i64 = 0;
+        for (key, count) in &counts {
+            if key.is_empty() || !known_ids.contains(key) {
+                unassigned_count += count;
+            }
+        }
+
+        if unassigned_count > 0 {
+            result.push(serde_json::json!({
+                "_id": "unassigned",
+                "title": "Unassigned",
+                "description": null,
+                "case_count": unassigned_count
+            }));
+        }
+
+        Ok(result)
     }
 }
