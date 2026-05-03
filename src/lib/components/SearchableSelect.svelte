@@ -52,6 +52,7 @@
 	$: selectedBadgeColor = selectedOption?.badgeColor;
 	$: selectedIcon = selectedOption?.icon;
 	$: selectedIconClass = selectedOption?.iconClass;
+	$: selectedPillClass = selectedOption?.pillClass || '';
 	$: selectedAvatarUrl = selectedOption?.avatarUrl;
 	$: selectedAvatarColor = selectedOption?.avatarColor;
 
@@ -95,25 +96,34 @@
 		{disabled}
 	>
 		<span class="truncate flex items-center gap-2">
-			{#if selectedAvatarUrl || selectedAvatarColor}
-				<div 
-					class="shrink-0 w-5 h-5 rounded-full overflow-hidden flex items-center justify-center text-[10px] font-bold text-white"
-					style="background-color: {selectedAvatarColor || '#6366f1'}"
-				>
-					{#if selectedAvatarUrl}
-						<img src={selectedAvatarUrl} alt={selectedLabel} class="w-full h-full object-cover" />
-					{:else}
-						{selectedLabel?.[0]?.toUpperCase() || '?'}
+			{#if minimal && selectedPillClass}
+				<span class="inline-flex items-center gap-1.5 {selectedPillClass}">
+					{#if selectedIcon}
+						<svelte:component this={selectedIcon} size={13} class="shrink-0" />
 					{/if}
-				</div>
-			{:else if selectedIcon}
-				<span class="shrink-0 flex items-center justify-center {selectedIconClass || 'text-gray-400'}">
-					<svelte:component this={selectedIcon} size={14} class="shrink-0" />
+					<span>{selectedLabel}</span>
+				</span>
+			{:else}
+				{#if selectedAvatarUrl || selectedAvatarColor}
+					<div
+						class="shrink-0 w-5 h-5 rounded-full overflow-hidden flex items-center justify-center text-[10px] font-bold text-white"
+						style="background-color: {selectedAvatarColor || '#6366f1'}"
+					>
+						{#if selectedAvatarUrl}
+							<img src={selectedAvatarUrl} alt={selectedLabel} class="w-full h-full object-cover" />
+						{:else}
+							{selectedLabel?.[0]?.toUpperCase() || '?'}
+						{/if}
+					</div>
+				{:else if selectedIcon}
+					<span class="shrink-0 flex items-center justify-center {selectedIconClass || 'text-gray-400'}">
+						<svelte:component this={selectedIcon} size={14} class="shrink-0" />
+					</span>
+				{/if}
+				<span class={String(value) === 'all' || value === null || value === '' ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'}>
+					{selectedLabel}
 				</span>
 			{/if}
-			<span class={String(value) === 'all' || value === null || value === '' ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'}>
-				{selectedLabel}
-			</span>
 		</span>
 		{#if !minimal}
 			<svg class="w-4 h-4 text-gray-400 shrink-0 ml-2 transition-transform duration-200 {isOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">

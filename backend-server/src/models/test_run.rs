@@ -65,6 +65,8 @@ pub struct TestRun {
     pub status: String,
     #[serde(default)]
     pub test_cases: Vec<TestRunCase>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_by: Option<String>,
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
 }
@@ -129,6 +131,8 @@ pub struct TestRunDetail {
     pub status: String,
     pub test_cases: Vec<TestRunCaseDetail>,
     pub stats: TestRunStats,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_by: Option<String>,
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
 }

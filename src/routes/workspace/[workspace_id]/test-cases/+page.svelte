@@ -145,6 +145,8 @@
     test_cases: { test_case_id: string; status: string }[];
     created_at: string;
     status: "running" | "completed" | "aborted";
+    created_by?: string;
+    created_by_name?: string;
   };
 
   type TestRunCaseDetail = {
@@ -178,6 +180,10 @@
       skipped: number;
       invalid: number;
     };
+    created_by?: string;
+    created_by_name?: string;
+    created_by_avatar_url?: string;
+    created_by_color?: string;
     created_at: string | null;
     updated_at: string | null;
   };
@@ -377,11 +383,43 @@
     return `Test run ${dd}/${mm}/${yyyy} (auto)`;
   }
 
+  const RUN_CREATORS_KEY = "test-run-creators";
+
+  function saveRunCreator(runId: string, createdBy: string, createdByName: string) {
+    try {
+      const raw = localStorage.getItem(RUN_CREATORS_KEY);
+      const map = raw ? JSON.parse(raw) : {};
+      map[runId] = { created_by: createdBy, created_by_name: createdByName };
+      localStorage.setItem(RUN_CREATORS_KEY, JSON.stringify(map));
+    } catch {}
+  }
+
+  function getRunCreator(runId: string): { created_by?: string; created_by_name?: string } {
+    try {
+      const raw = localStorage.getItem(RUN_CREATORS_KEY);
+      const map = raw ? JSON.parse(raw) : {};
+      return map[runId] ?? {};
+    } catch {
+      return {};
+    }
+  }
+
+  function getCurrentUserDisplayName(): string {
+    const u = $user;
+    if (!u) return "";
+    return u.profile?.nickname || u.profile?.first_name || u.email;
+  }
+
   function openNewTestRunModal() {
     newTestRunForm = {
       name: getAutoTestRunName(),
       description: "",
-      defaultAssignee: "unassigned",
+      defaultAssignee: (() => {
+        const me = assignees.find(
+          (a) => String(a.user_id) === String($user?.id),
+        );
+        return me ? String(me.id) : "unassigned";
+      })(),
       operatingSystem: "",
     };
     selectedTestCaseIds = new Set(
@@ -423,6 +461,9 @@
       });
       if (!res.ok) throw new Error(await res.text());
       const created: TestRun = await res.json();
+      const creatorName = getCurrentUserDisplayName();
+      const creatorId = $user?.id ?? "";
+      saveRunCreator(created._id, creatorId, creatorName);
       testRuns = [created, ...testRuns];
       testRunsTotal++;
       showNewTestRunModal = false;
@@ -469,6 +510,15 @@
     }
   }
 
+  function resolveCreator(userId: string): { name: string; avatarUrl?: string; color: string } {
+    const match = assignees.find((a) => String(a.user_id) === String(userId));
+    return {
+      name: match?.name ?? userId,
+      avatarUrl: match?.avatar_url || match?.avatarUrl || undefined,
+      color: match?.color || "#6366f1",
+    };
+  }
+
   async function openTestRun(run: TestRun) {
     if (!workspaceId) return;
     isLoadingRunDetail = true;
@@ -476,7 +526,26 @@
     selectedRunDetail = null;
     try {
       const res = await api.testRuns.get(workspaceId, run._id);
-      if (res.ok) selectedRunDetail = await res.json();
+      if (res.ok) {
+        const detail = await res.json();
+        const localCreator = getRunCreator(run._id);
+        const createdBy = detail.created_by || localCreator.created_by;
+        if (createdBy) {
+          const info = resolveCreator(createdBy);
+          selectedRunDetail = {
+            ...detail,
+            created_by: createdBy,
+            created_by_name: info.name,
+            created_by_avatar_url: info.avatarUrl,
+            created_by_color: info.color,
+          };
+        } else {
+          selectedRunDetail = {
+            ...detail,
+            created_by_name: localCreator.created_by_name,
+          };
+        }
+      }
     } catch {}
     isLoadingRunDetail = false;
   }
@@ -1849,36 +1918,42 @@
       label: "Draft",
       icon: CircleDashed,
       iconClass: "text-slate-400",
+      pillClass: "text-slate-400 dark:text-slate-300 font-medium",
     },
     {
       value: "actual",
       label: "Actual",
       icon: ListChecks,
       iconClass: "text-blue-400",
+      pillClass: "text-blue-500 dark:text-blue-400 font-medium",
     },
     {
       value: "passed",
       label: "Passed",
       icon: CheckCircle2,
-      iconClass: "text-emerald-500",
+      iconClass: "text-emerald-400",
+      pillClass: "text-emerald-500 dark:text-emerald-400 font-medium",
     },
     {
       value: "failed",
       label: "Failed",
       icon: XCircle,
-      iconClass: "text-red-500",
+      iconClass: "text-red-400",
+      pillClass: "text-red-500 dark:text-red-400 font-medium",
     },
     {
       value: "blocked",
       label: "Blocked",
       icon: Ban,
-      iconClass: "text-orange-500",
+      iconClass: "text-orange-400",
+      pillClass: "text-orange-500 dark:text-orange-400 font-medium",
     },
     {
       value: "deprecated",
       label: "Deprecated",
       icon: History,
-      iconClass: "text-slate-600",
+      iconClass: "text-slate-500",
+      pillClass: "text-slate-400 dark:text-slate-500 font-medium",
     },
   ];
 
@@ -2970,6 +3045,24 @@
                   {#if s.pending}
                     <span class="text-slate-400">{s.pending} pending</span>
                   {/if}
+                  {#if selectedRunDetail.created_by_name || selectedRunDetail.created_by}
+                    <span class="flex items-center gap-1.5 text-slate-400">
+                      Created by
+                      <span class="flex items-center gap-1">
+                        <span
+                          class="shrink-0 h-4 w-4 rounded-full overflow-hidden flex items-center justify-center text-[9px] font-bold text-white"
+                          style="background-color: {selectedRunDetail.created_by_color || '#6366f1'}"
+                        >
+                          {#if selectedRunDetail.created_by_avatar_url}
+                            <img src={selectedRunDetail.created_by_avatar_url} alt="" class="w-full h-full object-cover" />
+                          {:else}
+                            {(selectedRunDetail.created_by_name || selectedRunDetail.created_by || '?')[0].toUpperCase()}
+                          {/if}
+                        </span>
+                        <span class="text-slate-600 dark:text-gray-300 font-bold">{selectedRunDetail.created_by_name || selectedRunDetail.created_by}</span>
+                      </span>
+                    </span>
+                  {/if}
                   <div
                     class="flex-1 min-w-[80px] h-1.5 rounded-full bg-slate-100 dark:bg-gray-800 overflow-hidden"
                   >
@@ -3183,7 +3276,7 @@
                         </button>
                         <div class="flex items-center gap-2">
                           {#if isAuthorized}
-                            <div class="property-select min-w-[80px]">
+                            <div class="property-select min-w-[80px]" data-status={testCase.status}>
                               <SearchableSelect
                                 id="status-update-{testCase.id}"
                                 value={testCase.status}
@@ -3197,6 +3290,7 @@
                           {:else}
                             <div
                               class="property-select min-w-[80px] pointer-events-none opacity-80"
+                              data-status={testCase.status}
                             >
                               <SearchableSelect
                                 id="status-update-{testCase.id}"
@@ -5302,5 +5396,49 @@
 
   :global(.property-select .property-trigger-btn svg) {
     color: #6b7280 !important;
+  }
+
+  :global(.property-select[data-status="draft"] .property-trigger-btn) {
+    border-color: rgba(148, 163, 184, 0.35) !important;
+  }
+  :global(.property-select[data-status="draft"] .property-trigger-btn span),
+  :global(.property-select[data-status="draft"] .property-trigger-btn svg) {
+    color: #94a3b8 !important;
+  }
+  :global(.property-select[data-status="actual"] .property-trigger-btn) {
+    border-color: rgba(96, 165, 250, 0.5) !important;
+  }
+  :global(.property-select[data-status="actual"] .property-trigger-btn span),
+  :global(.property-select[data-status="actual"] .property-trigger-btn svg) {
+    color: #60a5fa !important;
+  }
+  :global(.property-select[data-status="passed"] .property-trigger-btn) {
+    border-color: rgba(52, 211, 153, 0.5) !important;
+  }
+  :global(.property-select[data-status="passed"] .property-trigger-btn span),
+  :global(.property-select[data-status="passed"] .property-trigger-btn svg) {
+    color: #34d399 !important;
+  }
+  :global(.property-select[data-status="failed"] .property-trigger-btn) {
+    border-color: rgba(248, 113, 113, 0.5) !important;
+  }
+  :global(.property-select[data-status="failed"] .property-trigger-btn span),
+  :global(.property-select[data-status="failed"] .property-trigger-btn svg) {
+    color: #f87171 !important;
+  }
+  :global(.property-select[data-status="blocked"] .property-trigger-btn) {
+    border-color: rgba(251, 146, 60, 0.5) !important;
+  }
+  :global(.property-select[data-status="blocked"] .property-trigger-btn span),
+  :global(.property-select[data-status="blocked"] .property-trigger-btn svg) {
+    color: #fb923c !important;
+  }
+  :global(.property-select[data-status="deprecated"] .property-trigger-btn) {
+    border-color: rgba(100, 116, 139, 0.3) !important;
+    opacity: 0.6;
+  }
+  :global(.property-select[data-status="deprecated"] .property-trigger-btn span),
+  :global(.property-select[data-status="deprecated"] .property-trigger-btn svg) {
+    color: #64748b !important;
   }
 </style>

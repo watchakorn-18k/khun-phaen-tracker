@@ -18,15 +18,22 @@
   import StatsPanel from "$lib/components/StatsPanel.svelte";
   import WorkspaceLoading from "$lib/components/WorkspaceLoading.svelte";
   import AccessDenied from "$lib/components/AccessDenied.svelte";
-  import { 
-    LayoutDashboard, 
-    BarChart3, 
-    Users, 
-    Briefcase, 
-    Clock, 
-    CheckCircle2, 
+  import {
+    LayoutDashboard,
+    BarChart3,
+    Users,
+    Briefcase,
+    Clock,
+    CheckCircle2,
     AlertCircle,
-    ChevronRight
+    ChevronRight,
+    FlaskConical,
+    Play,
+    CircleDashed,
+    XCircle,
+    Ban,
+    FileCheck,
+    MinusCircle,
   } from "lucide-svelte";
   import WorkspaceModals from "$lib/components/WorkspaceModals.svelte";
   import CommandPalette from "$lib/components/CommandPalette.svelte";
@@ -120,6 +127,7 @@
           workspaceActions.handleRealtimeUpdate(payload),
         );
         loadData();
+        loadTestData(workspaceId);
       } else {
         hasAccess.set(false);
       }
@@ -170,6 +178,57 @@
   }).sort((a, b) => b.count - a.count);
 
   $: monthlySummary = buildMonthlySummary($allTasksIncludingArchived);
+
+  type TestCaseCounts = {
+    total: number;
+    draft: number;
+    actual: number;
+    passed: number;
+    failed: number;
+    blocked: number;
+    deprecated: number;
+  };
+
+  type TestRunSummary = {
+    _id: string;
+    name: string;
+    status: "running" | "completed" | "aborted";
+    created_at: string;
+    stats?: {
+      total: number;
+      passed: number;
+      failed: number;
+      pending: number;
+    };
+  };
+
+  let testCaseCounts: TestCaseCounts = { total: 0, draft: 0, actual: 0, passed: 0, failed: 0, blocked: 0, deprecated: 0 };
+  let recentTestRuns: TestRunSummary[] = [];
+  let loadingTestData = false;
+
+  async function loadTestData(wsId: string) {
+    loadingTestData = true;
+    try {
+      const [countsRes, runsRes] = await Promise.all([
+        api.data.testCases.counts(wsId),
+        api.testRuns.list(wsId, 1, 5),
+      ]);
+      if (countsRes.ok) {
+        const d = await countsRes.json();
+        testCaseCounts = d.counts ?? d;
+      }
+      if (runsRes.ok) {
+        const d = await runsRes.json();
+        recentTestRuns = d.data ?? d.test_runs ?? d ?? [];
+      }
+    } catch (_) {
+      // ignore
+    } finally {
+      loadingTestData = false;
+    }
+  }
+
+  $: tcPassRate = testCaseCounts.total > 0 ? Math.round((testCaseCounts.passed / testCaseCounts.total) * 100) : 0;
 </script>
 
 <div class="px-4 sm:px-6 space-y-8 pb-24 pt-6">
@@ -377,6 +436,143 @@
       </div>
     </div>
     
+    <!-- Test Cases & Test Runs Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Test Case Stats -->
+      <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-[32px] p-6 shadow-sm overflow-hidden relative group">
+        <div class="absolute top-0 right-0 p-8 opacity-[0.03] dark:opacity-[0.05] group-hover:opacity-[0.07] transition-opacity">
+          <FlaskConical size={140} />
+        </div>
+        <div class="relative z-10">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
+              <FlaskConical class="text-violet-500" size={20} />
+              Test Cases
+            </h2>
+            <button
+              on:click={() => goto(`${base}/workspace/${workspaceId}/test-cases${$page.url.search}`)}
+              class="text-xs font-bold text-gray-400 hover:text-primary flex items-center gap-1 transition-colors"
+            >
+              ดูทั้งหมด <ChevronRight size={14} />
+            </button>
+          </div>
+
+          {#if loadingTestData}
+            <div class="py-8 text-center text-gray-400 text-sm font-bold">กำลังโหลด...</div>
+          {:else}
+            <!-- Pass Rate Bar -->
+            <div class="space-y-2 mb-6">
+              <div class="flex justify-between items-end">
+                <span class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Pass Rate</span>
+                <span class="text-2xl font-black text-violet-500 tracking-tighter">{tcPassRate}%</span>
+              </div>
+              <div class="h-3 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden p-0.5">
+                <div
+                  class="h-full bg-gradient-to-r from-violet-500 to-purple-400 rounded-full transition-all duration-1000 ease-out"
+                  style="width: {tcPassRate}%"
+                ></div>
+              </div>
+            </div>
+
+            <!-- Status Grid -->
+            <div class="grid grid-cols-3 gap-3">
+              <div class="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 text-center">
+                <div class="flex items-center justify-center mb-1"><CircleDashed size={14} class="text-gray-400" /></div>
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Draft</p>
+                <p class="text-lg font-black text-gray-600 dark:text-gray-300">{testCaseCounts.draft}</p>
+              </div>
+              <div class="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-2xl border border-blue-100 dark:border-blue-800/30 text-center">
+                <div class="flex items-center justify-center mb-1"><FileCheck size={14} class="text-blue-500" /></div>
+                <p class="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-0.5">Actual</p>
+                <p class="text-lg font-black text-blue-600 dark:text-blue-400">{testCaseCounts.actual}</p>
+              </div>
+              <div class="p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100 dark:border-emerald-800/30 text-center">
+                <div class="flex items-center justify-center mb-1"><CheckCircle2 size={14} class="text-emerald-500" /></div>
+                <p class="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-0.5">Passed</p>
+                <p class="text-lg font-black text-emerald-600 dark:text-emerald-400">{testCaseCounts.passed}</p>
+              </div>
+              <div class="p-3 bg-rose-50 dark:bg-rose-900/10 rounded-2xl border border-rose-100 dark:border-rose-800/30 text-center">
+                <div class="flex items-center justify-center mb-1"><XCircle size={14} class="text-rose-500" /></div>
+                <p class="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-0.5">Failed</p>
+                <p class="text-lg font-black text-rose-600 dark:text-rose-400">{testCaseCounts.failed}</p>
+              </div>
+              <div class="p-3 bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-800/30 text-center">
+                <div class="flex items-center justify-center mb-1"><Ban size={14} class="text-amber-500" /></div>
+                <p class="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-0.5">Blocked</p>
+                <p class="text-lg font-black text-amber-600 dark:text-amber-400">{testCaseCounts.blocked}</p>
+              </div>
+              <div class="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 text-center">
+                <div class="flex items-center justify-center mb-1"><MinusCircle size={14} class="text-gray-400" /></div>
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Deprecated</p>
+                <p class="text-lg font-black text-gray-500 dark:text-gray-400">{testCaseCounts.deprecated}</p>
+              </div>
+            </div>
+
+            <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center">
+              <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Total</span>
+              <span class="text-xl font-black text-gray-700 dark:text-gray-200">{testCaseCounts.total}</span>
+            </div>
+          {/if}
+        </div>
+      </div>
+
+      <!-- Recent Test Runs -->
+      <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-[32px] p-6 shadow-sm overflow-hidden relative group">
+        <div class="absolute top-0 right-0 p-8 opacity-[0.03] dark:opacity-[0.05] group-hover:opacity-[0.07] transition-opacity">
+          <Play size={140} />
+        </div>
+        <div class="relative z-10">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
+              <Play class="text-indigo-500" size={20} />
+              Test Runs
+            </h2>
+            <button
+              on:click={() => goto(`${base}/workspace/${workspaceId}/test-cases${$page.url.search}`)}
+              class="text-xs font-bold text-gray-400 hover:text-primary flex items-center gap-1 transition-colors"
+            >
+              ดูทั้งหมด <ChevronRight size={14} />
+            </button>
+          </div>
+
+          {#if loadingTestData}
+            <div class="py-8 text-center text-gray-400 text-sm font-bold">กำลังโหลด...</div>
+          {:else if recentTestRuns.length === 0}
+            <div class="py-12 text-center text-gray-400">
+              <Play size={40} class="mx-auto mb-3 opacity-20" />
+              <p class="text-sm font-bold uppercase tracking-widest opacity-40">ยังไม่มี Test Run</p>
+            </div>
+          {:else}
+            <div class="space-y-3">
+              {#each recentTestRuns as run}
+                <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700/50 transition-colors">
+                  <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-2 h-2 rounded-full flex-shrink-0
+                      {run.status === 'completed' ? 'bg-emerald-500' :
+                       run.status === 'aborted' ? 'bg-rose-500' : 'bg-blue-500 animate-pulse'}">
+                    </div>
+                    <span class="text-sm font-bold text-gray-800 dark:text-gray-200 truncate">{run.name}</span>
+                  </div>
+                  <div class="flex items-center gap-2 flex-shrink-0 ml-2">
+                    {#if run.stats}
+                      <span class="text-xs font-black text-emerald-500">{run.stats.passed}P</span>
+                      <span class="text-xs font-black text-rose-500">{run.stats.failed}F</span>
+                    {/if}
+                    <span class="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg
+                      {run.status === 'completed' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' :
+                       run.status === 'aborted' ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400' :
+                       'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'}">
+                      {run.status}
+                    </span>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      </div>
+    </div>
+
     <WorkspaceModals
       modals={$modals}
       editingTask={$editingTask}

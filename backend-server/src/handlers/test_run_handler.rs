@@ -100,6 +100,7 @@ async fn enrich_run(run: TestRun, tc_repo: &TestCaseRepository) -> TestRunDetail
         status: run.status,
         test_cases: enriched_cases,
         stats,
+        created_by: run.created_by,
         created_at: run.created_at,
         updated_at: run.updated_at,
     }
@@ -142,7 +143,7 @@ pub async fn create_test_run(
     Path(ws_id): Path<String>,
     Json(req): Json<CreateTestRunRequest>,
 ) -> impl IntoResponse {
-    let _claims = match require_auth(&headers, &jar, &state.jwt_secret) {
+    let claims = match require_auth(&headers, &jar, &state.jwt_secret) {
         Ok(c) => c,
         Err(r) => return r,
     };
@@ -170,6 +171,7 @@ pub async fn create_test_run(
         operating_system: req.operating_system.unwrap_or_default(),
         status: "running".to_string(),
         test_cases: cases,
+        created_by: Some(claims.sub),
         created_at: Some(ts.clone()),
         updated_at: Some(ts),
     };
