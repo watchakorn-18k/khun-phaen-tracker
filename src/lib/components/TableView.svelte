@@ -79,10 +79,11 @@
     | "status"
     | "category"
     | "assignee"
-    | "updated_at";
+    | "updated_at"
+    | "created_at";
   type SortDirection = "asc" | "desc";
 
-  let sortColumn: SortColumn = "updated_at";
+  let sortColumn: SortColumn = "created_at";
   let sortDirection: SortDirection = "desc";
   let selectedTasks: Set<string | number> = new Set();
   let expandedMobileCards: Set<string | number> = new Set();
@@ -188,6 +189,10 @@
       case "updated_at":
         aVal = a.updated_at || "";
         bVal = b.updated_at || "";
+        break;
+      case "created_at":
+        aVal = a.created_at || "";
+        bVal = b.created_at || "";
         break;
       case "date":
         aVal = dueDateOf(a);

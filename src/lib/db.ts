@@ -465,7 +465,7 @@ export async function getTasks(
   filter?: FilterOptions,
 ): Promise<Task[] | PaginatedResponse<Task>> {
   const params: Record<string, string> = {
-    sort_by: "updated_at",
+    sort_by: "created_at",
     sort_order: "desc",
   };
 
