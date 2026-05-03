@@ -243,9 +243,16 @@
       priority = "none";
       category = $taskDefaults.category || "งานหลัก";
       notes = "";
-      assignee_ids = $taskDefaults.assignee_id
-        ? [String($taskDefaults.assignee_id)]
-        : [];
+      if ($taskDefaults.assignee_id) {
+        assignee_ids = [String($taskDefaults.assignee_id)];
+      } else if (!isOwner && $user) {
+        const myAssignee = assignees.find(
+          (a) => a.user_id === $user!.id || a.user_id === $user!.user_id,
+        );
+        assignee_ids = myAssignee ? [String(myAssignee.id)] : [];
+      } else {
+        assignee_ids = [];
+      }
       sprint_id = activeSprint?.id || null;
       checklist = [];
       dependencies = [];

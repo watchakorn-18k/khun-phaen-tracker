@@ -114,7 +114,7 @@
     bind:this={tooltipRef}
     use:portal
     transition:fade={{ duration: 100 }}
-    class="fixed z-[10000] px-3 py-2 bg-gray-900/95 dark:bg-gray-800/95 backdrop-blur-sm text-white text-xs rounded-lg shadow-xl pointer-events-none whitespace-nowrap border border-gray-700/50 min-w-20 max-w-75"
+    class="fixed z-99999 px-3 py-2 bg-gray-900/95 dark:bg-gray-800/95 backdrop-blur-sm text-white text-xs rounded-lg shadow-xl pointer-events-none whitespace-nowrap border border-gray-700/50 min-w-20 max-w-75"
     style="left: {x}px; top: {y}px;"
   >
     {#if text}

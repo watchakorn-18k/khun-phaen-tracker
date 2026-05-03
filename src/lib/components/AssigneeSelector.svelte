@@ -4,6 +4,7 @@
 	import { Users, User, Plus, X, UserMinus } from 'lucide-svelte';
 	import { _ } from 'svelte-i18n';
 	import SearchableSelect from './SearchableSelect.svelte';
+	import Tooltip from './Tooltip.svelte';
 
 	const dispatch = createEventDispatcher<{
 		addAssignee: { name: string; color: string };
@@ -195,49 +196,78 @@
 			</button>
 		</div>
 	{:else}
-		{#if selectedAssignees.length > 0}
-			<div class="flex flex-wrap gap-2 mb-2">
-				{#each selectedAssignees as assignee (assignee.id)}
-					<div class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm">
-						<span class="w-2.5 h-2.5 rounded-full" style="background-color: {assignee.color}"></span>
-						<span class="text-gray-700 dark:text-gray-300">{assignee.name}</span>
-						{#if !readonly}
-							<button
-								type="button"
-								on:click={() => {
-									if (assignee.id != null) removeAssigneeFromTask(assignee.id);
-								}}
-								class="text-gray-400 hover:text-red-500 transition-colors"
-								title="Remove assignee"
-							>
-								<X size={14} />
-							</button>
-						{/if}
-					</div>
-				{/each}
+		{#if minimal && selectedAssignees.length > 0}
+			<!-- Minimal mode: stacked avatars + add button -->
+			<div class="flex items-center gap-1.5 h-8">
+				<div class="flex items-center -space-x-2">
+					{#each selectedAssignees as assignee (assignee.id)}
+						<div class="relative hover:z-10">
+							<Tooltip text={assignee.name}>
+								<button
+									type="button"
+									on:click={() => { if (!readonly && assignee.id != null) removeAssigneeFromTask(assignee.id); }}
+									class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white ring-2 ring-gray-900 shrink-0 {!readonly ? 'hover:ring-red-500 hover:brightness-75 transition-all' : ''}"
+									style="background-color: {assignee.color || '#6366f1'}"
+								>
+									{assignee.name?.[0]?.toUpperCase() || '?'}
+								</button>
+							</Tooltip>
+						</div>
+					{/each}
+				</div>
+				{#if !readonly}
+					<SearchableSelect
+						bind:value={selectedValue}
+						options={combinedOptions}
+						placeholder="+"
+						minimal
+						customClass="!px-1.5 !min-w-0 w-8"
+					/>
+				{/if}
 			</div>
-		{/if}
+		{:else}
+			{#if !minimal && selectedAssignees.length > 0}
+				<div class="flex flex-wrap gap-1.5 mb-2">
+					{#each selectedAssignees as assignee (assignee.id)}
+						<div class="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-sm rounded-lg transition-colors">
+							<span class="w-2 h-2 rounded-full shrink-0" style="background-color: {assignee.color}"></span>
+							<span class="text-gray-700 dark:text-gray-300">{assignee.name}</span>
+							{#if !readonly}
+								<button
+									type="button"
+									on:click={() => { if (assignee.id != null) removeAssigneeFromTask(assignee.id); }}
+									class="text-gray-400 hover:text-red-500 transition-colors ml-0.5"
+									title="Remove assignee"
+								>
+									<X size={12} />
+								</button>
+							{/if}
+						</div>
+					{/each}
+				</div>
+			{/if}
 
-		{#if !readonly}
-		<SearchableSelect
-			bind:value={selectedValue}
-			options={combinedOptions}
-			placeholder={$_('taskForm__assignee_placeholder')}
-			{minimal}
-		/>
-		{:else if selectedAssignees.length === 0}
-			<p class="text-sm text-gray-500 dark:text-gray-400 italic">{$_('taskForm__unassigned')}</p>
-		{/if}
+			{#if !readonly}
+				<SearchableSelect
+					bind:value={selectedValue}
+					options={combinedOptions}
+					placeholder={$_('taskForm__assignee_placeholder')}
+					{minimal}
+				/>
+			{:else if selectedAssignees.length === 0}
+				<p class="text-sm text-gray-500 dark:text-gray-400 italic">{$_('taskForm__unassigned')}</p>
+			{/if}
 
-		{#if selfAssigneeId != null && !isSelfAssigned}
-			<button
-				type="button"
-				on:click={assignSelf}
-				class="mt-1.5 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary border border-primary/30 rounded-lg hover:bg-primary/10 transition-colors"
-			>
-				<User size={14} />
-				{$_('taskForm__assign_to_me')}
-			</button>
+			{#if selfAssigneeId != null && !isSelfAssigned}
+				<button
+					type="button"
+					on:click={assignSelf}
+					class="mt-1.5 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary border border-primary/30 rounded-lg hover:bg-primary/10 transition-colors"
+				>
+					<User size={14} />
+					{$_('taskForm__assign_to_me')}
+				</button>
+			{/if}
 		{/if}
 	{/if}
 </div>
