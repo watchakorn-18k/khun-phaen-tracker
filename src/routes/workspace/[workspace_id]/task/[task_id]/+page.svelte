@@ -236,9 +236,18 @@
 
   function handleMoreMenuClickOutside(event: MouseEvent) {
     const target = event.target as HTMLElement;
+    
+    // Don't close anything if clicking inside the confirmation modal
+    if (target.closest(".confirm-modal-content")) return;
+
     if (!target.closest(".more-menu-container")) {
       isMoreMenuOpen = false;
-      isDeleteConfirm = false;
+      // Only reset isDeleteConfirm if we are NOT clicking the backdrop of the modal
+      // (The backdrop is the parent of .confirm-modal-content)
+      const isBackdrop = target.classList.contains("bg-slate-950/50") || target.classList.contains("bg-slate-950/80");
+      if (!isBackdrop) {
+        isDeleteConfirm = false;
+      }
     }
     if (!target.closest(".chatgpt-menu-container")) {
       isChatGPTMenuOpen = false;
@@ -1012,7 +1021,7 @@
           >
             <button
               type="button"
-              on:click={() => {
+              on:click|stopPropagation={() => {
                 isDeleteConfirm = true;
                 isMoreMenuOpen = false;
               }}

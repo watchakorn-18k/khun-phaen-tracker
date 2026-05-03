@@ -31,7 +31,7 @@
     out:fade={{ duration: 250 }}
   >
     <div
-      class="flex w-full max-w-md flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white text-slate-900 shadow-[0_32px_64px_-16px_rgba(15,23,42,0.28)] dark:border-white/10 dark:bg-slate-900 dark:text-white dark:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)]"
+      class="confirm-modal-content flex w-full max-w-md flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white text-slate-900 shadow-[0_32px_64px_-16px_rgba(15,23,42,0.28)] dark:border-white/10 dark:bg-slate-900 dark:text-white dark:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)]"
       in:scale={{ start: 0.95, duration: 400, opacity: 0 }}
       out:scale={{ start: 0.95, duration: 250, opacity: 0 }}
     >

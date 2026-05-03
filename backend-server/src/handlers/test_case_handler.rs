@@ -677,17 +677,10 @@ pub async fn update_test_case_fixed(
     Path(id): Path<String>,
     Json(req): Json<UpdateTestCaseFixedRequest>,
 ) -> impl IntoResponse {
-    let claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
+    let _claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
         Some(c) => c,
         None => return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response(),
     };
-
-    let user_repo = UserRepository::new(&state.db);
-    let profile_repo = ProfileRepository::new(&state.db);
-
-    if !AuthService::can_mutate_test_cases(&user_repo, &profile_repo, &claims).await {
-        return (StatusCode::FORBIDDEN, "Permission denied").into_response();
-    }
 
     let repo = TestCaseRepository::new(&state.db);
 
@@ -950,13 +943,6 @@ pub async fn convert_test_case_to_task(
         None => return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response(),
     };
 
-    let user_repo = UserRepository::new(&state.db);
-    let profile_repo = ProfileRepository::new(&state.db);
-
-    if !AuthService::can_mutate_test_cases(&user_repo, &profile_repo, &claims).await {
-        return (StatusCode::FORBIDDEN, "Permission denied").into_response();
-    }
-
     let repo = TestCaseRepository::new(&state.db);
     let data_repo = DataRepository::new(&state.db);
 
@@ -1041,6 +1027,30 @@ pub async fn convert_test_case_to_task(
 
 /// GET /api/workspaces/:ws_id/test-cases/all
 pub async fn get_all_test_cases(
+    State(state): State<Arc<AppState>>,
+    jar: CookieJar,
+    headers: HeaderMap,
+    Path(ws_id): Path<String>,
+) -> impl IntoResponse {
+    let _claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
+        Some(c) => c,
+        None => return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response(),
+    };
+
+    let ws_oid = match ObjectId::parse_str(&ws_id) {
+        Ok(oid) => oid,
+        Err(_) => return (StatusCode::BAD_REQUEST, "Invalid workspace ID").into_response(),
+    };
+
+    let repo = TestCaseRepository::new(&state.db);
+    
+    match repo.find_by_workspace(&ws_oid, None, None, None, None, None, None, None, None, None).await {
+        Ok(cases) => (StatusCode::OK, Json(cases)).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+/// GET /api/public/:ws_id/all-test-cases
+pub async fn get_all_test_cases_public(
     State(state): State<Arc<AppState>>,
     Path(ws_id): Path<String>,
 ) -> impl IntoResponse {

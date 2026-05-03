@@ -241,14 +241,54 @@
       ? "w-full max-w-full px-4 sm:px-8"
       : "max-w-7xl px-4 sm:px-6 lg:px-8";
 
+  async function recoverRoom() {
+    if (!browser || !$user) return;
+    
+    const urlParams = new URLSearchParams($page.url.search);
+    const urlRoom = urlParams.get("room");
+    const storageRoom = localStorage.getItem("sync-room-code");
+    const workspaceId = $page.params.workspace_id;
+    
+    // If we have no room at all but are in a workspace page
+    if (!urlRoom && isWorkspacePage && !isMyTasksWorkspacePage && workspaceId) {
+      // 1. Try to recover from storage
+      if (storageRoom) {
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.set("room", storageRoom);
+        goto(newUrl.toString(), { replaceState: true });
+        return;
+      }
+      
+      // 2. Try to fetch from API
+      try {
+        const res = await api.workspaces.getList();
+        if (res.ok) {
+          const workspaces = await res.json();
+          const currentWs = workspaces.find((w: any) => w.id === workspaceId || w._id === workspaceId);
+          if (currentWs?.room_code) {
+            localStorage.setItem("sync-room-code", currentWs.room_code);
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.set("room", currentWs.room_code);
+            goto(newUrl.toString(), { replaceState: true });
+            return;
+          }
+        }
+      } catch (e) {
+        console.error("Failed to recover room:", e);
+      }
+      
+      // If all else fails, only then go to dashboard
+      goto(`${base}/dashboard`);
+    }
+  }
+
   $: if (!$authLoading && browser) {
     if (!$user && !isAuthPage) {
       goto(`${base}/login`);
     } else if ($user && isAuthPage) {
       goto(`${base}/dashboard`);
     } else if ($user && !isAuthPage && !isDashboard) {
-      // Check if trying to access main app without a room
-      const urlParams = new URLSearchParams(window.location.search);
+      const urlParams = new URLSearchParams($page.url.search);
       const urlRoom = urlParams.get("room");
       const isPinnedTaskLink =
         urlParams.get("pinned") === "true" ||
@@ -256,7 +296,7 @@
         urlParams.get("pined") === "trure";
 
       if (!urlRoom && !isPinnedTaskLink && isWorkspacePage && !isMyTasksWorkspacePage) {
-        goto(`${base}/dashboard`);
+        recoverRoom();
       }
     }
   }

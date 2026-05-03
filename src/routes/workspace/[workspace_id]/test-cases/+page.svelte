@@ -360,7 +360,9 @@
         const data = await resp.json();
         ui.showMessage("Task created successfully", "success");
         // Redirect to task detail
-        goto(`${base}/workspace/${workspaceId}/task/${data.task_id}`);
+        const urlRoom = $page.url.searchParams.get("room") || (browser ? localStorage.getItem("sync-room-code") : null);
+        const roomParam = urlRoom ? `?room=${urlRoom}` : "";
+        goto(`${base}/workspace/${workspaceId}/task/${data.task_id}${roomParam}`);
       } else {
         const error = await resp.text();
         ui.showMessage(`Failed to create task: ${error}`, "error");
@@ -1057,7 +1059,21 @@
     if (!workspaceId) return;
     try {
       ui.showMessage("Preparing export...", "info");
+
+      // Fetch all users to get positions
+      const usersResp = await api.auth.listUsers(workspaceId);
+      const usersData = await usersResp.json();
+      const userPositionMap = new Map<string, string>();
+      const userNameMap = new Map<string, string>();
       
+      if (usersData.success && Array.isArray(usersData.users)) {
+        usersData.users.forEach((u: any) => {
+          const id = u.id || u.user_id;
+          userNameMap.set(id, u.profile?.nickname || u.profile?.first_name || u.email);
+          userPositionMap.set(id, u.profile?.position || "");
+        });
+      }
+
       // Fetch all cases in workspace
       const casesResp = await api.data.testCases.all(workspaceId);
       if (!casesResp.ok) {
@@ -1081,7 +1097,9 @@
         "Test Name",
         "Status",
         "Assign Tester",
+        "Tester Position",
         "Assign Dev",
+        "Dev Position",
         "Precondition",
         "Input",
         "Expected Result",
@@ -1102,13 +1120,18 @@
             .join("\n");
         }
 
+        const testerId = c.assignee || "unassigned";
+        const devId = c.assign_dev || "unassigned";
+
         rows.push([
           String(suiteMap.get(c.suite_id) || "Unassigned"),
           String(c.test_no),
           String(c.title || ""),
           String(c.status || ""),
-          String(c.assignee || "unassigned"),
-          String(c.assign_dev || "unassigned"),
+          String(userNameMap.get(testerId) || (testerId === "unassigned" ? $_("testCase__unassigned") : testerId)),
+          String(userPositionMap.get(testerId) || ""),
+          String(userNameMap.get(devId) || (devId === "unassigned" ? $_("testCase__unassigned") : devId)),
+          String(userPositionMap.get(devId) || ""),
           String(c.preconditions || ""),
           String(c.input || ""),
           String(c.expected_result || ""),

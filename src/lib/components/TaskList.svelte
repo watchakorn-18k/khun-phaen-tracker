@@ -18,6 +18,7 @@
   import PriorityBadge from "./PriorityBadge.svelte";
   import { _ } from "$lib/i18n";
   import { columnSettings } from "$lib/stores/columnSettings";
+  import { currentWorkspaceShortName } from "$lib/stores/workspace";
 
   $: enabledColumns = new Map($columnSettings.map((s) => [s.id, s.enabled]));
 
@@ -129,7 +130,7 @@
               <h3 class="font-semibold text-gray-900 dark:text-white text-base leading-snug">
                 {#if enabledColumns.get('id') && task.task_number}
                   <span class="text-gray-500 dark:text-gray-400 mr-2 text-sm font-bold">
-                    {task.workspace_short_name || "TASK"}-{task.task_number}
+                    {task.workspace_short_name || $currentWorkspaceShortName || "TASK"}-{task.task_number}
                   </span>
                 {/if}
                 {task.title}

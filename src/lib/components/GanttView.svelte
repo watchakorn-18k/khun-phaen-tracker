@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import type { Task, Sprint } from '$lib/types';
   import { _ } from '$lib/i18n';
+  import { currentWorkspaceShortName } from "$lib/stores/workspace";
   import { Folder, Flag } from 'lucide-svelte';
   import PriorityBadge from './PriorityBadge.svelte';
   import SearchableSprintSelect from './SearchableSprintSelect.svelte';
@@ -232,7 +233,7 @@
                     >
                         <!-- Sidebar Item -->
                         <div class="sticky left-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 border-r border-gray-200 dark:border-gray-700 p-3 text-sm truncate flex items-center justify-between" style="width: {SIDEBAR_WIDTH}px; min-width: {SIDEBAR_WIDTH}px; height: {ROW_HEIGHT}px;">
-                            <div class="flex flex-col gap-0.5 flex-1 min-w-0" title="{task.priority && task.priority !== 'none' ? task.priority + ' ' : ''}{task.workspace_short_name || 'TASK'}-{task.task_number} {task.title}">
+                            <div class="flex flex-col gap-0.5 flex-1 min-w-0" title="{task.priority && task.priority !== 'none' ? task.priority + ' ' : ''}{task.workspace_short_name || $currentWorkspaceShortName || 'TASK'}-{task.task_number} {task.title}">
                                 {#if task.priority && task.priority !== 'none'}
                                     <div class="flex items-center">
                                         <PriorityBadge priority={task.priority} />
@@ -241,7 +242,7 @@
                                 <span class="truncate text-gray-900 dark:text-white font-medium">
                                     {#if task.task_number}
                                         <span class="text-gray-500 dark:text-gray-400 text-[9px] font-bold mr-1">
-                                            {task.workspace_short_name || "TASK"}-{task.task_number}
+                                            {task.workspace_short_name || $currentWorkspaceShortName || "TASK"}-{task.task_number}
                                         </span>
                                     {/if}
                                     {task.title}
@@ -272,9 +273,9 @@
                                 on:keydown={(e) => e.key === 'Enter' && handleTaskClick(task)}
                                 role="button"
                                 tabindex="0"
-                                title="{task.priority && task.priority !== 'none' ? task.priority + ' ' : ''}{task.workspace_short_name || 'TASK'}-{task.task_number} {task.title} ({task._start.toLocaleDateString()} - {task._end.toLocaleDateString()})"
+                                title="{task.priority && task.priority !== 'none' ? task.priority + ' ' : ''}{task.workspace_short_name || $currentWorkspaceShortName || 'TASK'}-{task.task_number} {task.title} ({task._start.toLocaleDateString()} - {task._end.toLocaleDateString()})"
                             >
-                                {#if task.task_number}{task.workspace_short_name || 'TASK'}-{task.task_number} {/if}{task.title}
+                                {#if task.task_number}{task.workspace_short_name || $currentWorkspaceShortName || 'TASK'}-{task.task_number} {/if}{task.title}
                             </div>
                         </div>
                     </div>

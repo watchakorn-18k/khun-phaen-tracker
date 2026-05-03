@@ -37,6 +37,7 @@
     getFuzzyScore,
     normalizeForCommandSearch,
   } from "$lib/utils/command-palette";
+  import { currentWorkspaceShortName } from "$lib/stores/workspace";
 
   export let open = false;
   export let tasks: Task[] = [];
@@ -261,7 +262,7 @@
         item: {
           id: `task-${task.id}`,
           label: (() => {
-            const prefix = task.workspace_short_name || "TASK";
+            const prefix = task.workspace_short_name || $currentWorkspaceShortName || "TASK";
             const id = task.task_number ? `${prefix}-${task.task_number} ` : "";
             return id + task.title;
           })(),

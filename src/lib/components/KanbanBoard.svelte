@@ -166,8 +166,10 @@
     }
   }
 
+  import { currentWorkspaceShortName } from "$lib/stores/workspace";
+
   function getTaskId(task: Task): string {
-    const prefix = task.workspace_short_name || "T";
+    const prefix = task.workspace_short_name || $currentWorkspaceShortName || "TASK";
     if (task.task_number) return `${prefix}-${task.task_number}`;
     return "";
   }

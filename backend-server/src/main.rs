@@ -484,6 +484,10 @@ async fn main() {
             "/api/public/workspaces/:ws_id/test-cases",
             get(handlers::test_case_handler::list_test_cases),
         )
+        .route(
+            "/api/public/workspaces/:ws_id/all-test-cases",
+            get(handlers::test_case_handler::get_all_test_cases_public),
+        )
         .route("/ws", get(handlers::ws_handler::ws_handler))
         .layer(
             tower_http::cors::CorsLayer::new()

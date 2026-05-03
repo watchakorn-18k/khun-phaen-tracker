@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { onMount, onDestroy, createEventDispatcher, tick } from 'svelte';
 	import { browser } from '$app/environment';
-	import { _ , locale } from '$lib/i18n';
-	import type { Task } from '$lib/types';
-	import { Calendar as CalendarIcon, Clock } from 'lucide-svelte';
-	import PriorityBadge from './PriorityBadge.svelte';
+  import { _ , locale } from '$lib/i18n';
+  import { currentWorkspaceShortName } from "$lib/stores/workspace";
+  import type { Task } from '$lib/types';
+  import { Calendar as CalendarIcon, Clock } from 'lucide-svelte';
+  import PriorityBadge from './PriorityBadge.svelte';
 	
 	const dispatch = createEventDispatcher<{
 		selectTask: Task;
@@ -341,7 +342,7 @@
 							{#each dayTasks.slice(0, 3) as task}
 								<div
 									class="h-1.5 rounded-full flex-1 min-w-0 {task.status === 'done' ? 'bg-success' : task.status === 'in-progress' ? 'bg-primary' : task.status === 'in-test' ? 'bg-purple-500' : 'bg-warning'}"
-									title="{task.priority && task.priority !== 'none' ? task.priority + ' ' : ''}{task.workspace_short_name || 'TASK'}-{task.task_number} {task.title}"
+									title="{task.priority && task.priority !== 'none' ? task.priority + ' ' : ''}{task.workspace_short_name || $currentWorkspaceShortName || 'TASK'}-{task.task_number} {task.title}"
 								></div>
 							{/each}
 							{#if dayTasks.length > 3}
@@ -393,7 +394,7 @@
 									<div class="font-semibold text-sm leading-tight text-gray-900 dark:text-gray-100 truncate">
 										{#if task.task_number}
 											<span class="text-gray-500 dark:text-gray-400 text-[10px] font-bold mr-1.5 whitespace-nowrap">
-												{task.workspace_short_name || "TASK"}-{task.task_number}
+												{task.workspace_short_name || $currentWorkspaceShortName || "TASK"}-{task.task_number}
 											</span>
 										{/if}
 										{task.title}

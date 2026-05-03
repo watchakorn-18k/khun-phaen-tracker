@@ -33,6 +33,7 @@
   import Tooltip from "./Tooltip.svelte";
   import PriorityBadge from "./PriorityBadge.svelte";
   import { columnSettings } from "$lib/stores/columnSettings";
+  import { currentWorkspaceShortName } from "$lib/stores/workspace";
 
   export let tasks: Task[] = [];
   export let sprints: Sprint[] = [];
@@ -667,7 +668,7 @@
                 >
                   {#if task.task_number}
                     <span class="text-gray-500 dark:text-gray-400 mr-1.5 text-[10px] font-bold">
-                      {task.workspace_short_name || "TASK"}-{task.task_number}
+                      {task.workspace_short_name || $currentWorkspaceShortName || "TASK"}-{task.task_number}
                     </span>
                   {/if}
                   {task.title}
@@ -945,7 +946,7 @@
                     >
                       {#if task.task_number}
                         <span class="text-gray-500 dark:text-gray-400 mr-1.5 text-[10px] font-bold">
-                          {task.workspace_short_name || "TASK"}-{task.task_number}
+                          {task.workspace_short_name || $currentWorkspaceShortName || "TASK"}-{task.task_number}
                         </span>
                       {/if}
                       {task.title}

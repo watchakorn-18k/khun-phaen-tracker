@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import { browser } from "$app/environment";
   import { fade } from "svelte/transition";
   import { goto } from "$app/navigation";
   import { base } from "$app/paths";
@@ -158,6 +159,26 @@
   let newSuiteName = "";
   let isSaving = false;
   const ui = createUIActions();
+
+  async function handleConvertToTask() {
+    if (!caseId) return;
+    try {
+      const resp = await api.data.testCases.convertToTask(caseId);
+      if (resp.ok) {
+        const data = await resp.json();
+        ui.showMessage("Task created successfully", "success");
+        // Redirect to task detail
+        const urlRoom = $page.url.searchParams.get("room") || (browser ? localStorage.getItem("sync-room-code") : null);
+        const roomParam = urlRoom ? `?room=${urlRoom}` : "";
+        goto(`${base}/workspace/${workspaceId}/task/${data.task_id}${roomParam}`);
+      } else {
+        const error = await resp.text();
+        ui.showMessage(`Failed to create task: ${error}`, "error");
+      }
+    } catch (e) {
+      ui.showMessage("An error occurred", "error");
+    }
+  }
 
   async function handleCreateSuite() {
     if (!newSuiteName.trim() || !workspaceId) return;
@@ -416,18 +437,30 @@
         <ArrowLeft size={16} />
         Back
       </button>
-      <button
-        type="submit"
-        class="flex h-10 items-center gap-2 rounded-xl bg-indigo-600 px-6 text-sm font-black text-white shadow-lg shadow-indigo-600/25 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-        disabled={isSaving || !name.trim()}
-      >
-        {#if isSaving}
-          <Clock size={16} class="animate-spin" />
-          <span>Saving...</span>
-        {:else}
-          {isEditing ? "Save test case" : "Create test case"}
+      <div class="flex items-center gap-3">
+        {#if isEditing && isAuthorized}
+          <button
+            type="button"
+            class="flex h-10 items-center gap-2 rounded-xl bg-white/5 px-4 text-sm font-black text-white hover:bg-white/10 transition-colors"
+            on:click={handleConvertToTask}
+          >
+            <Plus size={16} />
+            <span>Create Task</span>
+          </button>
         {/if}
-      </button>
+        <button
+          type="submit"
+          class="flex h-10 items-center gap-2 rounded-xl bg-indigo-600 px-6 text-sm font-black text-white shadow-lg shadow-indigo-600/25 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={isSaving || !name.trim()}
+        >
+          {#if isSaving}
+            <Clock size={16} class="animate-spin" />
+            <span>Saving...</span>
+          {:else}
+            {isEditing ? "Save test case" : "Create test case"}
+          {/if}
+        </button>
+      </div>
     </header>
 
     <main class="mt-6 flex-1 rounded-2xl border border-white/10 bg-[#111827] shadow-2xl shadow-black/30">
@@ -515,7 +548,7 @@
               Fixed
             </span>
             <div class="property-select">
-              <SearchableSelect id="editor-fixed" bind:value={fixed} options={fixedOptions} showSearch={false} minimal={true} />
+              <SearchableSelect id="editor-fixed" bind:value={fixed} options={fixedOptions} showSearch={false} minimal={true} disabled={!isAuthorized} />
             </div>
           </label>
 

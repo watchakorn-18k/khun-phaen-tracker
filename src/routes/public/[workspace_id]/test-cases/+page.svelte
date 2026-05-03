@@ -11,6 +11,7 @@
     Moon,
     Sun,
     ExternalLink,
+    FileDown,
   } from "lucide-svelte";
   import favicon from "$lib/assets/favicon.svg";
 
@@ -24,6 +25,14 @@
     assign_dev: string;
     fixed: string;
     suite_id: string;
+    preconditions?: string;
+    postconditions?: string;
+    input?: string;
+    expected_result?: string;
+    actual_result?: string;
+    step_format?: string;
+    gherkin_steps?: any[];
+    classic_steps?: any[];
   };
 
   type Suite = {
@@ -40,6 +49,7 @@
 
   let suites: Suite[] = [];
   let loading = true;
+  let exporting = false;
   let query = "";
   let searchTimeout: any;
   let filterPriority = "";
@@ -56,6 +66,14 @@
       assign_dev: tc.assign_dev || "unassigned",
       fixed: tc.fixed || "no",
       suite_id: tc.suite_id || "",
+      preconditions: tc.preconditions,
+      postconditions: tc.postconditions,
+      input: tc.input,
+      expected_result: tc.expected_result,
+      actual_result: tc.actual_result,
+      step_format: tc.step_format,
+      gherkin_steps: tc.gherkin_steps,
+      classic_steps: tc.classic_steps,
     };
   }
 
@@ -105,6 +123,85 @@
       console.error("Failed to load public data:", e);
     } finally {
       loading = false;
+    }
+  }
+
+  async function exportToCSV() {
+    if (!workspaceId || exporting) return;
+    exporting = true;
+    try {
+      const casesResp = await api.public.getAllTestCases(workspaceId);
+      if (!casesResp.ok) return;
+      const allCasesData = await casesResp.json();
+      const allCases = allCasesData.map(mapCase);
+
+      const suiteMap = new Map<string, string>(
+        suites.map((s) => [s.id, s.title]),
+      );
+      suiteMap.set("unassigned", "Unassigned");
+
+      const headers = [
+        "Suite",
+        "Test Case No",
+        "Test Name",
+        "Status",
+        "Assign Tester",
+        "Assign Dev",
+        "Precondition",
+        "Input",
+        "Expected Result",
+        "Actual Result",
+        "Test Step",
+      ];
+      
+      let rows: string[][] = [];
+
+      allCases.forEach((c: TestCase) => {
+        let steps = "";
+        if (c.step_format === "gherkin") {
+          steps = (c.gherkin_steps || [])
+            .map((s: any) => `${s.keyword} ${s.text}`)
+            .join("\n");
+        } else {
+          steps = (c.classic_steps || [])
+            .map((s: any) => s.action)
+            .join("\n");
+        }
+
+        rows.push([
+          String(suiteMap.get(c.suite_id) || "Unassigned"),
+          String(c.test_no),
+          String(c.title || ""),
+          String(c.status || ""),
+          "Public View",
+          String(c.assign_dev || "unassigned"),
+          String(c.preconditions || ""),
+          String(c.input || ""),
+          String(c.expected_result || ""),
+          String(c.actual_result || ""),
+          String(steps || ""),
+        ]);
+      });
+
+      let csv = headers.join(",") + "\n";
+      rows.forEach((row) => {
+        csv +=
+          row.map((v) => `"${(v || "").replace(/"/g, '""')}"`).join(",") + "\n";
+      });
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `test_cases_${workspaceId}.csv`);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      console.error("Failed to export:", e);
+    } finally {
+      exporting = false;
     }
   }
 
@@ -196,6 +293,20 @@
         </div>
       </div>
       <div class="flex items-center gap-2">
+        <button
+          class="flex items-center gap-2 h-9 px-4 rounded-lg bg-indigo-600 text-white text-sm font-bold transition-all hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+          on:click={exportToCSV}
+          disabled={exporting}
+        >
+          {#if exporting}
+            <div class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
+            Exporting...
+          {:else}
+            <FileDown size={16} />
+            Export CSV
+          {/if}
+        </button>
+
         <button
           class="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
           on:click={() => theme.toggle()}

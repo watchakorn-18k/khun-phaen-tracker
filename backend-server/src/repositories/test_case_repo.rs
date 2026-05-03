@@ -184,7 +184,7 @@ impl TestCaseRepository {
         }
 
         let mut options = mongodb::options::FindOptions::builder()
-            .sort(doc! { "test_no": -1 })
+            .sort(doc! { "test_no": 1 })
             .build();
         
         if let Some(l) = limit {

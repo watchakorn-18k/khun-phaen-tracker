@@ -10,6 +10,7 @@
     currentWorkspaceIcon,
     clearWorkspaceId,
     setWorkspaceId,
+    currentWorkspaceShortName,
     MY_TASKS_WORKSPACE_ID,
   } from "$lib/stores/workspace";
   import { theme } from "$lib/stores/theme";
@@ -152,7 +153,7 @@
 
   function getPinnedTaskNumber(task: any): string {
     if (!task?.task_number) return "";
-    const prefix = task.workspace_short_name || task.short_name || "TASK";
+    const prefix = task.workspace_short_name || task.short_name || $currentWorkspaceShortName || "TASK";
     return `${prefix}-${task.task_number}`;
   }
 

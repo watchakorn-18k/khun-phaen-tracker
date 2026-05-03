@@ -1146,5 +1146,8 @@ export const api = {
       const query = cleanParams && Object.keys(cleanParams).length > 0 ? "?" + new URLSearchParams(cleanParams as any).toString() : "";
       return fetch(`${API_BASE_URL}/public/workspaces/${wsId}/test-cases${query}`);
     },
+    getAllTestCases: (wsId: string): Promise<Response> => {
+      return fetch(`${API_BASE_URL}/public/workspaces/${wsId}/all-test-cases`);
+    },
   },
 };
