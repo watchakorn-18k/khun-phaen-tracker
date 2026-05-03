@@ -14,6 +14,7 @@
     setWorkspaceId,
   } from "$lib/stores/workspace";
   import { user } from "$lib/stores/auth";
+  import { modals, createUIActions } from "$lib/stores/uiActions";
   import StatsPanel from "$lib/components/StatsPanel.svelte";
   import WorkspaceLoading from "$lib/components/WorkspaceLoading.svelte";
   import AccessDenied from "$lib/components/AccessDenied.svelte";
@@ -27,21 +28,61 @@
     AlertCircle,
     ChevronRight
   } from "lucide-svelte";
+  import WorkspaceModals from "$lib/components/WorkspaceModals.svelte";
+  import CommandPalette from "$lib/components/CommandPalette.svelte";
+  import { createKeyboardHandler } from "$lib/stores/keyboardActions";
+  import { getKeyboardConfig } from "$lib/stores/workspaceKeyboardConfig";
+  import { theme } from "$lib/stores/theme";
+  import { sprints } from "$lib/stores/sprintStore";
+  import { buildMonthlySummary } from "$lib/utils/monthly-summary";
 
   const ws = createWorkspacePageStore();
   const {
-    loadingData,
-    tasks,
-    stats,
-    projectStats,
-    projectList,
-    workerStats,
-    assignees,
-    hasAccess,
-    checkingAccess,
     workspaceActions,
     loadData,
+    editingTask,
+    allTasksIncludingArchived,
+    taskActions,
+    sprintActions,
+    viewActions,
+    searchInput,
+    assignees,
+    projectList,
+    loadingData,
+    workerStats,
+    projectStats,
+    stats,
+    hasAccess,
+    checkingAccess,
   } = ws;
+
+  const uiActions = createUIActions();
+
+  const { currentView, pageSize, currentPage } = viewActions;
+
+  const keyboardHandler = createKeyboardHandler(
+    getKeyboardConfig({
+      uiActions,
+      modals,
+      editingTask: $editingTask,
+      setEditingTask: (v) => ($editingTask = v),
+      searchInputRef: null,
+      visibleTabs: [],
+      viewActions,
+    }),
+  );
+
+  function cancelEdit() {
+    $editingTask = null;
+    uiActions.closeModal("form");
+  }
+
+  function openTaskPage(task: any) {
+    const wsId = $page.params.workspace_id;
+    const urlRoom = $page.url.searchParams.get("room");
+    const roomParam = urlRoom ? `?room=${urlRoom}` : "";
+    goto(`${base}/workspace/${wsId}/task/${task.id}${roomParam}`);
+  }
 
   let activeWorkspaceKey = "";
   let workspaceInitRun = 0;
@@ -100,11 +141,12 @@
   }
 
   onMount(() => {
-    // Initial load if needed
+    document.addEventListener("keydown", keyboardHandler);
   });
 
   onDestroy(() => {
     if (browser) {
+      document.removeEventListener("keydown", keyboardHandler);
       disconnectRealtime();
     }
   });
@@ -126,6 +168,8 @@
       count: s.taskCount
     };
   }).sort((a, b) => b.count - a.count);
+
+  $: monthlySummary = buildMonthlySummary($allTasksIncludingArchived);
 </script>
 
 <div class="px-4 sm:px-6 space-y-8 pb-24 pt-6">
@@ -332,6 +376,74 @@
         </div>
       </div>
     </div>
+    
+    <WorkspaceModals
+      modals={$modals}
+      editingTask={$editingTask}
+      assignees={$assignees}
+      {isOwner}
+      projectList={$projectList}
+      sprints={$sprints}
+      allTasksIncludingArchived={$allTasksIncludingArchived}
+      qrExportTasks={[]}
+      loadingData={$loadingData}
+      workerStats={$workerStats}
+      projectStats={$projectStats}
+      {monthlySummary}
+      monthlySummaryRef={null}
+      workspaceId={String($page.params.workspace_id || "")}
+      newPageSize={20}
+      on:addTask={(e) => taskActions.handleAddTask(e)}
+      on:cancelEdit={cancelEdit}
+      on:addAssignee={(e) => taskActions.handleAddAssignee(e)}
+      on:checklistUpdate={(e) => taskActions.handleChecklistUpdate(e)}
+      on:closeModal={(e) => uiActions.closeModal(e.detail)}
+      on:closeWorkerManager={() => uiActions.closeModal("workerManager")}
+      on:addWorker={(e) => workspaceActions.handleAddWorker(e)}
+      on:updateWorker={(e) => workspaceActions.handleUpdateWorker(e)}
+      on:deleteWorker={(e) => workspaceActions.handleDeleteWorker(e)}
+      on:closeSprintManager={() => uiActions.closeModal("sprintManager")}
+      on:completeSprint={(e) => sprintActions.handleCompleteSprint(e)}
+      on:deleteSprint={(e) => sprintActions.handleDeleteSprint(e)}
+      on:moveTasksToSprint={(e) => sprintActions.handleMoveTasksToSprint(e)}
+      on:closeProjectManager={() => uiActions.closeModal("projectManager")}
+      on:addProject={(e) => workspaceActions.handleAddProject(e)}
+      on:updateProject={(e) => workspaceActions.handleUpdateProject(e)}
+      on:deleteProject={(e) => workspaceActions.handleDeleteProject(e)}
+    />
+
+    <CommandPalette
+      open={$modals.commandPalette}
+      tasks={$allTasksIncludingArchived}
+      sprints={$sprints}
+      projects={$projectList}
+      assignees={$assignees}
+      t={(key, options) => $_(key, options)}
+      toggleTheme={() => theme.toggle()}
+      switchView={(v) => {
+        if (v === 'overview') return;
+        goto(`${base}/workspace/${workspaceId}${$page.url.search}`);
+      }}
+      openTask={(t) => {
+        void openTaskPage(t);
+      }}
+      createTask={() => {
+        $editingTask = null;
+        uiActions.openModal("form");
+      }}
+      startTimer={() => {}}
+      openQuickNotes={() => {}}
+      applyGlobalSearch={(q) => {
+        searchInput.set(q);
+        uiActions.closeModal("commandPalette");
+        goto(`${base}/workspace/${workspaceId}${$page.url.search}`);
+      }}
+      openBookmarks={() => {}}
+      openWhiteboard={() => {}}
+      on:close={() => uiActions.closeModal("commandPalette")}
+      dailyReflect={() => uiActions.openModal("dailyReflect")}
+      openPageSize={() => uiActions.openModal("pageSize")}
+    />
   {/if}
 </div>
 

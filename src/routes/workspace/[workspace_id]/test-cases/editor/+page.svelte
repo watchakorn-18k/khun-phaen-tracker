@@ -483,39 +483,21 @@
               Assign Tester
             </span>
             <div class="property-select">
-              {#if isAuthorized}
-                <SearchableSelect id="editor-assign-tester" bind:value={assignTester} options={assigneeOptions} minimal={true} />
-              {:else}
-                <div class="pointer-events-none opacity-80">
-                  <SearchableSelect id="editor-assign-tester" bind:value={assignTester} options={assigneeOptions} minimal={true} />
-                </div>
-              {/if}
+              <SearchableSelect id="editor-assign-tester" bind:value={assignTester} options={assigneeOptions} minimal={true} disabled={!isAuthorized} />
             </div>
           </label>
         </div>
 
         <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
-          {#if isAuthorized}
-            <label class="space-y-2">
-              <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
-                <ClipboardCheck size={14} />
-                Status
-              </span>
-              <div class="property-select">
-                <SearchableSelect id="editor-status" bind:value={status} options={statusOptions} showSearch={false} minimal={true} />
-              </div>
-            </label>
-          {:else}
-            <label class="space-y-2 opacity-80 pointer-events-none">
-              <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
-                <ClipboardCheck size={14} />
-                Status
-              </span>
-              <div class="property-select">
-                <SearchableSelect id="editor-status" bind:value={status} options={statusOptions} showSearch={false} minimal={true} />
-              </div>
-            </label>
-          {/if}
+          <label class="space-y-2">
+            <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
+              <ClipboardCheck size={14} />
+              Status
+            </span>
+            <div class="property-select">
+              <SearchableSelect id="editor-status" bind:value={status} options={statusOptions} showSearch={false} minimal={true} disabled={!isAuthorized} />
+            </div>
+          </label>
 
           <label class="space-y-2">
             <span class="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-gray-500">
@@ -523,13 +505,7 @@
               Priority
             </span>
             <div class="property-select">
-              {#if isAuthorized}
-                <SearchableSelect id="editor-priority" bind:value={priority} options={priorityOptions} showSearch={false} minimal={true} />
-              {:else}
-                <div class="pointer-events-none opacity-80">
-                  <SearchableSelect id="editor-priority" bind:value={priority} options={priorityOptions} showSearch={false} minimal={true} />
-                </div>
-              {/if}
+              <SearchableSelect id="editor-priority" bind:value={priority} options={priorityOptions} showSearch={false} minimal={true} disabled={!isAuthorized} />
             </div>
           </label>
 
@@ -561,13 +537,7 @@
               {/if}
             </span>
             <div class="property-select">
-              {#if isAuthorized}
-                <SearchableSelect id="editor-suite" bind:value={suiteId} options={suiteOptions} minimal={true} />
-              {:else}
-                <div class="pointer-events-none opacity-80">
-                  <SearchableSelect id="editor-suite" bind:value={suiteId} options={suiteOptions} minimal={true} />
-                </div>
-              {/if}
+              <SearchableSelect id="editor-suite" bind:value={suiteId} options={suiteOptions} minimal={true} disabled={!isAuthorized} />
             </div>
           </label>
         </div>

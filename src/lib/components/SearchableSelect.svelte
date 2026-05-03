@@ -21,6 +21,7 @@
 	export let maxDisplay: number = 8;
 	export let minimal: boolean = false;
 	export let customClass: string = '';
+	export let disabled: boolean = false;
 
 	let isOpen = false;
 	let searchQuery = '';
@@ -61,6 +62,7 @@
 	}
 
 	function toggleDropdown() {
+		if (disabled) return;
 		isOpen = !isOpen;
 		if (isOpen) {
 			setTimeout(() => searchInputRef?.focus(), 0);
@@ -87,8 +89,9 @@
 	<button
 		type="button"
 		{id}
-		class="property-trigger-btn w-full {minimal ? 'h-8 px-2.5 text-[13px] border-transparent bg-transparent hover:bg-white/5' : 'h-10 px-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'} rounded-lg outline-none text-left flex items-center justify-between transition-all {customClass}"
+		class="property-trigger-btn w-full {minimal ? 'h-8 px-2.5 text-[13px] border-transparent bg-transparent hover:bg-white/5' : 'h-10 px-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'} rounded-lg outline-none text-left flex items-center justify-between transition-all {disabled ? 'opacity-60 cursor-default' : ''} {customClass}"
 		on:click={toggleDropdown}
+		{disabled}
 	>
 		<span class="truncate flex items-center gap-2">
 			{#if selectedAvatarUrl || selectedAvatarColor}
@@ -119,8 +122,8 @@
 	</button>
 
 	<!-- Dropdown -->
-	{#if isOpen}
-		<div class="absolute z-[9000] w-full min-w-[180px] mt-1 bg-gray-900 border border-white/10 rounded-xl shadow-2xl max-h-80 overflow-hidden" transition:fade={{ duration: 100 }}>
+	{#if isOpen && !disabled}
+		<div class="absolute z-[9000] w-full min-w-[200px] mt-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl shadow-2xl max-h-80 overflow-hidden ring-1 ring-black/5" transition:fade={{ duration: 100 }}>
 			<!-- Search Input -->
 			{#if showSearch}
 				<div class="border-b border-white/10">
@@ -129,7 +132,7 @@
 						bind:this={searchInputRef}
 						bind:value={searchQuery}
 						placeholder={placeholder}
-						class="w-full h-10 px-4 text-[13px] bg-transparent border-none outline-none text-gray-200 placeholder:text-gray-500 focus:ring-0"
+						class="w-full h-10 px-4 text-[13px] bg-transparent border-none outline-none text-gray-900 dark:text-gray-100 placeholder:text-gray-500 focus:ring-0"
 					/>
 				</div>
 			{/if}
@@ -149,7 +152,7 @@
 						{:else}
 							<button
 								type="button"
-								class="w-full px-4 py-2 text-left text-[13px] hover:bg-white/5 flex items-center justify-between transition-colors {isSameValue(value, option.value) ? 'text-white font-medium' : 'text-gray-300'}"
+								class="w-full px-4 py-2 text-left text-[13px] hover:bg-gray-50 dark:hover:bg-white/5 flex items-center justify-between transition-colors {isSameValue(value, option.value) ? 'text-indigo-600 dark:text-white font-black' : 'text-gray-700 dark:text-gray-300'}"
 								on:click={() => selectOption(option.value)}
 							>
 								<div class="flex items-center gap-2.5 {option.pillClass || ''}">

@@ -34,6 +34,13 @@ impl TestSuiteService {
     }
 
     pub async fn delete_suite(&self, id: &str, delete_cases: bool) -> mongodb::error::Result<bool> {
+        if id == "unassigned" {
+            if delete_cases {
+                self.case_repo.delete_unassigned().await?;
+            }
+            return Ok(true);
+        }
+
         if delete_cases {
             self.case_repo.delete_by_suite(id).await?;
         } else {

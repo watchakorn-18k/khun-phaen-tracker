@@ -7,7 +7,7 @@
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
   import { onDestroy, onMount } from "svelte";
   import { fade } from "svelte/transition";
-  import { api } from "$lib/apis";
+  import { api, API_BASE_URL } from "$lib/apis";
   import { user } from "$lib/stores/auth";
   import { createUIActions } from "$lib/stores/uiActions";
   import {
@@ -38,10 +38,29 @@
     AlertCircle,
     Check,
     Shield,
+    Image as ImageIcon,
+    ZoomIn,
+    ZoomOut,
+    Maximize2,
+    RotateCw,
+    ExternalLink,
+    Paperclip,
+    Copy,
+    RotateCcw,
   } from "lucide-svelte";
   import { _ } from "svelte-i18n";
   import TestCaseStepList from "$lib/components/TestCaseStepList.svelte";
   import { getAssignees } from "$lib/db";
+  import ConfirmModal from "$lib/components/ConfirmModal.svelte";
+  import { createWorkspacePageStore } from "$lib/stores/workspacePageStore";
+  import WorkspaceModals from "$lib/components/WorkspaceModals.svelte";
+  import CommandPalette from "$lib/components/CommandPalette.svelte";
+  import { createKeyboardHandler } from "$lib/stores/keyboardActions";
+  import { getKeyboardConfig } from "$lib/stores/workspaceKeyboardConfig";
+  import { theme } from "$lib/stores/theme";
+  import { sprints } from "$lib/stores/sprintStore";
+  import { buildMonthlySummary } from "$lib/utils/monthly-summary";
+  import { modals } from "$lib/stores/uiActions";
 
   type Step = {
     action: string;
@@ -72,6 +91,7 @@
     suite_id: string;
     dev_note?: string;
     test_note?: string;
+    attachments: TestCaseAttachment[];
   };
 
   type Suite = {
@@ -98,6 +118,15 @@
     text: string;
   };
 
+  type TestCaseAttachment = {
+    id: string;
+    filename: string;
+    file_key: string;
+    mime_type: string;
+    size: number;
+    uploaded_at: string;
+  };
+
   type ClassicStep = {
     action: string;
     data: string;
@@ -106,6 +135,46 @@
 
   let suites: Suite[] = [];
   const ui = createUIActions();
+  
+  const ws = createWorkspacePageStore();
+  const {
+    assignees: wsAssignees,
+    projectList,
+    loadingData: wsLoadingData,
+    workerStats,
+    projectStats,
+    workspaceActions: wsActions,
+    taskActions,
+    sprintActions,
+    viewActions,
+    searchInput,
+    editingTask: wsEditingTask,
+    allTasksIncludingArchived,
+  } = ws;
+
+  const keyboardHandler = createKeyboardHandler(
+    getKeyboardConfig({
+      uiActions: ui,
+      modals,
+      editingTask: $wsEditingTask,
+      setEditingTask: (v) => ($wsEditingTask = v),
+      searchInputRef: null,
+      visibleTabs: [],
+      viewActions,
+    }),
+  );
+
+  function cancelTaskEdit() {
+    $wsEditingTask = null;
+    ui.closeModal("form");
+  }
+
+  function openTaskPage(task: any) {
+    const wsId = $page.params.workspace_id;
+    const urlRoom = $page.url.searchParams.get("room");
+    const roomParam = urlRoom ? `?room=${urlRoom}` : "";
+    goto(`${base}/workspace/${wsId}/task/${task.id}${roomParam}`);
+  }
 
   $: isAuthorized =
     $user?.role === "admin" || $user?.profile?.position === "QA Tester";
@@ -149,7 +218,8 @@
   let sidebarStepFormat: "classic" | "gherkin" = "classic";
   let isSavingSidebarSteps = false;
   let lastLoadedCaseId = "";
-  let sidebarTab: "general" | "notes" | "properties" = "general";
+  let sidebarTab: "general" | "notes" | "properties" | "attachments" =
+    "general";
   let isSavingNotes = false;
   let devNote = "";
   let testNote = "";
@@ -165,6 +235,9 @@
     fixed: [],
     assign_dev: [],
   };
+
+  let showDeleteModal = false;
+  let caseToDeleteId = "";
 
   let editingField: string | null = null;
   let tempFieldValue = "";
@@ -241,15 +314,20 @@
   }
 
   async function deleteTestCase(id: string) {
-    if (!confirm("Are you sure you want to delete this test case?")) return;
+    caseToDeleteId = id;
+    showDeleteModal = true;
+  }
+
+  async function confirmDeleteTestCase() {
+    if (!caseToDeleteId) return;
     try {
-      const resp = await api.data.testCases.delete(id);
+      const resp = await api.data.testCases.delete(caseToDeleteId);
       if (resp.ok) {
         suites = suites.map((s) => ({
           ...s,
-          cases: s.cases.filter((c) => c.id !== id),
+          cases: s.cases.filter((c) => c.id !== caseToDeleteId),
         }));
-        if (selectedCaseId === id) {
+        if (selectedCaseId === caseToDeleteId) {
           selectedCaseId = "";
         }
         ui.showMessage("Test case deleted", "success");
@@ -258,11 +336,159 @@
       }
     } catch (e) {
       ui.showMessage("An error occurred", "error");
+    } finally {
+      showDeleteModal = false;
+      caseToDeleteId = "";
     }
   }
 
   function focusOnInit(node: HTMLElement) {
     node.focus();
+  }
+
+  // Lightbox state
+  let lightboxImages: { src: string; alt: string }[] = [];
+  let lightboxSrc = "";
+  let lightboxAlt = "";
+  let lightboxOpen = false;
+  let lightboxZoom = 1;
+  let lightboxX = 0;
+  let lightboxY = 0;
+  let lightboxRotation = 0;
+  let lightboxIndex = 0;
+  let isLightboxDragging = false;
+  let dragStartX = 0;
+  let dragStartY = 0;
+  let dragStartOffsetX = 0;
+  let dragStartOffsetY = 0;
+  let lightboxCopyFeedback = "";
+
+  function getAttachmentUrl(fileKey: string): string {
+    return `${API_BASE_URL.replace(/\/api$/, "")}/api/files/${fileKey}`;
+  }
+
+  function openLightbox(
+    images: { file_key: string; filename?: string }[],
+    index: number,
+  ) {
+    lightboxImages = images.map((img) => ({
+      src: getAttachmentUrl(img.file_key),
+      alt: img.filename || "Image",
+    }));
+    lightboxIndex = Math.min(Math.max(index, 0), lightboxImages.length - 1);
+    lightboxSrc = lightboxImages[lightboxIndex].src;
+    lightboxAlt = lightboxImages[lightboxIndex].alt;
+    lightboxZoom = 1;
+    lightboxX = 0;
+    lightboxY = 0;
+    lightboxRotation = 0;
+    lightboxCopyFeedback = "";
+    lightboxOpen = true;
+  }
+
+  function closeLightbox() {
+    lightboxOpen = false;
+    isLightboxDragging = false;
+  }
+
+  function lbZoomIn() {
+    lightboxZoom = Math.min(lightboxZoom + 0.25, 5);
+  }
+  function lbZoomOut() {
+    lightboxZoom = Math.max(lightboxZoom - 0.25, 0.25);
+  }
+  function lbResetView() {
+    lightboxZoom = 1;
+    lightboxX = 0;
+    lightboxY = 0;
+    lightboxRotation = 0;
+  }
+  function lbRotateRight() {
+    lightboxRotation = (lightboxRotation + 90) % 360;
+  }
+
+  function lbNavigatePrev() {
+    if (lightboxImages.length <= 1) return;
+    lightboxIndex =
+      (lightboxIndex - 1 + lightboxImages.length) % lightboxImages.length;
+    lightboxSrc = lightboxImages[lightboxIndex].src;
+    lightboxAlt = lightboxImages[lightboxIndex].alt;
+    lbResetView();
+  }
+
+  function lbNavigateNext() {
+    if (lightboxImages.length <= 1) return;
+    lightboxIndex = (lightboxIndex + 1) % lightboxImages.length;
+    lightboxSrc = lightboxImages[lightboxIndex].src;
+    lightboxAlt = lightboxImages[lightboxIndex].alt;
+    lbResetView();
+  }
+
+  function lbOpenInNewTab() {
+    window.open(lightboxSrc, "_blank", "noopener,noreferrer");
+  }
+
+  async function lbDownload() {
+    try {
+      const a = document.createElement("a");
+      const res = await fetch(lightboxSrc);
+      const blob = await res.blob();
+      a.href = URL.createObjectURL(blob);
+      a.download =
+        (lightboxAlt && lightboxAlt !== "Image" ? lightboxAlt : "image") +
+        ".png";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch {}
+  }
+
+  function handleLightboxMouseDown(event: MouseEvent) {
+    if (event.button !== 0) return;
+    isLightboxDragging = true;
+    dragStartX = event.clientX;
+    dragStartY = event.clientY;
+    dragStartOffsetX = lightboxX;
+    dragStartOffsetY = lightboxY;
+  }
+
+  function handleLightboxMouseMove(event: MouseEvent) {
+    if (!isLightboxDragging) return;
+    lightboxX = dragStartOffsetX + (event.clientX - dragStartX);
+    lightboxY = dragStartOffsetY + (event.clientY - dragStartY);
+  }
+
+  function handleLightboxMouseUp() {
+    isLightboxDragging = false;
+  }
+
+  function handleLightboxKeydown(event: KeyboardEvent) {
+    if (!lightboxOpen) return;
+    switch (event.key) {
+      case "Escape":
+        closeLightbox();
+        break;
+      case "+":
+      case "=":
+        lbZoomIn();
+        break;
+      case "-":
+        lbZoomOut();
+        break;
+      case "0":
+        lbResetView();
+        break;
+      case "r":
+      case "R":
+        lbRotateRight();
+        break;
+      case "ArrowLeft":
+        lbNavigatePrev();
+        break;
+      case "ArrowRight":
+        lbNavigateNext();
+        break;
+    }
   }
 
   $: if (selectedCase && selectedCase.id !== lastLoadedCaseId) {
@@ -501,6 +727,7 @@
       suite_id: tc.suite_id,
       dev_note: tc.dev_note || "",
       test_note: tc.test_note || "",
+      attachments: tc.attachments || [],
     };
   }
 
@@ -708,9 +935,13 @@
     }, 300);
   }
 
+  $: monthlySummary = buildMonthlySummary($allTasksIncludingArchived);
+
   onMount(async () => {
+    document.addEventListener("keydown", keyboardHandler);
     assignees = await getAssignees(true);
     await loadData();
+    ws.loadData();
   });
   function downloadTemplate() {
     const headers = [
@@ -1840,7 +2071,7 @@
                       </div>
                       <div class="flex items-center gap-1">
                         <button
-                          class="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-900/30 dark:hover:text-indigo-400 transition-colors"
+                          class="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-white hover:text-slate-700 dark:hover:bg-gray-800 dark:hover:text-white transition-colors"
                           title={isAuthorized ? "Edit Case" : "View Case"}
                           on:click={() =>
                             openTestCaseEditor(suite.id, testCase.id)}
@@ -1854,7 +2085,7 @@
 
                         {#if isAuthorized}
                           <button
-                            class="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/30 dark:hover:text-rose-400 transition-colors"
+                            class="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-white hover:text-slate-700 dark:hover:bg-gray-800 dark:hover:text-white transition-colors"
                             title="Delete Case"
                             on:click={() => deleteTestCase(testCase.id)}
                           >
@@ -1987,7 +2218,7 @@
           <div class="mt-4 flex flex-wrap items-center gap-2">
             {#if isAuthorized}
               <button
-                class="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-gray-800 dark:text-gray-200"
+                class="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
                 title="Edit"
                 on:click={() =>
                   openTestCaseEditor(selectedSuite.id, selectedCase.id)}
@@ -1995,8 +2226,9 @@
                 <Edit3 size={17} />
               </button>
               <button
-                class="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-gray-800 dark:text-gray-200"
+                class="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
                 title="Delete"
+                on:click={() => deleteTestCase(selectedCase.id)}
               >
                 <Trash2 size={17} />
               </button>
@@ -2030,6 +2262,14 @@
             >
               Notes
             </button>
+            <button
+              class="pb-2 transition-colors {sidebarTab === 'attachments'
+                ? 'border-b-2 border-indigo-600 text-slate-800 dark:text-white'
+                : 'hover:text-slate-700 dark:hover:text-gray-300'}"
+              on:click={() => (sidebarTab = "attachments")}
+            >
+              Attachments
+            </button>
           </div>
         </div>
 
@@ -2043,7 +2283,7 @@
                 </h3>
                 {#if isAuthorized && editingField !== "description"}
                   <button
-                    class="p-1 text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
+                    class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-gray-200 transition-colors"
                     on:click={() =>
                       startEditing("description", selectedCase.description)}
                   >
@@ -2093,7 +2333,7 @@
                   </h3>
                   {#if isAuthorized && editingField !== "preconditions"}
                     <button
-                      class="p-1 text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
+                      class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-gray-200 transition-colors"
                       on:click={() =>
                         startEditing(
                           "preconditions",
@@ -2142,7 +2382,7 @@
                   </h3>
                   {#if isAuthorized && editingField !== "postconditions"}
                     <button
-                      class="p-1 text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
+                      class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-gray-200 transition-colors"
                       on:click={() =>
                         startEditing(
                           "postconditions",
@@ -2194,7 +2434,7 @@
                   </h3>
                   {#if isAuthorized && editingField !== "input"}
                     <button
-                      class="p-1 text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
+                      class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-gray-200 transition-colors"
                       on:click={() => startEditing("input", selectedCase.input || "")}
                     >
                       <Edit3 size={14} />
@@ -2239,7 +2479,7 @@
                   </h3>
                   {#if isAuthorized && editingField !== "expected_result"}
                     <button
-                      class="p-1 text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
+                      class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-gray-200 transition-colors"
                       on:click={() =>
                         startEditing(
                           "expected_result",
@@ -2288,7 +2528,7 @@
                   </h3>
                   {#if isAuthorized && editingField !== "actual_result"}
                     <button
-                      class="p-1 text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
+                      class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-gray-200 transition-colors"
                       on:click={() =>
                         startEditing(
                           "actual_result",
@@ -2408,25 +2648,14 @@
                 Priority
               </h3>
               <div class="property-select w-full">
-                {#if isAuthorized}
                   <SearchableSelect
                     id="sidebar-prop-priority-update"
                     value={selectedCase.priority}
                     options={priorityOptions}
                     showSearch={false}
+                    disabled={!isAuthorized}
                     on:select={(e) => updatePriority(selectedCase, e.detail)}
                   />
-                {:else}
-                  <div class="opacity-80 pointer-events-none">
-                    <SearchableSelect
-                      id="sidebar-prop-priority-update"
-                      value={selectedCase.priority}
-                      options={priorityOptions}
-                      showSearch={false}
-                      on:select={() => {}}
-                    />
-                  </div>
-                {/if}
               </div>
             </section>
 
@@ -2437,25 +2666,14 @@
                 Status
               </h3>
               <div class="property-select w-full">
-                {#if isAuthorized}
                   <SearchableSelect
                     id="sidebar-prop-status-update"
                     value={selectedCase.status}
                     options={statusOptions}
                     showSearch={false}
+                    disabled={!isAuthorized}
                     on:select={(e) => updateStatus(selectedCase, e.detail)}
                   />
-                {:else}
-                  <div class="opacity-80 pointer-events-none">
-                    <SearchableSelect
-                      id="sidebar-prop-status-update"
-                      value={selectedCase.status}
-                      options={statusOptions}
-                      showSearch={false}
-                      on:select={() => {}}
-                    />
-                  </div>
-                {/if}
               </div>
             </section>
 
@@ -2500,25 +2718,14 @@
                 Assign Tester
               </h3>
               <div class="property-select w-full">
-                {#if isAuthorized}
                   <SearchableSelect
                     id="sidebar-prop-assigntester-update"
                     value={selectedCase.assignee || "unassigned"}
                     options={assigneeOptions}
                     showSearch={true}
+                    disabled={!isAuthorized}
                     on:select={(e) => updateAssignTester(selectedCase, e.detail)}
                   />
-                {:else}
-                  <div class="opacity-80 pointer-events-none">
-                    <SearchableSelect
-                      id="sidebar-prop-assigntester-update"
-                      value={selectedCase.assignee || "unassigned"}
-                      options={assigneeOptions}
-                      showSearch={true}
-                      on:select={() => {}}
-                    />
-                  </div>
-                {/if}
               </div>
             </section>
           </div>
@@ -2576,6 +2783,49 @@
                 disabled={!isAuthorized}
               ></textarea>
             </section>
+          </div>
+        {:else if sidebarTab === "attachments"}
+          <div class="px-5 py-6">
+            {#if selectedCase.attachments && selectedCase.attachments.length > 0}
+              <div class="grid grid-cols-2 gap-3">
+                {#each selectedCase.attachments as attachment, i}
+                  <button
+                    class="group relative aspect-square overflow-hidden rounded-xl border border-slate-200 bg-slate-50 dark:border-gray-800 dark:bg-gray-900/50"
+                    on:click={() => openLightbox(selectedCase.attachments, i)}
+                  >
+                    <img
+                      src={getAttachmentUrl(attachment.file_key)}
+                      alt={attachment.filename}
+                      class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    />
+                    <div
+                      class="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/20"
+                    ></div>
+                    <div
+                      class="absolute bottom-2 right-2 rounded-lg bg-black/60 p-1.5 text-white opacity-0 transition-opacity group-hover:opacity-100 backdrop-blur-sm"
+                    >
+                      <ImageIcon size={14} />
+                    </div>
+                  </button>
+                {/each}
+              </div>
+            {:else}
+              <div
+                class="flex flex-col items-center justify-center py-20 text-center"
+              >
+                <div
+                  class="mb-4 rounded-full bg-slate-100 p-4 text-slate-400 dark:bg-gray-800 dark:text-gray-500"
+                >
+                  <Paperclip size={32} />
+                </div>
+                <h3 class="text-sm font-black text-slate-700 dark:text-gray-200">
+                  No attachments yet
+                </h3>
+                <p class="mt-1 text-xs text-slate-500">
+                  Images added to this test case will appear here
+                </p>
+              </div>
+            {/if}
           </div>
         {/if}
       </aside>
@@ -2958,6 +3208,207 @@
     </div>
   </div>
 {/if}
+
+{#if lightboxOpen}
+  <div
+    class="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/95 backdrop-blur-md"
+    on:keydown={handleLightboxKeydown}
+    on:wheel|preventDefault={lbZoomIn}
+    role="dialog"
+    aria-modal="true"
+    tabindex="-1"
+  >
+    <div class="absolute top-4 right-4 flex items-center gap-1.5 z-10">
+      <span
+        class="text-white/70 text-sm font-mono bg-black/40 px-2 py-1 rounded"
+        >{Math.round(lightboxZoom * 100)}%</span
+      >
+      {#if lightboxRotation !== 0}
+        <span
+          class="text-white/70 text-sm font-mono bg-black/40 px-2 py-1 rounded"
+          >{lightboxRotation}°</span
+        >
+      {/if}
+      {#if lightboxImages.length > 1}
+        <span class="text-white/70 text-sm bg-black/40 px-2 py-1 rounded"
+          >{lightboxIndex + 1}/{lightboxImages.length}</span
+        >
+      {/if}
+      <div class="w-px h-5 bg-white/20"></div>
+      <button
+        type="button"
+        on:click={lbZoomIn}
+        class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors"
+        title="Zoom in"><ZoomIn size={18} /></button
+      >
+      <button
+        type="button"
+        on:click={lbZoomOut}
+        class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors"
+        title="Zoom out"><ZoomOut size={18} /></button
+      >
+      <button
+        type="button"
+        on:click={lbRotateRight}
+        class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors"
+        title="Rotate"><RotateCw size={18} /></button
+      >
+      <button
+        type="button"
+        on:click={lbResetView}
+        class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors"
+        title="Reset"><RotateCcw size={18} /></button
+      >
+      <div class="w-px h-5 bg-white/20"></div>
+      <button
+        type="button"
+        on:click={() => void lbDownload()}
+        class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors"
+        title="Download"><Download size={18} /></button
+      >
+      <button
+        type="button"
+        on:click={lbOpenInNewTab}
+        class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors"
+        title="Open in new tab"><ExternalLink size={18} /></button
+      >
+      <div class="w-px h-5 bg-white/20"></div>
+      <button
+        type="button"
+        on:click={closeLightbox}
+        class="p-2 bg-black/40 hover:bg-red-600/80 text-white rounded-lg transition-colors"
+        title="Close"><X size={18} /></button
+      >
+    </div>
+
+    {#if lightboxImages.length > 1}
+      <button
+        type="button"
+        on:click={lbNavigatePrev}
+        class="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-black/40 hover:bg-black/60 text-white rounded-full transition-colors z-10"
+        title="Previous"
+      >
+        <ChevronLeft size={24} />
+      </button>
+      <button
+        type="button"
+        on:click={lbNavigateNext}
+        class="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-black/40 hover:bg-black/60 text-white rounded-full transition-colors z-10"
+        title="Next"
+      >
+        <ChevronRight size={24} />
+      </button>
+    {/if}
+
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+    <img
+      src={lightboxSrc}
+      alt={lightboxAlt}
+      class="max-w-[90vw] max-h-[85vh] object-contain select-none {isLightboxDragging
+        ? 'cursor-grabbing'
+        : 'cursor-grab transition-transform duration-150'}"
+      style="transform: scale({lightboxZoom}) translate({lightboxX /
+        lightboxZoom}px, {lightboxY / lightboxZoom}px) rotate({lightboxRotation}deg);"
+      on:mousedown={handleLightboxMouseDown}
+      on:mousemove={handleLightboxMouseMove}
+      on:mouseup={handleLightboxMouseUp}
+      on:mouseleave={handleLightboxMouseUp}
+      draggable="false"
+      role="presentation"
+    />
+
+    {#if lightboxAlt && lightboxAlt !== "Image"}
+      <div
+        class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white/80 text-sm px-4 py-1.5 rounded-full"
+      >
+        {lightboxAlt}
+      </div>
+    {/if}
+  </div>
+{/if}
+
+<ConfirmModal
+  show={showDeleteModal}
+  title="Delete Test Case"
+  message="Are you sure you want to delete this test case? This action cannot be undone."
+  confirmText="Delete"
+  cancelText="Cancel"
+  type="danger"
+  onConfirm={confirmDeleteTestCase}
+  onClose={() => {
+    showDeleteModal = false;
+    caseToDeleteId = "";
+  }}
+/>
+
+<WorkspaceModals
+  modals={$modals}
+  editingTask={$wsEditingTask}
+  assignees={$wsAssignees}
+  isOwner={$user?.role === "admin"}
+  projectList={$projectList}
+  sprints={$sprints}
+  allTasksIncludingArchived={$allTasksIncludingArchived}
+  qrExportTasks={[]}
+  loadingData={$wsLoadingData}
+  workerStats={$workerStats}
+  projectStats={$projectStats}
+  {monthlySummary}
+  monthlySummaryRef={null}
+  workspaceId={String($page.params.workspace_id || "")}
+  newPageSize={20}
+  on:addTask={(e) => taskActions.handleAddTask(e)}
+  on:cancelEdit={cancelTaskEdit}
+  on:addAssignee={(e) => taskActions.handleAddAssignee(e)}
+  on:checklistUpdate={(e) => taskActions.handleChecklistUpdate(e)}
+  on:closeModal={(e) => ui.closeModal(e.detail)}
+  on:closeWorkerManager={() => ui.closeModal("workerManager")}
+  on:addWorker={(e) => wsActions.handleAddWorker(e)}
+  on:updateWorker={(e) => wsActions.handleUpdateWorker(e)}
+  on:deleteWorker={(e) => wsActions.handleDeleteWorker(e)}
+  on:closeSprintManager={() => ui.closeModal("sprintManager")}
+  on:completeSprint={(e) => sprintActions.handleCompleteSprint(e)}
+  on:deleteSprint={(e) => sprintActions.handleDeleteSprint(e)}
+  on:moveTasksToSprint={(e) => sprintActions.handleMoveTasksToSprint(e)}
+  on:closeProjectManager={() => ui.closeModal("projectManager")}
+  on:addProject={(e) => wsActions.handleAddProject(e)}
+  on:updateProject={(e) => wsActions.handleUpdateProject(e)}
+  on:deleteProject={(e) => wsActions.handleDeleteProject(e)}
+/>
+
+<CommandPalette
+  open={$modals.commandPalette}
+  tasks={$allTasksIncludingArchived}
+  sprints={$sprints}
+  projects={$projectList}
+  assignees={$wsAssignees}
+  t={(key, options) => $_(key, options)}
+  toggleTheme={() => theme.toggle()}
+  switchView={(v) => {
+    if (v === 'test-cases') return;
+    goto(`${base}/workspace/${workspaceId}${$page.url.search}`);
+  }}
+  openTask={(t) => {
+    void openTaskPage(t);
+  }}
+  createTask={() => {
+    $wsEditingTask = null;
+    ui.openModal("form");
+  }}
+  startTimer={() => {}}
+  openQuickNotes={() => {}}
+  applyGlobalSearch={(q) => {
+    searchInput.set(q);
+    ui.closeModal("commandPalette");
+    goto(`${base}/workspace/${workspaceId}${$page.url.search}`);
+  }}
+  openBookmarks={() => {}}
+  openWhiteboard={() => {}}
+  on:close={() => ui.closeModal("commandPalette")}
+  dailyReflect={() => ui.openModal("dailyReflect")}
+  openPageSize={() => ui.openModal("pageSize")}
+/>
 
 <style>
   .custom-scrollbar::-webkit-scrollbar {

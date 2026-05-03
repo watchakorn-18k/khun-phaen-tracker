@@ -245,4 +245,12 @@ impl TestCaseRepository {
             .await?;
         Ok(res.deleted_count > 0)
     }
+
+    pub async fn delete_unassigned(&self) -> mongodb::error::Result<u64> {
+        let res = self.collection.delete_many(
+            doc! { "suite_id": { "$in": ["", null] } },
+            None
+        ).await?;
+        Ok(res.deleted_count)
+    }
 }
