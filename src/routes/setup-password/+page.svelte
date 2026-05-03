@@ -81,6 +81,11 @@
     }
 </script>
 
+<svelte:head>
+  <title>ตั้งรหัสผ่าน — Khun Phaen</title>
+  <meta name="description" content="ตั้งรหัสผ่านเพื่อเปิดใช้งานบัญชี Khun Phaen ของคุณ" />
+</svelte:head>
+
 <div class="h-screen w-full flex bg-[#030712] overflow-hidden font-sans">
     <div class="hidden lg:flex w-1/2 relative flex-col justify-between p-12 overflow-hidden bg-[#0A0F1C] border-r border-white/5">
         <div class="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">

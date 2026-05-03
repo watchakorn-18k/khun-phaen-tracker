@@ -2356,6 +2356,7 @@
 
 <svelte:head>
   <title>Test Cases - {workspaceLabel}</title>
+  <meta name="description" content="จัดการ test cases ของ {workspaceLabel}" />
 </svelte:head>
 
 <div

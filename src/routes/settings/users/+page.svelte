@@ -278,6 +278,11 @@
   }
 </script>
 
+<svelte:head>
+  <title>จัดการสมาชิก — Khun Phaen</title>
+  <meta name="description" content="เพิ่ม ลบ และจัดการสมาชิกใน workspace" />
+</svelte:head>
+
 <div class="space-y-6 animate-fade-in">
   <!-- Header Section -->
   <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">

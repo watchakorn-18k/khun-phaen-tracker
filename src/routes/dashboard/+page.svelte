@@ -487,6 +487,11 @@
   ] as const;
 </script>
 
+<svelte:head>
+  <title>Dashboard — Khun Phaen</title>
+  <meta name="description" content="ภาพรวม workspace ทั้งหมดของคุณ — งาน, sprint, และทีม" />
+</svelte:head>
+
 <div class="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
   <Sidebar />
   <main class="flex-1 overflow-y-auto min-w-0 relative p-4 lg:p-8 custom-scrollbar">

@@ -54,8 +54,13 @@
     ];
 </script>
 
+<svelte:head>
+  <title>สร้างบัญชีผู้ใช้ — Khun Phaen</title>
+  <meta name="description" content="สร้างบัญชีผู้ใช้ใหม่เพื่อเริ่มต้นใช้งาน Khun Phaen" />
+</svelte:head>
+
 <div class="h-screen w-full flex bg-[#030712] overflow-hidden font-sans">
-    
+
     <!-- Left Pattern/Branding Section - Hidden on mobile -->
     <div class="hidden lg:flex w-1/2 relative flex-col justify-between p-12 overflow-hidden bg-[#0A0F1C] border-r border-white/5">
         <!-- Animated Background Blur Effects -->

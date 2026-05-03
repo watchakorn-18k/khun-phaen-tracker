@@ -516,6 +516,7 @@
 
 <svelte:head>
   <title>{isEditing ? "Edit" : "Create"} Test Case - {workspaceLabel}</title>
+  <meta name="description" content={isEditing ? "แก้ไข test case ใน " + workspaceLabel : "สร้าง test case ใหม่ใน " + workspaceLabel} />
 </svelte:head>
 
 <div class="min-h-screen bg-[#0b1220] text-white">

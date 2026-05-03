@@ -929,6 +929,11 @@
   }
 </script>
 
+<svelte:head>
+  <title>{task ? task.title + ' — Khun Phaen' : 'Task — Khun Phaen'}</title>
+  <meta name="description" content={task ? task.title + (task.notes ? ' · ' + task.notes.replace(/<[^>]*>/g, '').slice(0, 100) : '') : 'รายละเอียดงาน'} />
+</svelte:head>
+
 <svelte:window
   on:click={handleMoreMenuClickOutside}
   on:keydown={(e) => { handleKeydown(e); handleLightboxKeydown(e); }}

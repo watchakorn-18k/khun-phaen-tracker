@@ -16,6 +16,7 @@
   import {
     MY_TASKS_WORKSPACE_ID,
     currentWorkspaceOwnerId,
+    currentWorkspaceName,
     setWorkspaceId,
   } from "$lib/stores/workspace";
   import { theme } from "$lib/stores/theme";
@@ -360,6 +361,11 @@
     });
   }
 </script>
+
+<svelte:head>
+  <title>{$currentWorkspaceName ? $currentWorkspaceName + ' — Khun Phaen' : 'Khun Phaen'}</title>
+  <meta name="description" content={$currentWorkspaceName ? 'จัดการงานและ sprint ใน ' + $currentWorkspaceName : 'จัดการงานและ sprint ของทีม'} />
+</svelte:head>
 
 <svelte:window on:click={handleWindowClick} />
 

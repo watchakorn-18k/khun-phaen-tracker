@@ -139,6 +139,11 @@
   $: initials = getInitials(displayName || $user?.email || "?");
 </script>
 
+<svelte:head>
+  <title>โปรไฟล์ — Khun Phaen</title>
+  <meta name="description" content="จัดการข้อมูลโปรไฟล์และการตั้งค่าบัญชีของคุณ" />
+</svelte:head>
+
 <div class="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
   <Sidebar />
 

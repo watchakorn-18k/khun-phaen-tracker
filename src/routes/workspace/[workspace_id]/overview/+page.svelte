@@ -11,6 +11,7 @@
   import {
     MY_TASKS_WORKSPACE_ID,
     currentWorkspaceOwnerId,
+    currentWorkspaceName,
     setWorkspaceId,
   } from "$lib/stores/workspace";
   import { user } from "$lib/stores/auth";
@@ -230,6 +231,11 @@
 
   $: tcPassRate = testCaseCounts.total > 0 ? Math.round((testCaseCounts.passed / testCaseCounts.total) * 100) : 0;
 </script>
+
+<svelte:head>
+  <title>{$currentWorkspaceName ? $currentWorkspaceName + ' — Overview · Khun Phaen' : 'Overview — Khun Phaen'}</title>
+  <meta name="description" content={$currentWorkspaceName ? 'ภาพรวม sprint และ progress ใน ' + $currentWorkspaceName : 'ภาพรวม sprint และ progress ของทีม'} />
+</svelte:head>
 
 <div class="px-4 sm:px-6 space-y-8 pb-24 pt-6">
   {#if $checkingAccess}

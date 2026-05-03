@@ -55,6 +55,11 @@
 
 </script>
 
+<svelte:head>
+  <title>การตั้งค่า — Khun Phaen</title>
+  <meta name="description" content="ตั้งค่า workspace, สมาชิก, และการจัดเก็บข้อมูล" />
+</svelte:head>
+
 <div class="space-y-6 animate-fade-in">
   <section class="overflow-hidden rounded-[30px] border border-slate-200 bg-white text-slate-900 shadow-[0_30px_80px_rgba(15,23,42,0.12)] dark:border-slate-800/80 dark:bg-slate-950 dark:text-white dark:shadow-[0_30px_80px_rgba(15,23,42,0.45)]">
     <div class="bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.20),_transparent_35%),linear-gradient(135deg,_#f8fafc_0%,_#e2e8f0_48%,_#c7d2fe_100%)] px-6 py-7 dark:bg-[radial-gradient(circle_at_top_left,_rgba(99,102,241,0.28),_transparent_35%),linear-gradient(135deg,_#020617_0%,_#0f172a_48%,_#1e1b4b_100%)] sm:px-8">
