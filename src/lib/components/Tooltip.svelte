@@ -36,7 +36,7 @@
 
     const tRect = tooltipRef.getBoundingClientRect();
     const padding = 15;
-    const offset = 15;
+    const offset = 40;
 
     // Position to the right of the cursor
     let targetX = mouseX + offset;

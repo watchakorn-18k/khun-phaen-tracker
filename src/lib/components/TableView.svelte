@@ -680,7 +680,7 @@
                   </div>
                 </Tooltip>
 
-                {#if enabledColumns.get('checklist') && task.checklist && task.checklist.length > 0}
+                {#if task.checklist && task.checklist.length > 0}
                   {@const completed = task.checklist.filter(
                     (i) => i.completed,
                   ).length}
@@ -862,9 +862,10 @@
             </td>
           </tr>
           {#if task.checklist && task.checklist.length > 0 && expandedChecklists.has(task.id!)}
+            {@const checklistIndent = 40 + (enabledColumns.get('priority') ? displayColWidth('priority') + 16 : 0)}
             <tr class="bg-gray-50/50 dark:bg-gray-800/30">
-              <td colspan="9" class="px-4 py-2 lg:px-6">
-                <div class="ml-4 space-y-1 max-h-45 overflow-y-auto pr-2">
+              <td colspan="9" class="py-2 pr-4" style="padding-left: {checklistIndent}px;">
+                <div class="space-y-1 max-h-45 overflow-y-auto pr-2">
                   {#each task.checklist as item (item.id)}
                     <button
                       type="button"
