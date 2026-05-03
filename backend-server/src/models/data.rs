@@ -189,6 +189,7 @@ pub struct UpdateTaskRequest {
     pub sprint_id: Option<Option<String>>,
     pub is_archived: Option<bool>,
     pub checklist: Option<Option<serde_json::Value>>,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub links: Option<Option<Vec<String>>>,
 }
 

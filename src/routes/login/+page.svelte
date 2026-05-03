@@ -75,6 +75,11 @@
   ];
 </script>
 
+<svelte:head>
+  <title>เข้าสู่ระบบ — Khun Phaen</title>
+  <meta name="description" content="เข้าสู่ระบบ Khun Phaen เพื่อจัดการงานและ sprint ของทีมคุณ" />
+</svelte:head>
+
 <div class="h-screen w-full flex bg-[#030712] overflow-hidden font-sans">
   <!-- Left Pattern/Branding Section - Hidden on mobile -->
   <div

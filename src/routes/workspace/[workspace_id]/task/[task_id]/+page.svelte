@@ -95,6 +95,7 @@
   import RichTextEditor from "$lib/components/editor/RichTextEditor.svelte";
   import TitleEditor from "$lib/components/editor/TitleEditor.svelte";
   import ChecklistManager from "$lib/components/ChecklistManager.svelte";
+  import LinkPreview from "$lib/components/LinkPreview.svelte";
   import SearchableSelect from "$lib/components/SearchableSelect.svelte";
   import PrioritySelector from "$lib/components/PrioritySelector.svelte";
   import CustomDatePicker from "$lib/components/CustomDatePicker.svelte";
@@ -822,6 +823,34 @@
     void handleUpdateTask({ checklist: event.detail.checklist });
   }
 
+  let newLinkInput = "";
+
+  function linkifyComment(text: string): string {
+    const urlRegex = /(https?:\/\/[^\s<>"']+)/g;
+    return text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(urlRegex, (url) => {
+        const display = url.length > 60 ? url.slice(0, 57) + "…" : url;
+        return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-primary underline underline-offset-2 hover:opacity-80 break-all">${display}</a>`;
+      });
+  }
+
+  function addLink() {
+    const url = newLinkInput.trim();
+    if (!url || !task) return;
+    const updated = [...(task.links || []), url];
+    newLinkInput = "";
+    void handleUpdateTask({ links: updated });
+  }
+
+  function removeLink(url: string) {
+    if (!task) return;
+    const updated = (task.links || []).filter((l) => l !== url);
+    void handleUpdateTask({ links: updated });
+  }
+
   function handleDescriptionChange(value: string) {
     editedDescription = value;
   }
@@ -1196,6 +1225,41 @@
             />
           </div>
 
+          <!-- Links Section -->
+          <div class="space-y-3">
+            <div class="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+              <ExternalLink size={15} />
+              <span>Links</span>
+            </div>
+
+            {#if task.links && task.links.length > 0}
+              <div class="space-y-2">
+                {#each task.links as link}
+                  <LinkPreview url={link} readonly={false} onRemove={() => removeLink(link)} />
+                {/each}
+              </div>
+            {/if}
+
+            <!-- Add link input -->
+            <div class="flex gap-2">
+              <input
+                type="url"
+                bind:value={newLinkInput}
+                placeholder="วาง URL ที่นี่..."
+                on:keydown={(e) => e.key === 'Enter' && addLink()}
+                class="flex-1 text-sm px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+              <button
+                type="button"
+                on:click={addLink}
+                disabled={!newLinkInput.trim()}
+                class="px-3 py-2 rounded-lg bg-primary hover:bg-primary-dark disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+          </div>
+
           <hr class="border-slate-100 dark:border-slate-800" />
 
           <!-- Activity / Comments Section -->
@@ -1290,7 +1354,7 @@
                         class="px-4 pb-3 text-sm text-slate-700 dark:text-slate-300 leading-relaxed space-y-3"
                       >
                         {#if comment.content}
-                          <p class="whitespace-pre-wrap">{comment.content}</p>
+                          <p class="whitespace-pre-wrap">{@html linkifyComment(comment.content)}</p>
                         {/if}
                         {#if comment.images && comment.images.length > 0}
                           <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">

@@ -304,6 +304,11 @@
 
 <svelte:head>
   <link rel="icon" href={favicon} type="image/svg+xml" />
+  <title>Khun Phaen — Task Management System</title>
+  <meta name="description" content="Khun Phaen is an offline-first task management system for teams. Manage tasks, sprints, test cases, and more." />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta property="og:site_name" content="Khun Phaen" />
+  <meta property="og:type" content="website" />
 </svelte:head>
 
 <svelte:window bind:scrollY />
