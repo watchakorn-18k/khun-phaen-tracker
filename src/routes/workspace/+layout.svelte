@@ -24,57 +24,64 @@
       whiteboardMessage = "";
     }, 2500);
   }
+  $: isPublicPage = $page.url.pathname.includes("/public/");
 </script>
 
-<div class="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
-  <Sidebar />
-
-  <!-- Main Content -->
-  <main class="flex-1 overflow-y-auto min-w-0 relative">
-    {#key workspaceId}
-      <slot />
-    {/key}
-
-    {#if whiteboardMessage}
-      <div class="fixed top-4 right-4 z-[110] animate-fade-in">
-        <div
-          class="{whiteboardMessageType === 'success'
-            ? 'bg-green-500'
-            : 'bg-red-500'} text-white px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium"
-        >
-          {whiteboardMessage}
-        </div>
-      </div>
-    {/if}
+{#if isPublicPage}
+  <main class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <slot />
   </main>
-</div>
+{:else}
+  <div class="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
+    <Sidebar />
 
-{#if $modals.bookmarkManager}
-  <BookmarkManager on:close={() => ui.closeModal("bookmarkManager")} />
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto min-w-0 relative">
+      {#key workspaceId}
+        <slot />
+      {/key}
+
+      {#if whiteboardMessage}
+        <div class="fixed top-4 right-4 z-[110] animate-fade-in">
+          <div
+            class="{whiteboardMessageType === 'success'
+              ? 'bg-green-500'
+              : 'bg-red-500'} text-white px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium"
+          >
+            {whiteboardMessage}
+          </div>
+        </div>
+      {/if}
+    </main>
+  </div>
+
+  {#if $modals.bookmarkManager}
+    <BookmarkManager on:close={() => ui.closeModal("bookmarkManager")} />
+  {/if}
+
+  {#if $modals.quickNotes}
+    <QuickNotes on:close={() => ui.closeModal("quickNotes")} />
+  {/if}
+
+  {#if $modals.timerDashboard}
+    <TimerDashboard />
+  {/if}
+
+  {#if $modals.whiteboard}
+    <WhiteboardModal
+      open={$modals.whiteboard}
+      on:close={() => ui.closeModal("whiteboard")}
+      on:notify={(event) => showToast(event.detail.message, event.detail.type)}
+    />
+  {/if}
+
+  {#if showProfileModal}
+    <ProfileModal
+      open={showProfileModal}
+      on:close={() => (showProfileModal = false)}
+      on:notify={(event) => showToast(event.detail.message, event.detail.type)}
+    />
+  {/if}
+
+  <GlobalConfirmModal />
 {/if}
-
-{#if $modals.quickNotes}
-  <QuickNotes on:close={() => ui.closeModal("quickNotes")} />
-{/if}
-
-{#if $modals.timerDashboard}
-  <TimerDashboard />
-{/if}
-
-{#if $modals.whiteboard}
-  <WhiteboardModal
-    open={$modals.whiteboard}
-    on:close={() => ui.closeModal("whiteboard")}
-    on:notify={(event) => showToast(event.detail.message, event.detail.type)}
-  />
-{/if}
-
-{#if showProfileModal}
-  <ProfileModal
-    open={showProfileModal}
-    on:close={() => (showProfileModal = false)}
-    on:notify={(event) => showToast(event.detail.message, event.detail.type)}
-  />
-{/if}
-
-<GlobalConfirmModal />

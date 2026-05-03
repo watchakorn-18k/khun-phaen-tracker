@@ -225,10 +225,10 @@
   $: isAuthPage =
     $page.url.pathname.includes("/login") ||
     $page.url.pathname.includes("/create-account") ||
-    $page.url.pathname.includes("/setup-password") ||
-    $page.url.pathname.includes("/public/");
+    $page.url.pathname.includes("/setup-password");
+  $: isPublicPage = $page.url.pathname.includes("/public/");
   $: isDashboard = $page.url.pathname.includes("/dashboard");
-  $: isWorkspacePage = $page.url.pathname.includes("/workspace/");
+  $: isWorkspacePage = $page.url.pathname.includes("/workspace/") && !isPublicPage;
   $: isMyTasksWorkspacePage = $page.url.pathname.includes(
     `/workspace/${MY_TASKS_WORKSPACE_ID}`,
   );
@@ -283,11 +283,11 @@
   }
 
   $: if (!$authLoading && browser) {
-    if (!$user && !isAuthPage) {
+    if (!$user && !isAuthPage && !isPublicPage) {
       goto(`${base}/login`);
     } else if ($user && isAuthPage) {
       goto(`${base}/dashboard`);
-    } else if ($user && !isAuthPage && !isDashboard) {
+    } else if ($user && !isAuthPage && !isDashboard && !isPublicPage) {
       const urlParams = new URLSearchParams($page.url.search);
       const urlRoom = urlParams.get("room");
       const isPinnedTaskLink =
@@ -354,8 +354,8 @@
         {$_("layout__refresh_page")}
       </button>
     </div>
-  {:else if isAuthPage}
-    <main class="w-full h-screen overflow-hidden">
+  {:else if isAuthPage || isPublicPage}
+    <main class="w-full min-h-screen">
       <slot />
     </main>
   {:else if isWorkspacePage || isDashboard || isSettingsPage || isProfilePage}

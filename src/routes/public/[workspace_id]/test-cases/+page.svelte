@@ -153,7 +153,7 @@
         "Actual Result",
         "Test Step",
       ];
-      
+
       let rows: string[][] = [];
 
       allCases.forEach((c: TestCase) => {
@@ -163,9 +163,7 @@
             .map((s: any) => `${s.keyword} ${s.text}`)
             .join("\n");
         } else {
-          steps = (c.classic_steps || [])
-            .map((s: any) => s.action)
-            .join("\n");
+          steps = (c.classic_steps || []).map((s: any) => s.action).join("\n");
         }
 
         rows.push([
@@ -299,7 +297,9 @@
           disabled={exporting}
         >
           {#if exporting}
-            <div class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
+            <div
+              class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"
+            ></div>
             Exporting...
           {:else}
             <FileDown size={16} />
@@ -334,7 +334,7 @@
           bind:value={query}
           on:input={handleSearch}
           placeholder="Search test cases..."
-          class="flex-1 border-0 bg-transparent text-sm font-medium text-slate-700 outline-none placeholder:text-slate-400 dark:text-gray-200"
+          class="flex-1 border-0 bg-transparent text-sm font-medium text-slate-700 outline-none placeholder:text-slate-400 dark:text-gray-200 dark:!bg-transparent"
         />
       </div>
 
