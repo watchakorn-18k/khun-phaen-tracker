@@ -781,10 +781,17 @@
     try {
       const resp = await api.data.testCases.delete(caseToDeleteId);
       if (resp.ok) {
-        suites = suites.map((s) => ({
-          ...s,
-          cases: s.cases.filter((c) => c.id !== caseToDeleteId),
-        }));
+        suites = suites.map((s) => {
+          const filtered = s.cases.filter((c) => c.id !== caseToDeleteId);
+          const removed = filtered.length < s.cases.length;
+          return {
+            ...s,
+            cases: filtered,
+            totalCount: removed
+              ? Math.max(0, (s.totalCount ?? s.cases.length) - 1)
+              : (s.totalCount ?? s.cases.length),
+          };
+        });
         if (selectedCaseId === caseToDeleteId) {
           selectedCaseId = "";
         }
@@ -2144,7 +2151,11 @@
 
         suites = suites.map((suite) =>
           suite.id === newCase.suite_id
-            ? { ...suite, cases: [...(suite.cases || []), newCase] }
+            ? {
+                ...suite,
+                cases: [...(suite.cases || []), newCase],
+                totalCount: (suite.totalCount ?? suite.cases.length) + 1,
+              }
             : suite,
         );
 
@@ -2200,7 +2211,11 @@
 
         suites = suites.map((suite) =>
           suite.id === (newCase.suite_id || "unassigned")
-            ? { ...suite, cases: [...(suite.cases || []), newCase] }
+            ? {
+                ...suite,
+                cases: [...(suite.cases || []), newCase],
+                totalCount: (suite.totalCount ?? suite.cases.length) + 1,
+              }
             : suite,
         );
 
