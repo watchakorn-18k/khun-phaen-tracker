@@ -1827,7 +1827,7 @@
     <BranchDialog
       show={isBranchDialogOpen}
       title={task.title}
-      workspaceShortName={task.workspace_short_name || projectShortName || ""}
+      workspaceShortName={task.workspace_short_name || projectShortName || $currentWorkspaceShortName || ""}
       taskNumber={task.task_number || null}
       on:close={closeBranchDialog}
     />
