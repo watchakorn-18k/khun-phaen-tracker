@@ -10,10 +10,42 @@ use crate::models::workspace::{CreateWorkspaceRequest, UpdateWorkspaceRequest};
 use crate::handlers::common::verify_workspace_access;
 use crate::repositories::data_repo::DataRepository;
 use crate::repositories::room_repo::RoomRepository;
+use crate::repositories::test_case_repo::TestCaseRepository;
+use crate::repositories::test_run_repo::TestRunRepository;
 use crate::repositories::workspace_repo::WorkspaceRepository;
 use crate::services::workspace_service::WorkspaceService;
 use crate::state::SharedState;
 use mongodb::bson::oid::ObjectId;
+
+fn summarize_run_cases(cases: &[crate::models::test_run::TestRunCase]) -> serde_json::Value {
+    let mut pending = 0;
+    let mut passed = 0;
+    let mut failed = 0;
+    let mut blocked = 0;
+    let mut skipped = 0;
+    let mut invalid = 0;
+
+    for case in cases {
+        match case.status.as_str() {
+            "passed" => passed += 1,
+            "failed" => failed += 1,
+            "blocked" => blocked += 1,
+            "skipped" => skipped += 1,
+            "invalid" => invalid += 1,
+            _ => pending += 1,
+        }
+    }
+
+    serde_json::json!({
+        "total": cases.len(),
+        "pending": pending,
+        "passed": passed,
+        "failed": failed,
+        "blocked": blocked,
+        "skipped": skipped,
+        "invalid": invalid,
+    })
+}
 
 pub async fn get_workspaces_handler(
     State(state): State<SharedState>,
@@ -404,6 +436,126 @@ pub async fn check_workspace_access_handler(
         None => axum::Json(serde_json::json!({ "success": false, "error": "Workspace not found" }))
             .into_response(),
     }
+}
+
+/// GET /api/public/workspaces/:ws_id/summary
+pub async fn get_public_workspace_summary_handler(
+    State(state): State<SharedState>,
+    Path(ws_id): Path<String>,
+) -> axum::response::Response {
+    let workspace_id = match ObjectId::parse_str(&ws_id) {
+        Ok(oid) => oid,
+        Err(_) => {
+            return (
+                axum::http::StatusCode::BAD_REQUEST,
+                axum::Json(serde_json::json!({ "error": "Invalid workspace ID" })),
+            )
+                .into_response()
+        }
+    };
+
+    let data_repo = DataRepository::new(&state.db);
+    let test_case_repo = TestCaseRepository::new(&state.db);
+    let test_run_repo = TestRunRepository::new(&state.db);
+
+    let active_tasks = match data_repo.count_active_tasks(&workspace_id).await {
+        Ok(count) => count,
+        Err(e) => {
+            return (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                axum::Json(serde_json::json!({ "error": e.to_string() })),
+            )
+                .into_response()
+        }
+    };
+
+    let teammates = match data_repo.count_assignees(&workspace_id).await {
+        Ok(count) => count,
+        Err(e) => {
+            return (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                axum::Json(serde_json::json!({ "error": e.to_string() })),
+            )
+                .into_response()
+        }
+    };
+
+    let test_case_counts = match test_case_repo.count_by_workspace(&workspace_id).await {
+        Ok(counts) => counts,
+        Err(e) => {
+            return (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                axum::Json(serde_json::json!({ "error": e.to_string() })),
+            )
+                .into_response()
+        }
+    };
+    let test_cases_total: i64 = test_case_counts.values().sum();
+
+    let sample_cases = match test_case_repo
+        .find_by_workspace(
+            &workspace_id,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(3),
+            Some(0),
+        )
+        .await
+    {
+        Ok(cases) => cases
+            .into_iter()
+            .map(|case| {
+                serde_json::json!({
+                    "id": case.id,
+                    "test_no": case.test_no,
+                    "name": case.name,
+                    "priority": case.priority,
+                    "status": case.status,
+                    "fixed": case.fixed,
+                })
+            })
+            .collect::<Vec<_>>(),
+        Err(e) => {
+            return (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                axum::Json(serde_json::json!({ "error": e.to_string() })),
+            )
+                .into_response()
+        }
+    };
+
+    let latest_run = match test_run_repo.find_latest_by_workspace(&workspace_id).await {
+        Ok(Some(run)) => Some(serde_json::json!({
+            "id": run.id,
+            "name": run.name,
+            "status": run.status,
+            "stats": summarize_run_cases(&run.test_cases),
+            "created_at": run.created_at,
+            "updated_at": run.updated_at,
+        })),
+        Ok(None) => None,
+        Err(e) => {
+            return (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                axum::Json(serde_json::json!({ "error": e.to_string() })),
+            )
+                .into_response()
+        }
+    };
+
+    axum::Json(serde_json::json!({
+        "active_tasks": active_tasks,
+        "test_cases": test_cases_total,
+        "teammates": teammates,
+        "sample_cases": sample_cases,
+        "latest_run": latest_run,
+    }))
+    .into_response()
 }
 
 pub async fn get_notification_config_handler(

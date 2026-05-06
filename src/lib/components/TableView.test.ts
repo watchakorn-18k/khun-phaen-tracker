@@ -32,7 +32,10 @@ describe('TableView', () => {
 		);
 	});
 
-	afterEach(() => cleanup());
+	afterEach(() => {
+		cleanup();
+		vi.unstubAllGlobals();
+	});
 
 	it('sorts rows by title when title header is clicked', async () => {
 		const tasks = [makeTask(1), makeTask(2)];

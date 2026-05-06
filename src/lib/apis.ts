@@ -1154,6 +1154,9 @@ export const api = {
     getLatestTestRun: (wsId: string): Promise<Response> => {
       return fetch(`${API_BASE_URL}/public/workspaces/${wsId}/test-runs/latest`);
     },
+    getSummary: (wsId: string): Promise<Response> => {
+      return fetch(`${API_BASE_URL}/public/workspaces/${wsId}/summary`);
+    },
   },
   testRuns: {
     list: (wsId: string, page = 1, limit = 10): Promise<Response> => {

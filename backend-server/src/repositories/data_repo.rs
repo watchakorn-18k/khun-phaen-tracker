@@ -90,6 +90,22 @@ impl DataRepository {
 
     // ===== TASKS =====
 
+    pub async fn count_active_tasks(
+        &self,
+        workspace_id: &ObjectId,
+    ) -> mongodb::error::Result<u64> {
+        self.tasks
+            .count_documents(
+                doc! {
+                    "workspace_id": workspace_id,
+                    "is_archived": false,
+                    "status": { "$ne": "done" },
+                },
+                None,
+            )
+            .await
+    }
+
     fn build_task_query(
         workspace_filter: Document,
         filter: &TaskFilterQuery,
@@ -752,6 +768,15 @@ impl DataRepository {
             }
         }
         Ok(assignees)
+    }
+
+    pub async fn count_assignees(
+        &self,
+        workspace_id: &ObjectId,
+    ) -> mongodb::error::Result<u64> {
+        self.assignees
+            .count_documents(doc! { "workspace_id": workspace_id }, None)
+            .await
     }
 
     pub async fn find_assignee_by_user_id_and_workspace(

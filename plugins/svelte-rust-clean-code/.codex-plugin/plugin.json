@@ -1,50 +1,44 @@
 {
   "name": "svelte-rust-clean-code",
-  "version": "[TODO: 1.2.0]",
-  "description": "Clean code review and implementation guidance for Svelte and Rust projects.",
+  "version": "1.0.0",
+  "description": "Clean code, architecture, and rigorous full-stack engineering guidance for Svelte and Rust projects.",
   "author": {
-    "name": "[TODO: Author Name]",
-    "email": "[TODO: author@example.com]",
-    "url": "[TODO: https://github.com/author]"
+    "name": "Task Tracker Offline",
+    "email": "local@example.com",
+    "url": "https://localhost"
   },
-  "homepage": "[TODO: https://docs.example.com/plugin]",
-  "repository": "[TODO: https://github.com/author/plugin]",
-  "license": "[TODO: MIT]",
+  "homepage": "https://localhost/plugins/svelte-rust-clean-code",
+  "repository": "local",
+  "license": "MIT",
   "keywords": [
     "svelte",
     "rust",
     "clean-code",
-    "code-review"
+    "code-review",
+    "architecture",
+    "full-stack"
   ],
   "skills": "./skills/",
-  "hooks": "[TODO: ./hooks.json]",
-  "mcpServers": "[TODO: ./.mcp.json]",
-  "apps": "[TODO: ./.app.json]",
   "interface": {
     "displayName": "Svelte Rust Clean Code",
-    "shortDescription": "Review and write cleaner Svelte and Rust code.",
-    "longDescription": "Guidance for maintainable Svelte components and Rust modules, focused on clarity, small interfaces, explicit state, robust errors, and practical review checklists.",
-    "developerName": "[TODO: OpenAI]",
+    "shortDescription": "Build, review, and test cleaner Svelte and Rust systems.",
+    "longDescription": "Guidance for maintainable Svelte and Rust systems, from clean components and robust errors to full-stack architecture, notification flows, real-time channels, subsystem decomposition, and repeatable validation.",
+    "developerName": "Task Tracker Offline",
     "category": "Developer Tools",
     "capabilities": [
       "Review",
-      "Write"
+      "Write",
+      "Architecture",
+      "Testing"
     ],
-    "websiteURL": "[TODO: https://openai.com/]",
-    "privacyPolicyURL": "[TODO: https://openai.com/policies/row-privacy-policy/]",
-    "termsOfServiceURL": "[TODO: https://openai.com/policies/row-terms-of-use/]",
+    "websiteURL": "https://localhost/plugins/svelte-rust-clean-code",
+    "privacyPolicyURL": "https://localhost/privacy",
+    "termsOfServiceURL": "https://localhost/terms",
     "defaultPrompt": [
-      "Review this Svelte component for clean code issues.",
-      "Refactor this Rust module for clarity and safety.",
-      "Check this SvelteKit and Rust PR for maintainability."
+      "Design a complete notification system for Svelte and Rust.",
+      "Refactor this full-stack feature into clean subsystems.",
+      "Review this SvelteKit and Rust PR until it is production-ready."
     ],
-    "brandColor": "[TODO: #3B82F6]",
-    "composerIcon": "[TODO: ./assets/icon.png]",
-    "logo": "[TODO: ./assets/logo.png]",
-    "screenshots": [
-      "[TODO: ./assets/screenshot1.png]",
-      "[TODO: ./assets/screenshot2.png]",
-      "[TODO: ./assets/screenshot3.png]"
-    ]
+    "brandColor": "#3B82F6"
   }
 }

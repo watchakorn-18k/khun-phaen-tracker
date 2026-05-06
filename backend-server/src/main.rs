@@ -500,6 +500,10 @@ async fn main() {
             get(handlers::test_case_handler::list_suites),
         )
         .route(
+            "/api/public/workspaces/:ws_id/summary",
+            get(handlers::workspace_handler::get_public_workspace_summary_handler),
+        )
+        .route(
             "/api/public/workspaces/:ws_id/test-cases",
             get(handlers::test_case_handler::list_test_cases),
         )

@@ -2,7 +2,7 @@
   import { browser } from "$app/environment";
   import { goto } from "$app/navigation";
   import { base } from "$app/paths";
-  import { onDestroy } from "svelte";
+  import { onDestroy, onMount } from "svelte";
   import {
     Mail,
     Lock,
@@ -33,6 +33,50 @@
   const HERO_VARIANT_PAUSE_MS = 1450;
   const HERO_TYPING_START_DELAY_MS = 180;
 
+  type PreviewCase = {
+    name: string;
+    detail: string;
+    badge: string;
+    tone: "blue" | "amber" | "cyan";
+  };
+
+  type LoginSummary = {
+    activeTasks: number;
+    testCases: number;
+    teammates: number;
+    latestRunName: string;
+    latestRunSubtitle: string;
+    sampleCases: PreviewCase[];
+  };
+
+  const FALLBACK_SUMMARY: LoginSummary = {
+    activeTasks: 128,
+    testCases: 42,
+    teammates: 8,
+    latestRunName: "Test run regression",
+    latestRunSubtitle: "34 passed, 3 blocked",
+    sampleCases: [
+      {
+        name: "Release checklist",
+        detail: "API, QA, deploy",
+        badge: "Actual",
+        tone: "blue",
+      },
+      {
+        name: "Test run regression",
+        detail: "34 passed, 3 blocked",
+        badge: "Medium",
+        tone: "amber",
+      },
+      {
+        name: "Warehouse sync",
+        detail: "offline queue ready",
+        badge: "Ready",
+        tone: "cyan",
+      },
+    ],
+  };
+
   let email = "";
   let password = "";
   let showPassword = false;
@@ -46,6 +90,7 @@
   let heroLine1TypingComplete = false;
   let heroTitleSignature = "";
   let typingTimer: ReturnType<typeof setTimeout> | null = null;
+  let loginSummary: LoginSummary = FALLBACK_SUMMARY;
 
   async function handleLogin() {
     loading = true;
@@ -197,6 +242,81 @@
     typingTimer = setTimeout(() => typeLine1(0), HERO_TYPING_START_DELAY_MS);
   }
 
+  function getLoginSummaryWorkspaceId() {
+    if (!browser) return "";
+
+    const params = new URLSearchParams(window.location.search);
+    return (
+      params.get("workspace_id") ||
+      params.get("ws_id") ||
+      localStorage.getItem("current-workspace-id") ||
+      ""
+    );
+  }
+
+  function formatRunSubtitle(stats: any) {
+    if (!stats) return FALLBACK_SUMMARY.latestRunSubtitle;
+
+    const parts = [
+      ["passed", stats.passed],
+      ["failed", stats.failed],
+      ["blocked", stats.blocked],
+      ["pending", stats.pending],
+    ]
+      .filter(([, count]) => Number(count) > 0)
+      .slice(0, 2)
+      .map(([label, count]) => `${count} ${label}`);
+
+    return parts.length > 0 ? parts.join(", ") : `${stats.total || 0} cases`;
+  }
+
+  function getCaseTone(index: number): PreviewCase["tone"] {
+    return (["blue", "amber", "cyan"] as const)[index % 3];
+  }
+
+  function formatPreviewCase(testCase: any, index: number): PreviewCase {
+    const status = testCase?.status || "actual";
+    const priority = testCase?.priority || "medium";
+    const testNo = testCase?.test_no ? `TC-${testCase.test_no}` : "Test case";
+
+    return {
+      name: testCase?.name || FALLBACK_SUMMARY.sampleCases[index]?.name || "Test case",
+      detail: `${testNo}, ${priority}`,
+      badge: status.charAt(0).toUpperCase() + status.slice(1),
+      tone: getCaseTone(index),
+    };
+  }
+
+  async function loadPublicLoginSummary() {
+    const workspaceId = getLoginSummaryWorkspaceId();
+    if (!workspaceId || workspaceId === "__my_tasks__") return;
+
+    try {
+      const response = await api.public.getSummary(workspaceId);
+      if (!response.ok) return;
+
+      const data = await response.json();
+      const sampleCases = (data.sample_cases || [])
+        .slice(0, 3)
+        .map(formatPreviewCase);
+
+      loginSummary = {
+        activeTasks: Number(data.active_tasks ?? FALLBACK_SUMMARY.activeTasks),
+        testCases: Number(data.test_cases ?? FALLBACK_SUMMARY.testCases),
+        teammates: Number(data.teammates ?? FALLBACK_SUMMARY.teammates),
+        latestRunName:
+          data.latest_run?.name || FALLBACK_SUMMARY.latestRunName,
+        latestRunSubtitle: data.latest_run?.stats
+          ? formatRunSubtitle(data.latest_run.stats)
+          : FALLBACK_SUMMARY.latestRunSubtitle,
+        sampleCases:
+          sampleCases.length > 0 ? sampleCases : FALLBACK_SUMMARY.sampleCases,
+      };
+    } catch (e) {
+      loginSummary = FALLBACK_SUMMARY;
+    }
+  }
+
   function glassTilt(node: HTMLElement) {
     const shouldReduceMotion =
       browser &&
@@ -256,6 +376,10 @@
   }
 
   onDestroy(clearTypingTimer);
+
+  onMount(() => {
+    void loadPublicLoginSummary();
+  });
 </script>
 
 <svelte:head>
@@ -335,7 +459,7 @@
               use:glassTilt
             >
               <ClipboardList class="mb-3 text-blue-300" size={20} />
-              <p class="text-2xl font-black text-white">128</p>
+              <p class="text-2xl font-black text-white">{loginSummary.activeTasks}</p>
               <p class="mt-1 text-xs font-semibold text-slate-400">
                 active tasks
               </p>
@@ -346,7 +470,7 @@
               use:glassTilt
             >
               <ListChecks class="mb-3 text-indigo-300" size={20} />
-              <p class="text-2xl font-black text-white">42</p>
+              <p class="text-2xl font-black text-white">{loginSummary.testCases}</p>
               <p class="mt-1 text-xs font-semibold text-slate-400">
                 test cases
               </p>
@@ -357,7 +481,7 @@
               use:glassTilt
             >
               <Users class="mb-3 text-cyan-300" size={20} />
-              <p class="text-2xl font-black text-white">8</p>
+              <p class="text-2xl font-black text-white">{loginSummary.teammates}</p>
               <p class="mt-1 text-xs font-semibold text-slate-400">
                 teammates
               </p>
@@ -379,10 +503,11 @@
               <span class="h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
             </div>
             <div
-              class="flex items-center gap-2 rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-slate-400"
+              class="flex max-w-[260px] items-center gap-2 rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-slate-400"
+              title={loginSummary.latestRunSubtitle}
             >
               <BarChart3 size={13} />
-              Sprint health
+              <span class="truncate">{loginSummary.latestRunName}</span>
             </div>
           </div>
 
@@ -390,7 +515,7 @@
             <div class="space-y-3">
               {#each valueProps as prop}
                 <div
-                class="flex items-start gap-3 rounded-lg border border-white/10 bg-slate-950/25 p-3"
+                  class="flex items-start gap-3 rounded-lg border border-white/10 bg-slate-950/25 p-3"
                 >
                   <CheckCircle2 class="mt-0.5 shrink-0 text-blue-300" size={17} />
                   <span class="text-sm font-semibold leading-5 text-slate-300">
@@ -401,54 +526,29 @@
             </div>
 
             <div class="grid gap-3">
-              <div
-                class="grid grid-cols-[1fr_auto] gap-3 rounded-lg border border-white/10 bg-slate-950/25 p-3"
-              >
-                <div class="min-w-0">
-                  <p class="truncate text-sm font-black text-white">
-                    Release checklist
-                  </p>
-                  <p class="mt-1 text-xs font-semibold text-slate-500">
-                    API, QA, deploy
-                  </p>
-                </div>
-                <span
-                  class="h-fit rounded-full bg-blue-500/10 px-2 py-1 text-xs font-black text-blue-200"
-                  >Actual</span
+              {#each loginSummary.sampleCases as item (item.name)}
+                <div
+                  class="grid grid-cols-[1fr_auto] gap-3 rounded-lg border border-white/10 bg-slate-950/25 p-3"
                 >
-              </div>
-              <div
-                class="grid grid-cols-[1fr_auto] gap-3 rounded-lg border border-white/10 bg-slate-950/25 p-3"
-              >
-                <div class="min-w-0">
-                  <p class="truncate text-sm font-black text-white">
-                    Test run regression
-                  </p>
-                  <p class="mt-1 text-xs font-semibold text-slate-500">
-                    34 passed, 3 blocked
-                  </p>
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-black text-white">
+                      {item.name}
+                    </p>
+                    <p class="mt-1 text-xs font-semibold text-slate-500">
+                      {item.detail}
+                    </p>
+                  </div>
+                  <span
+                    class="h-fit rounded-full px-2 py-1 text-xs font-black {item.tone ===
+                    'amber'
+                      ? 'bg-amber-400/10 text-amber-200'
+                      : item.tone === 'cyan'
+                        ? 'bg-cyan-400/10 text-cyan-200'
+                        : 'bg-blue-500/10 text-blue-200'}"
+                    >{item.badge}</span
+                  >
                 </div>
-                <span
-                  class="h-fit rounded-full bg-amber-400/10 px-2 py-1 text-xs font-black text-amber-200"
-                  >Medium</span
-                >
-              </div>
-              <div
-                class="grid grid-cols-[1fr_auto] gap-3 rounded-lg border border-white/10 bg-slate-950/25 p-3"
-              >
-                <div class="min-w-0">
-                  <p class="truncate text-sm font-black text-white">
-                    Warehouse sync
-                  </p>
-                  <p class="mt-1 text-xs font-semibold text-slate-500">
-                    offline queue ready
-                  </p>
-                </div>
-                <span
-                  class="h-fit rounded-full bg-cyan-400/10 px-2 py-1 text-xs font-black text-cyan-200"
-                  >Ready</span
-                >
-              </div>
+              {/each}
             </div>
           </div>
         </div>
@@ -472,6 +572,41 @@
             <h2 class="mt-2 text-4xl font-black tracking-tight text-white">
               {$_("login__title")}
             </h2>
+            <div class="mt-5 grid grid-cols-3 gap-2 lg:hidden">
+              <div
+                class="rounded-lg border border-white/10 bg-slate-950/35 p-3"
+              >
+                <ClipboardList class="mb-2 text-blue-300" size={17} />
+                <p class="text-xl font-black text-white">
+                  {loginSummary.activeTasks}
+                </p>
+                <p class="mt-1 truncate text-[10px] font-black uppercase tracking-wide text-slate-500">
+                  tasks
+                </p>
+              </div>
+              <div
+                class="rounded-lg border border-white/10 bg-slate-950/35 p-3"
+              >
+                <ListChecks class="mb-2 text-indigo-300" size={17} />
+                <p class="text-xl font-black text-white">
+                  {loginSummary.testCases}
+                </p>
+                <p class="mt-1 truncate text-[10px] font-black uppercase tracking-wide text-slate-500">
+                  cases
+                </p>
+              </div>
+              <div
+                class="rounded-lg border border-white/10 bg-slate-950/35 p-3"
+              >
+                <Users class="mb-2 text-cyan-300" size={17} />
+                <p class="text-xl font-black text-white">
+                  {loginSummary.teammates}
+                </p>
+                <p class="mt-1 truncate text-[10px] font-black uppercase tracking-wide text-slate-500">
+                  team
+                </p>
+              </div>
+            </div>
           </div>
 
           <form on:submit|preventDefault={handleLogin} class="space-y-5">
