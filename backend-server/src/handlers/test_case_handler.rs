@@ -1015,23 +1015,19 @@ fn build_task_title_from_test_case(test_case: &TestCase) -> String {
 }
 
 fn build_task_notes_from_test_case(test_case: &TestCase) -> String {
-    let mut notes = test_case
-        .description
-        .as_deref()
-        .map(str::trim)
-        .unwrap_or_default()
-        .to_string();
+    let mut notes = String::new();
 
     append_notes_section(
         &mut notes,
         "Test Case",
         &format!(
-            "[เปิด Test Case](/workspace/{}/test-cases/editor?suite={}&case={})",
+            "Open: /workspace/{}/test-cases/editor?suite={}&case={}",
             test_case.workspace_id.to_hex(),
             test_case.suite_id,
             test_case.id
         ),
     );
+    append_optional_notes_section(&mut notes, "Description", test_case.description.as_deref());
     append_optional_notes_section(
         &mut notes,
         "Pre-conditions",
@@ -1067,7 +1063,9 @@ fn append_notes_section(notes: &mut String, title: &str, value: &str) {
         notes.push_str("\n\n");
     }
 
-    notes.push_str(&format!("**{}:**\n{}", title, value));
+    notes.push_str(title);
+    notes.push('\n');
+    notes.push_str(value.trim());
 }
 
 fn format_test_steps(test_case: &TestCase) -> Option<String> {
@@ -1089,11 +1087,7 @@ fn format_gherkin_steps(steps: Option<&[GherkinStep]>) -> Option<String> {
                 return None;
             }
 
-            Some(
-                format!("{}. **{}** {}", index + 1, keyword, text)
-                    .trim()
-                    .to_string(),
-            )
+            Some(format!("{}. {} {}", index + 1, keyword, text).trim().to_string())
         })
         .collect();
 
@@ -1112,7 +1106,7 @@ fn format_classic_steps(steps: Option<&[ClassicStep]>) -> Option<String> {
             ]
             .into_iter()
             .filter_map(|(label, value)| {
-                (!value.is_empty()).then(|| format!("   - **{}:** {}", label, value))
+                (!value.is_empty()).then(|| format!("   {}: {}", label, value))
             })
             .collect::<Vec<_>>();
 
@@ -1182,11 +1176,12 @@ mod tests {
 
         assert!(notes.contains("Verify login validation"));
         assert!(notes.contains(
-            "[เปิด Test Case](/workspace/507f1f77bcf86cd799439011/test-cases/editor?suite=suite-456&case=case-123)"
+            "Open: /workspace/507f1f77bcf86cd799439011/test-cases/editor?suite=suite-456&case=case-123"
         ));
-        assert!(notes.contains("**Test Steps:**\n1.\n   - **Action:** Open login page"));
-        assert!(notes.contains("\n   - **Data:** email=user@example.com, password=wrong"));
-        assert!(notes.contains("\n   - **Expected:** Error message appears"));
+        assert!(notes.contains("Test Steps\n1.\n   Action: Open login page"));
+        assert!(notes.contains("\n   Data: email=user@example.com, password=wrong"));
+        assert!(notes.contains("\n   Expected: Error message appears"));
+        assert!(!notes.contains("**"));
     }
 
     #[test]
@@ -1208,8 +1203,9 @@ mod tests {
         let notes = build_task_notes_from_test_case(&test_case);
 
         assert!(notes.contains(
-            "**Test Steps:**\n1. **Given** the user is on the login page\n2. **When** they submit an invalid password"
+            "Test Steps\n1. Given the user is on the login page\n2. When they submit an invalid password"
         ));
+        assert!(!notes.contains("**"));
     }
 }
 
