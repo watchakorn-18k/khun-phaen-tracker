@@ -4,6 +4,7 @@ import { derived, get, writable } from "svelte/store";
 import type { Assignee } from "$lib/types";
 import { user, type User } from "$lib/stores/auth";
 import { dataChanged } from "$lib/stores/realtime";
+import { api, API_BASE_URL } from "$lib/apis";
 
 export type NotificationSourceType = "task" | "test_case";
 
@@ -22,6 +23,7 @@ export type AssignmentNotificationMeta = {
 
 export type AppNotification = {
   id: string;
+  dbId?: string;
   sourceType: NotificationSourceType;
   sourceId: string;
   sourceTitle: string;
@@ -38,6 +40,12 @@ const notifications = writable<AppNotification[]>([]);
 let unsubscribeRealtime: (() => void) | null = null;
 let unsubscribeUser: (() => void) | null = null;
 let activeUserKey = "";
+let currentUserAssigneeIds = new Set<string>();
+let sseSource: EventSource | null = null;
+
+export function setCurrentUserAssigneeIds(ids: string[]) {
+  currentUserAssigneeIds = new Set(ids.map(String));
+}
 
 export const notificationItems = notifications;
 export const unreadNotificationCount = derived(notifications, ($items) =>
@@ -102,18 +110,20 @@ export function shouldCreateNotification(
   currentUser: User | null,
 ): boolean {
   if (!currentUser) return false;
-
   const userIds = [currentUser.id, currentUser.user_id].filter(Boolean).map(String);
-  const actorIds = meta.actor_user_id ? [String(meta.actor_user_id)] : [];
-  if (actorIds.some((actorId) => userIds.includes(actorId))) return false;
-
-  return meta.recipient_user_ids.some((recipientId) =>
-    userIds.includes(String(recipientId)),
-  );
+  // Primary: match via user_id linked on assignee record
+  if (meta.recipient_user_ids.some((id) => userIds.includes(String(id)))) return true;
+  // Fallback: match via assignee ID (for assignees without user_id linked)
+  if (currentUserAssigneeIds.size > 0) {
+    return meta.assignment_ids.some((id) => currentUserAssigneeIds.has(String(id)));
+  }
+  return false;
 }
 
 export function buildNotification(
   meta: AssignmentNotificationMeta,
+  dbId?: string,
+  readAt?: string | null,
 ): AppNotification {
   const sourceLabel = meta.source_type === "task" ? "งาน" : "test case";
   const actorName = meta.actor_name || "Unknown user";
@@ -132,6 +142,7 @@ export function buildNotification(
 
   return {
     id: `${meta.source_type}:${meta.source_id}:${meta.assignment_ids.join(",")}:${meta.created_at}`,
+    dbId,
     sourceType: meta.source_type,
     sourceId: meta.source_id,
     sourceTitle: meta.source_title,
@@ -141,18 +152,28 @@ export function buildNotification(
     message: `${actorName} เพิ่ม${sourceLabel} "${meta.source_title}" ให้คุณ`,
     href: query ? `${href}?${query}` : href,
     createdAt: meta.created_at,
-    readAt: null,
+    readAt: readAt ?? null,
   };
 }
 
 export function initNotifications() {
   if (!browser) return;
+
   if (!unsubscribeUser) {
     unsubscribeUser = user.subscribe((currentUser) => {
       const nextKey = currentUser?.id || currentUser?.user_id || "";
       if (nextKey === activeUserKey) return;
       activeUserKey = nextKey;
+      // Load from localStorage immediately for fast render
       notifications.set(readStoredNotifications(nextKey));
+      if (nextKey) {
+        // Hydrate from DB in background
+        void syncFromDb();
+        // Open SSE stream for real-time delivery from any page
+        connectNotifStream();
+      } else {
+        disconnectNotifStream();
+      }
     });
   }
 
@@ -161,6 +182,94 @@ export function initNotifications() {
       const meta = event?.data?._notification as AssignmentNotificationMeta | undefined;
       if (meta) ingestAssignmentNotification(meta);
     });
+  }
+}
+
+function connectNotifStream() {
+  disconnectNotifStream();
+  try {
+    sseSource = new EventSource(`${API_BASE_URL}/notifications/stream`, {
+      withCredentials: true,
+    });
+    sseSource.addEventListener("notification", (event: MessageEvent) => {
+      try {
+        const meta = JSON.parse(event.data) as AssignmentNotificationMeta;
+        ingestAssignmentNotification(meta);
+      } catch {
+        // Ignore malformed events
+      }
+    });
+    sseSource.onerror = () => {
+      // EventSource auto-reconnects — no manual handling needed
+    };
+  } catch (e) {
+    console.warn("⚠️ NotifStream: failed to connect", e);
+  }
+}
+
+function disconnectNotifStream() {
+  sseSource?.close();
+  sseSource = null;
+}
+
+async function syncFromDb(): Promise<void> {
+  if (!browser) return;
+  try {
+    const res = await api.userNotifications.list();
+    if (!res.ok) return;
+    const data = await res.json();
+    const dbItems: AppNotification[] = (data.notifications || []).map((doc: any) => {
+      const meta: AssignmentNotificationMeta = {
+        source_type: doc.source_type,
+        source_id: doc.source_id,
+        source_title: doc.source_title,
+        workspace_id: doc.workspace_id,
+        suite_id: doc.suite_id,
+        assignment_ids: doc.assignment_ids || [],
+        recipient_user_ids: doc.recipient_user_ids || [],
+        actor_user_id: doc.actor_user_id,
+        actor_name: doc.actor_name,
+        created_at: doc.created_at,
+      };
+      const dbId = doc._id?.$oid || doc._id || doc.id || undefined;
+      return buildNotification(meta, dbId, doc.read_at ?? null);
+    });
+
+    if (dbItems.length === 0) return;
+
+    // Merge: DB is authoritative for read_at; preserve local-only items
+    updateStored((local) => {
+      const localById = new Map(local.map((n) => [n.id, n]));
+      for (const dbItem of dbItems) {
+        const existing = localById.get(dbItem.id);
+        if (!existing) {
+          localById.set(dbItem.id, dbItem);
+        } else {
+          // DB read_at takes precedence
+          localById.set(dbItem.id, {
+            ...existing,
+            dbId: dbItem.dbId ?? existing.dbId,
+            readAt: dbItem.readAt ?? existing.readAt,
+          });
+        }
+      }
+      return Array.from(localById.values())
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, 100);
+    });
+  } catch {
+    // Silently fail — offline or server unavailable
+  }
+}
+
+export async function saveNotificationForRecipients(
+  meta: AssignmentNotificationMeta,
+): Promise<void> {
+  if (!browser) return;
+  try {
+    await api.userNotifications.create(meta);
+  } catch {
+    // Silently fail — real-time WebSocket still delivers to online users
   }
 }
 
@@ -174,15 +283,19 @@ export function destroyNotifications() {
   unsubscribeUser?.();
   unsubscribeRealtime = null;
   unsubscribeUser = null;
+  disconnectNotifStream();
 }
 
 export function markNotificationRead(id: string) {
   updateStored((items) =>
-    items.map((item) =>
-      item.id === id && !item.readAt
-        ? { ...item, readAt: new Date().toISOString() }
-        : item,
-    ),
+    items.map((item) => {
+      if (item.id !== id || item.readAt) return item;
+      const updated = { ...item, readAt: new Date().toISOString() };
+      if (updated.dbId) {
+        api.userNotifications.markRead(updated.dbId).catch(() => {});
+      }
+      return updated;
+    }),
   );
 }
 
@@ -191,6 +304,7 @@ export function markAllNotificationsRead() {
   updateStored((items) =>
     items.map((item) => (item.readAt ? item : { ...item, readAt: now })),
   );
+  api.userNotifications.markAllRead().catch(() => {});
 }
 
 export function clearNotificationsForTest() {

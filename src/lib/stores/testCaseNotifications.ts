@@ -7,6 +7,8 @@ import {
   getUserDisplayName,
   ingestAssignmentNotification,
   resolveRecipientUserIds,
+  saveNotificationForRecipients,
+  setCurrentUserAssigneeIds,
   type AssignmentNotificationMeta,
 } from "$lib/stores/notifications";
 
@@ -26,10 +28,15 @@ export function broadcastTestCaseAssignment(input: TestCaseNotificationInput) {
     input.nextAssigneeIds,
     input.previousAssigneeIds || [],
   );
+  if (assignmentIds.length === 0) return;
   const recipientUserIds = resolveRecipientUserIds(input.assignees, assignmentIds);
   const actor = get(user);
+  const myAssignee = input.assignees.find(
+    (a) => a.user_id && (a.user_id === actor?.id || a.user_id === actor?.user_id),
+  );
+  if (myAssignee?.id) setCurrentUserAssigneeIds([String(myAssignee.id)]);
   const notification: AssignmentNotificationMeta | undefined =
-    assignmentIds.length > 0 && recipientUserIds.length > 0
+    assignmentIds.length > 0
       ? {
           source_type: "test_case",
           source_id: input.id,
@@ -45,6 +52,7 @@ export function broadcastTestCaseAssignment(input: TestCaseNotificationInput) {
       : undefined;
 
   if (notification) {
+    void saveNotificationForRecipients(notification);
     ingestAssignmentNotification(notification);
   }
 

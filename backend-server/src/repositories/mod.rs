@@ -1,5 +1,6 @@
 pub mod data_repo;
 pub mod milestone_repo;
+pub mod notification_repo;
 pub mod profile_repo;
 pub mod room_repo;
 pub mod storage_repo;

@@ -8,6 +8,7 @@ use crate::models::message::SystemEvent;
 use crate::models::profile::UserProfile;
 use crate::models::user::User;
 use crate::repositories::data_repo::DataRepository;
+use crate::repositories::notification_repo::NotificationRepository;
 use crate::repositories::profile_repo::ProfileRepository;
 use crate::repositories::storage_repo::StorageRepository;
 use crate::repositories::user_repo::UserRepository;
@@ -86,13 +87,18 @@ async fn main() {
     info!("✅ Connected to database: {}", db_name);
 
     let (system_tx, _) = broadcast::channel(100);
+    let (notification_tx, _) = broadcast::channel(1000);
     let storage_repo = StorageRepository::new(&db);
     let data_repo = DataRepository::new(&db);
+    let notification_repo = NotificationRepository::new(&db);
     if let Err(error) = storage_repo.ensure_indexes().await {
         tracing::warn!("Failed to ensure storage config indexes: {}", error);
     }
     if let Err(error) = data_repo.ensure_task_indexes().await {
         tracing::warn!("Failed to ensure task indexes: {}", error);
+    }
+    if let Err(error) = notification_repo.ensure_indexes().await {
+        tracing::warn!("Failed to ensure notification indexes: {}", error);
     }
     let stored_storage_config = storage_repo.get_storage_config().await.ok().flatten();
     let active_storage =
@@ -104,6 +110,7 @@ async fn main() {
         rooms: DashMap::new(),
         room_idle_timeout_seconds,
         system_tx: system_tx.clone(),
+        notification_tx,
         jwt_secret,
         storage: tokio::sync::RwLock::new(active_storage),
     });
@@ -238,6 +245,26 @@ async fn main() {
             get(handlers::workspace_handler::check_workspace_access_handler),
         )
         .route("/api/my/tasks", get(handlers::task_handler::list_my_tasks))
+        .route(
+            "/api/notifications",
+            get(handlers::notification_handler::list_notifications),
+        )
+        .route(
+            "/api/notifications",
+            post(handlers::notification_handler::create_notification),
+        )
+        .route(
+            "/api/notifications/stream",
+            get(handlers::notification_handler::stream_notifications),
+        )
+        .route(
+            "/api/notifications/:id/read",
+            patch(handlers::notification_handler::mark_notification_read),
+        )
+        .route(
+            "/api/notifications/read-all",
+            post(handlers::notification_handler::mark_all_notifications_read),
+        )
         // Data routes (workspace-scoped)
         .route(
             "/api/workspaces/:ws_id/tasks",

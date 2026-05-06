@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::sync::RwLock;
 
-use crate::models::{message::SystemEvent, room::Room};
+use crate::models::{message::SystemEvent, notification::UserNotification, room::Room};
 use crate::services::storage_service::ActiveStorage;
 
 pub type SharedState = Arc<AppState>;
@@ -14,6 +14,7 @@ pub struct AppState {
     pub rooms: DashMap<String, Room>,
     pub room_idle_timeout_seconds: u64,
     pub system_tx: broadcast::Sender<SystemEvent>,
+    pub notification_tx: broadcast::Sender<UserNotification>,
     pub jwt_secret: String,
     pub storage: RwLock<ActiveStorage>,
 }

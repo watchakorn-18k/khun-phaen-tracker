@@ -32,6 +32,8 @@ import {
   getUserDisplayName,
   ingestAssignmentNotification,
   resolveRecipientUserIds,
+  saveNotificationForRecipients,
+  setCurrentUserAssigneeIds,
   type AssignmentNotificationMeta,
 } from "./stores/notifications";
 
@@ -98,7 +100,6 @@ async function buildTaskAssignmentNotification(
     const actor = get(userStore);
     const assignees = await getAssignees(true);
     const recipientUserIds = resolveRecipientUserIds(assignees, assignmentIds);
-    if (recipientUserIds.length === 0) return null;
 
     return {
       source_type: "task",
@@ -299,7 +300,10 @@ export async function addTask(
     newTask,
     getAssignmentIds(newTask.assignee_ids || []),
   );
-  if (notification) ingestAssignmentNotification(notification);
+  if (notification) {
+    void saveNotificationForRecipients(notification);
+    ingestAssignmentNotification(notification);
+  }
   broadcastChange("task", "create", newTask.id as string, {
     ...newTask,
     _notification: notification || undefined,
@@ -374,7 +378,10 @@ export async function updateTask(
       taskFromServer,
       assignmentIds,
     );
-    if (notification) ingestAssignmentNotification(notification);
+    if (notification) {
+      void saveNotificationForRecipients(notification);
+      ingestAssignmentNotification(notification);
+    }
     broadcastChange("task", "update", String(id), {
       ...taskFromServer,
       _notification: notification || undefined,
@@ -830,9 +837,17 @@ export async function getAssignees(forceRefresh = false): Promise<Assignee[]> {
   const res = await api.data.assignees.list(wsId());
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Failed to fetch assignees");
-  _assigneesCache = (data.assignees || []).map(docToAssignee);
+  const fetched = (data.assignees || []).map(docToAssignee);
+  _assigneesCache = fetched;
   _lastAssigneeFetch = now;
-  return _assigneesCache || [];
+  const currentUser = get(userStore);
+  if (currentUser) {
+    const myAssignee = fetched.find(
+      (a: Assignee) => a.user_id && (a.user_id === currentUser.id || a.user_id === currentUser.user_id),
+    );
+    if (myAssignee?.id) setCurrentUserAssigneeIds([String(myAssignee.id)]);
+  }
+  return fetched;
 }
 
 export async function getAssigneeStats(): Promise<

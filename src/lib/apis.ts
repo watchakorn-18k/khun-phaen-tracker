@@ -1203,4 +1203,31 @@ export const api = {
       });
     },
   },
+
+  userNotifications: {
+    list: (): Promise<Response> =>
+      fetch(`${API_BASE_URL}/notifications`, {
+        headers: api.data._headers(),
+        credentials: "include",
+      }),
+    create: (payload: Record<string, any>): Promise<Response> =>
+      fetch(`${API_BASE_URL}/notifications`, {
+        method: "POST",
+        headers: api.data._headers(true),
+        credentials: "include",
+        body: JSON.stringify(payload),
+      }),
+    markRead: (dbId: string): Promise<Response> =>
+      fetch(`${API_BASE_URL}/notifications/${dbId}/read`, {
+        method: "PATCH",
+        headers: api.data._headers(),
+        credentials: "include",
+      }),
+    markAllRead: (): Promise<Response> =>
+      fetch(`${API_BASE_URL}/notifications/read-all`, {
+        method: "POST",
+        headers: api.data._headers(),
+        credentials: "include",
+      }),
+  },
 };

@@ -2,6 +2,7 @@ pub mod auth;
 pub mod data;
 pub mod message;
 pub mod milestone;
+pub mod notification;
 pub mod profile;
 pub mod room;
 pub mod storage;

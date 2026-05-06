@@ -5,6 +5,7 @@ pub mod checklist_template_handler;
 pub mod comment_handler;
 pub mod common;
 pub mod milestone_handler;
+pub mod notification_handler;
 pub mod project_handler;
 pub mod room_handler;
 pub mod sprint_handler;

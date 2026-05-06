@@ -4,6 +4,9 @@
  * When a user modifies data (tasks, projects, assignees), a lightweight
  * event is broadcast to all other users in the same workspace room.
  * Receivers simply re-fetch from the API — no CRDT complexity needed.
+ *
+ * Per-user real-time notification delivery is handled separately via SSE
+ * (GET /api/notifications/stream) in notifications.ts.
  */
 
 import { writable, get } from "svelte/store";
@@ -53,7 +56,6 @@ export function connectRealtime(
       console.log("🔗 Realtime: connected");
       realtimeStatus.set("connected");
 
-      // Join the room (MATCHES RUST EXPECTATIONS)
       ws?.send(
         JSON.stringify({
           action: "join",
@@ -171,10 +173,11 @@ function handleMessage(msg: any) {
       realtimePeers.set(get(realtimePeers) + 1);
       break;
 
-    case "peer_left":
+    case "peer_left": {
       const count = get(realtimePeers);
       if (count > 0) realtimePeers.set(count - 1);
       break;
+    }
 
     case "data":
       // Message comes wrapped inside the 'data' field
