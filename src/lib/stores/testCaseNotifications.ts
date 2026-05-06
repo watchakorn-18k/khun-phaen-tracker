@@ -5,6 +5,7 @@ import { broadcastChange } from "$lib/stores/realtime";
 import {
   getAssignmentIds,
   getUserDisplayName,
+  ingestAssignmentNotification,
   resolveRecipientUserIds,
   type AssignmentNotificationMeta,
 } from "$lib/stores/notifications";
@@ -42,6 +43,10 @@ export function broadcastTestCaseAssignment(input: TestCaseNotificationInput) {
           created_at: new Date().toISOString(),
         }
       : undefined;
+
+  if (notification) {
+    ingestAssignmentNotification(notification);
+  }
 
   broadcastChange("test_case", input.action, input.id, {
     id: input.id,

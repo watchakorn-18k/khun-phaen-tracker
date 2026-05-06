@@ -68,7 +68,7 @@
   import { buildMonthlySummary } from "$lib/utils/monthly-summary";
   import { modals } from "$lib/stores/uiActions";
   import { broadcastTestCaseAssignment } from "$lib/stores/testCaseNotifications";
-  import { connectRealtime, disconnectRealtime } from "$lib/stores/realtime";
+  import { connectRealtime } from "$lib/stores/realtime";
 
   type Step = {
     action: string;
@@ -1514,7 +1514,6 @@
   onDestroy(() => {
     if (browser) {
       document.removeEventListener("keydown", keyboardHandler);
-      disconnectRealtime();
     }
     if (refreshInterval) {
       clearInterval(refreshInterval);

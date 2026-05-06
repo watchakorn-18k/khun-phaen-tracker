@@ -45,7 +45,7 @@
   } from "lucide-svelte";
   import TestCaseStepList from "$lib/components/TestCaseStepList.svelte";
   import { broadcastTestCaseAssignment } from "$lib/stores/testCaseNotifications";
-  import { connectRealtime, disconnectRealtime } from "$lib/stores/realtime";
+  import { connectRealtime } from "$lib/stores/realtime";
 
   type Status =
     | "draft"
@@ -318,7 +318,6 @@
 
   onDestroy(() => {
     attachments.forEach((a) => URL.revokeObjectURL(a.url));
-    disconnectRealtime();
   });
 
   onMount(async () => {

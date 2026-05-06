@@ -30,6 +30,7 @@ import { user as userStore } from "./stores/auth";
 import {
   getAssignmentIds,
   getUserDisplayName,
+  ingestAssignmentNotification,
   resolveRecipientUserIds,
   type AssignmentNotificationMeta,
 } from "./stores/notifications";
@@ -298,6 +299,7 @@ export async function addTask(
     newTask,
     getAssignmentIds(newTask.assignee_ids || []),
   );
+  if (notification) ingestAssignmentNotification(notification);
   broadcastChange("task", "create", newTask.id as string, {
     ...newTask,
     _notification: notification || undefined,
@@ -372,6 +374,7 @@ export async function updateTask(
       taskFromServer,
       assignmentIds,
     );
+    if (notification) ingestAssignmentNotification(notification);
     broadcastChange("task", "update", String(id), {
       ...taskFromServer,
       _notification: notification || undefined,

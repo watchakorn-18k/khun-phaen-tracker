@@ -159,10 +159,14 @@ export function initNotifications() {
   if (!unsubscribeRealtime) {
     unsubscribeRealtime = dataChanged.subscribe((event) => {
       const meta = event?.data?._notification as AssignmentNotificationMeta | undefined;
-      if (!meta || !shouldCreateNotification(meta, get(user))) return;
-      upsertNotification(buildNotification(meta));
+      if (meta) ingestAssignmentNotification(meta);
     });
   }
+}
+
+export function ingestAssignmentNotification(meta: AssignmentNotificationMeta) {
+  if (!shouldCreateNotification(meta, get(user))) return;
+  upsertNotification(buildNotification(meta));
 }
 
 export function destroyNotifications() {

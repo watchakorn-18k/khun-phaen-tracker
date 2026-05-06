@@ -36,7 +36,7 @@
     MY_TASKS_WORKSPACE_ID,
   } from "$lib/stores/workspace";
   import { modals } from "$lib/stores/uiActions";
-  import { connectRealtime, disconnectRealtime } from "$lib/stores/realtime";
+  import { connectRealtime } from "$lib/stores/realtime";
   import {
     MoreHorizontal,
     PanelRight,
@@ -142,7 +142,6 @@
   
   onDestroy(() => {
     attachedFiles.forEach(af => revokePreview(af.preview));
-    disconnectRealtime();
   });
 
   let projects: Project[] = [];
