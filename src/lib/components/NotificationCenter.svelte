@@ -9,7 +9,23 @@
   } from "$lib/stores/notifications";
   import { goto } from "$app/navigation";
 
+  export let variant: "nav" | "floating" | "sidebar" = "nav";
+
   let open = false;
+
+  $: buttonClass =
+    variant === "floating"
+      ? "relative inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-slate-950/90 text-slate-100 shadow-2xl shadow-black/30 ring-1 ring-white/10 backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:bg-slate-900 dark:border-white/10 dark:bg-slate-950/90"
+      : variant === "sidebar"
+        ? "relative inline-flex h-9 w-9 items-center justify-center rounded-2xl text-gray-500 transition-all hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
+      : "relative inline-flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white";
+
+  $: panelClass =
+    variant === "sidebar"
+      ? "fixed bottom-20 left-4 z-120 w-[min(360px,calc(100vw-32px))] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl ring-1 ring-black/5 dark:border-gray-700 dark:bg-gray-800 dark:ring-white/5"
+      : variant === "floating"
+      ? "absolute bottom-full right-0 z-30 mb-3 w-[min(360px,calc(100vw-24px))] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl ring-1 ring-black/5 dark:border-gray-700 dark:bg-gray-800 dark:ring-white/5"
+      : "absolute right-0 top-full z-30 mt-3 w-[min(360px,calc(100vw-24px))] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl ring-1 ring-black/5 dark:border-gray-700 dark:bg-gray-800 dark:ring-white/5";
 
   function openNotification(item: AppNotification) {
     markNotificationRead(item.id);
@@ -32,7 +48,7 @@
 <div class="relative">
   <button
     type="button"
-    class="relative inline-flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
+    class={buttonClass}
     title="Notifications"
     on:click={() => (open = !open)}
   >
@@ -54,9 +70,7 @@
       on:click={() => (open = false)}
     ></button>
 
-    <div
-      class="absolute right-0 top-full z-30 mt-3 w-[min(360px,calc(100vw-24px))] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl ring-1 ring-black/5 dark:border-gray-700 dark:bg-gray-800 dark:ring-white/5"
-    >
+    <div class={panelClass}>
       <div
         class="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-700"
       >

@@ -2,7 +2,7 @@
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
   import { base } from "$app/paths";
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { user } from "$lib/stores/auth";
   import {
     currentWorkspaceName,
@@ -39,7 +39,9 @@
     UserCircle2
   } from "lucide-svelte";
   import SidebarUtilityTools from "$lib/components/SidebarUtilityTools.svelte";
+  import NotificationCenter from "$lib/components/NotificationCenter.svelte";
   import { createUIActions } from "$lib/stores/uiActions";
+  import { connectRealtime, disconnectRealtime } from "$lib/stores/realtime";
 
   const uiActions = createUIActions();
 
@@ -243,6 +245,10 @@
     loadWorkspaces();
     isSidebarCollapsed = localStorage.getItem("sidebar-collapsed") === "true";
     loadPinnedTasks();
+    const roomCode = localStorage.getItem("sync-room-code");
+    if (roomCode) {
+      connectRealtime(roomCode);
+    }
 
     const handlePinnedTasksChange = () => {
       loadPinnedTasks();
@@ -252,6 +258,10 @@
     return () => {
       window.removeEventListener('pinnedTasksChanged', handlePinnedTasksChange);
     };
+  });
+
+  onDestroy(() => {
+    disconnectRealtime();
   });
 
   $: workspaceHref = isMyTasksWorkspace
@@ -715,54 +725,58 @@
 
     <!-- User Avatar -->
     {#if $user}
-      <div>
-        <button
-          type="button"
-          on:click|stopPropagation={() => {
-            showAccountDropdown = !showAccountDropdown;
-            showWorkspaceSwitcher = false;
-            showLanguageDropdown = false;
-          }}
-          class="w-9 h-9 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-xs hover:ring-2 hover:ring-indigo-400 transition-all shadow-lg active:scale-90"
-          title={$user.profile?.nickname || $user.email}
-        >
-          {getInitials($user.profile?.nickname || $user.email.split("@")[0])}
-        </button>
+      <div class="flex items-center gap-2 {isSidebarCollapsed ? 'flex-col' : ''}">
+        <NotificationCenter variant="sidebar" />
 
-        {#if showAccountDropdown}
-          <div
-            class="absolute bottom-full mb-2 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 py-1.5 z-50 overflow-hidden animate-fade-in {isSidebarCollapsed ? 'left-full ml-2 w-52' : 'left-0 w-full'}"
+        <div>
+          <button
+            type="button"
+            on:click|stopPropagation={() => {
+              showAccountDropdown = !showAccountDropdown;
+              showWorkspaceSwitcher = false;
+              showLanguageDropdown = false;
+            }}
+            class="w-9 h-9 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-xs hover:ring-2 hover:ring-indigo-400 transition-all shadow-lg active:scale-90"
+            title={$user.profile?.nickname || $user.email}
           >
-            <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
-              <p class="text-sm font-black text-gray-900 dark:text-white truncate">
-                {$user.profile?.nickname || $user.email.split("@")[0]}
-              </p>
-              <p class="text-[10px] font-bold text-gray-500 dark:text-gray-400 truncate tracking-wide">
-                {$user.email}
-              </p>
+            {getInitials($user.profile?.nickname || $user.email.split("@")[0])}
+          </button>
+
+          {#if showAccountDropdown}
+            <div
+              class="absolute bottom-full mb-2 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 py-1.5 z-50 overflow-hidden animate-fade-in {isSidebarCollapsed ? 'left-full ml-2 w-52' : 'left-0 w-full'}"
+            >
+              <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+                <p class="text-sm font-black text-gray-900 dark:text-white truncate">
+                  {$user.profile?.nickname || $user.email.split("@")[0]}
+                </p>
+                <p class="text-[10px] font-bold text-gray-500 dark:text-gray-400 truncate tracking-wide">
+                  {$user.email}
+                </p>
+              </div>
+              <div class="p-1">
+                <a
+                  href="{base}/profile"
+                  on:click={closeAllDropdowns}
+                  class="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors font-semibold"
+                >
+                  <UserCircle2 size={16} />
+                  <span>{$_("layout__profile_settings")}</span>
+                </a>
+                <button
+                  on:click={() => {
+                    closeAllDropdowns();
+                    handleLogout();
+                  }}
+                  class="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-bold"
+                >
+                  <LogOut size={16} />
+                  <span>{$_("layout__logout")}</span>
+                </button>
+              </div>
             </div>
-            <div class="p-1">
-              <a
-                href="{base}/profile"
-                on:click={closeAllDropdowns}
-                class="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors font-semibold"
-              >
-                <UserCircle2 size={16} />
-                <span>{$_("layout__profile_settings")}</span>
-              </a>
-              <button
-                on:click={() => {
-                  closeAllDropdowns();
-                  handleLogout();
-                }}
-                class="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-bold"
-              >
-                <LogOut size={16} />
-                <span>{$_("layout__logout")}</span>
-              </button>
-            </div>
-          </div>
-        {/if}
+          {/if}
+        </div>
       </div>
     {/if}
   </div>

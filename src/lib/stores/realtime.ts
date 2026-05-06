@@ -26,6 +26,7 @@ let ws: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let currentRoomCode: string | null = null;
 let _onDataChanged: ((payload: any) => void) | null = null;
+let pendingBroadcasts: string[] = [];
 
 const WS_BASE = import.meta.env.VITE_WS_URL || "ws://127.0.0.1:3002/ws";
 
@@ -34,7 +35,10 @@ export function connectRealtime(
   roomCode: string,
   onDataChanged?: (payload: any) => void,
 ) {
-  if (currentRoomCode === roomCode && ws?.readyState === WebSocket.OPEN) return;
+  if (currentRoomCode === roomCode && ws?.readyState === WebSocket.OPEN) {
+    _onDataChanged = onDataChanged || _onDataChanged;
+    return;
+  }
 
   disconnectRealtime();
   currentRoomCode = roomCode;
@@ -59,6 +63,7 @@ export function connectRealtime(
           metadata: null,
         }),
       );
+      flushPendingBroadcasts();
     };
 
     ws.onmessage = (event) => {
@@ -98,6 +103,7 @@ export function connectRealtime(
 export function disconnectRealtime() {
   currentRoomCode = null;
   _onDataChanged = null;
+  pendingBroadcasts = [];
 
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
@@ -125,8 +131,6 @@ export function broadcastChange(
   id?: string,
   data?: any,
 ) {
-  if (!ws || ws.readyState !== WebSocket.OPEN) return;
-
   // We wrap our structural event into the string `data` field expected by the Rust server's `Broadcast` action
   const payload = JSON.stringify({
     entity,
@@ -141,7 +145,15 @@ export function broadcastChange(
     data: payload,
   };
 
-  ws.send(JSON.stringify(event));
+  const serialized = JSON.stringify(event);
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    if (currentRoomCode) {
+      pendingBroadcasts = [...pendingBroadcasts, serialized].slice(-25);
+    }
+    return;
+  }
+
+  ws.send(serialized);
 }
 
 // ===== Internal =====
@@ -197,4 +209,15 @@ function generatePeerId(): string {
     "_" +
     Date.now().toString(36)
   );
+}
+
+function flushPendingBroadcasts() {
+  if (!ws || ws.readyState !== WebSocket.OPEN || pendingBroadcasts.length === 0) {
+    return;
+  }
+
+  for (const event of pendingBroadcasts) {
+    ws.send(event);
+  }
+  pendingBroadcasts = [];
 }

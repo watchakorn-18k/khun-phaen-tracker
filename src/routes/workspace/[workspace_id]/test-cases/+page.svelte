@@ -68,6 +68,7 @@
   import { buildMonthlySummary } from "$lib/utils/monthly-summary";
   import { modals } from "$lib/stores/uiActions";
   import { broadcastTestCaseAssignment } from "$lib/stores/testCaseNotifications";
+  import { connectRealtime, disconnectRealtime } from "$lib/stores/realtime";
 
   type Step = {
     action: string;
@@ -1490,6 +1491,16 @@
   onMount(async () => {
     document.addEventListener("keydown", keyboardHandler);
     assignees = await getAssignees(true);
+    const roomCode =
+      $page.url.searchParams.get("room") ||
+      (browser ? localStorage.getItem("sync-room-code") : null);
+    if (roomCode) {
+      connectRealtime(roomCode, (payload) => {
+        if (payload.entity === "test_case") {
+          void loadData(undefined, undefined, true);
+        }
+      });
+    }
     await loadData();
     ws.loadData();
     loadTestRunsFromStorage();
@@ -1503,6 +1514,7 @@
   onDestroy(() => {
     if (browser) {
       document.removeEventListener("keydown", keyboardHandler);
+      disconnectRealtime();
     }
     if (refreshInterval) {
       clearInterval(refreshInterval);
@@ -1980,22 +1992,22 @@
   const priorityTone = {
     high: {
       button:
-        "border-rose-500/30 bg-[#1a0710] text-rose-200 hover:border-rose-400/45 hover:bg-[#240914] dark:border-rose-500/30 dark:bg-[#1a0710] dark:text-rose-200 dark:hover:bg-[#240914]",
-      menu: "text-rose-300 dark:text-rose-300",
+        "border-rose-500/30 bg-[#1a0710] !text-[#f25f86] hover:border-rose-400/45 hover:bg-[#240914] dark:border-rose-500/30 dark:bg-[#1a0710] dark:!text-[#f25f86] dark:hover:bg-[#240914]",
+      menu: "text-[#f08aa8] dark:text-[#f08aa8]",
       dot: "bg-rose-500",
       icon: ArrowUp,
     },
     medium: {
       button:
-        "border-amber-500/30 bg-[#1d1305] text-amber-200 hover:border-amber-400/45 hover:bg-[#261805] dark:border-amber-500/30 dark:bg-[#1d1305] dark:text-amber-200 dark:hover:bg-[#261805]",
-      menu: "text-amber-300 dark:text-amber-300",
+        "border-amber-500/30 bg-[#1d1305] !text-[#f0b43a] hover:border-amber-400/45 hover:bg-[#261805] dark:border-amber-500/30 dark:bg-[#1d1305] dark:!text-[#f0b43a] dark:hover:bg-[#261805]",
+      menu: "text-[#d8a94e] dark:text-[#d8a94e]",
       dot: "bg-amber-500",
       icon: Minus,
     },
     low: {
       button:
-        "border-slate-700/80 bg-[#070b12] text-slate-400 hover:border-slate-600 hover:bg-[#0b1019] dark:border-slate-700/80 dark:bg-[#070b12] dark:text-slate-400 dark:hover:bg-[#0b1019]",
-      menu: "text-slate-400 dark:text-slate-400",
+        "border-slate-700/80 bg-[#070b12] !text-[#9fb0c9] hover:border-slate-600 hover:bg-[#0b1019] dark:border-slate-700/80 dark:bg-[#070b12] dark:!text-[#9fb0c9] dark:hover:bg-[#0b1019]",
+      menu: "text-[#8f9aae] dark:text-[#8f9aae]",
       dot: "bg-slate-400",
       icon: ArrowDown,
     },
@@ -3387,7 +3399,7 @@
                           {#if isAuthorized}
                             <button
                               type="button"
-                              class="inline-flex h-8 w-[108px] items-center justify-between gap-1.5 rounded-full border px-2.5 text-[12px] font-black shadow-lg shadow-black/15 transition-colors disabled:cursor-wait disabled:opacity-70 {getPriorityMeta(
+                              class="priority-glow priority-glow-{testCase.priority} inline-flex h-8 w-[108px] items-center justify-between gap-1.5 rounded-full border px-2.5 text-[12px] font-black shadow-lg shadow-black/15 transition-colors disabled:cursor-wait disabled:opacity-70 {getPriorityMeta(
                                 testCase.priority,
                               ).button}"
                               title="Change priority"
@@ -3440,8 +3452,8 @@
                                     type="button"
                                     class="flex h-9 w-full items-center justify-between rounded-md px-2.5 text-left text-[13px] font-bold transition-colors hover:bg-white/[0.05] {testCase.priority ===
                                     opt.value
-                                      ? 'bg-white/[0.08] text-white'
-                                      : 'text-slate-400'}"
+                                      ? 'bg-white/[0.08]'
+                                      : 'text-slate-500'}"
                                     on:click|stopPropagation={() =>
                                       updatePriority(
                                         testCase,
@@ -3468,7 +3480,7 @@
                             {/if}
                           {:else}
                             <span
-                              class="inline-flex h-8 w-[108px] items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-black shadow-lg shadow-black/15 {getPriorityMeta(
+                              class="priority-glow priority-glow-{testCase.priority} inline-flex h-8 w-[108px] items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-black shadow-lg shadow-black/15 {getPriorityMeta(
                                 testCase.priority,
                               ).button}"
                             >
@@ -5596,6 +5608,58 @@
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: #6b7280;
+  }
+
+  .priority-glow {
+    position: relative;
+    isolation: isolate;
+    overflow: visible;
+  }
+
+  .priority-glow::after {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+    inset: -2px;
+    z-index: -2;
+    border-radius: 999px;
+    border: 1px solid rgb(var(--priority-aura-rgb) / 0.34);
+    box-shadow:
+      0 0 6px rgb(var(--priority-aura-rgb) / 0.28),
+      0 0 13px rgb(var(--priority-aura-rgb) / 0.16),
+      inset 0 0 7px rgb(var(--priority-aura-rgb) / 0.07);
+    opacity: 0.2;
+  }
+
+  .priority-glow-high {
+    --priority-aura-rgb: 244 63 94;
+    box-shadow:
+      0 0 0 1px rgba(244, 63, 94, 0.5),
+      0 0 7px rgba(244, 63, 94, 0.8),
+      inset 0 0 9px rgba(244, 63, 94, 0.06);
+  }
+
+  .priority-glow-medium {
+    --priority-aura-rgb: 245 158 11;
+    box-shadow:
+      0 0 0 1px rgba(245, 158, 11, 0.5),
+      0 0 7px rgba(245, 158, 11, 0.8),
+      inset 0 0 9px rgba(245, 158, 11, 0.06);
+  }
+
+  .priority-glow-low {
+    --priority-aura-rgb: 148 163 184;
+    box-shadow:
+      0 0 0 1px rgba(148, 163, 184, 0.5),
+      0 0 7px rgba(148, 163, 184, 0.8),
+      inset 0 0 8px rgba(148, 163, 184, 0.06);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .priority-glow,
+    .priority-glow::after {
+      animation: none !important;
+    }
   }
 
   :global(.property-select .property-trigger-btn) {

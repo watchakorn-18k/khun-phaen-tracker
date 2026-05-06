@@ -1,6 +1,9 @@
 use crate::handlers::auth_handler::extract_claims;
 use crate::models::data::TaskDocument;
-use crate::models::test_case::{CreateTestCaseRequest, CreateTestSuiteRequest, TestCaseAttachment};
+use crate::models::test_case::{
+    ClassicStep, CreateTestCaseRequest, CreateTestSuiteRequest, GherkinStep, TestCase,
+    TestCaseAttachment,
+};
 use crate::repositories::data_repo::DataRepository;
 use crate::repositories::profile_repo::ProfileRepository;
 use crate::repositories::test_case_repo::TestCaseRepository;
@@ -957,27 +960,8 @@ pub async fn convert_test_case_to_task(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     };
 
-    let mut notes = test_case.description.unwrap_or_default();
-    if let Some(pre) = test_case.preconditions {
-        if !pre.is_empty() {
-            notes.push_str(&format!("\n\n**Pre-conditions:**\n{}", pre));
-        }
-    }
-    if let Some(post) = test_case.postconditions {
-        if !post.is_empty() {
-            notes.push_str(&format!("\n\n**Post-conditions:**\n{}", post));
-        }
-    }
-    if let Some(inp) = test_case.input {
-        if !inp.is_empty() {
-            notes.push_str(&format!("\n\n**Input:**\n{}", inp));
-        }
-    }
-    if let Some(exp) = test_case.expected_result {
-        if !exp.is_empty() {
-            notes.push_str(&format!("\n\n**Expected Result:**\n{}", exp));
-        }
-    }
+    let title = build_task_title_from_test_case(&test_case);
+    let notes = build_task_notes_from_test_case(&test_case);
 
     // Find assignee for the current user in this workspace
     let assignee_id = match data_repo
@@ -991,7 +975,7 @@ pub async fn convert_test_case_to_task(
     let task = TaskDocument {
         id: None,
         workspace_id: test_case.workspace_id,
-        title: test_case.name,
+        title,
         task_number: Some(next_number),
         project: "อื่นๆ".to_string(),
         duration_minutes: 0,
@@ -1023,6 +1007,209 @@ pub async fn convert_test_case_to_task(
         )
             .into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+fn build_task_title_from_test_case(test_case: &TestCase) -> String {
+    format!("กำลังแก้: {}", test_case.name)
+}
+
+fn build_task_notes_from_test_case(test_case: &TestCase) -> String {
+    let mut notes = test_case
+        .description
+        .as_deref()
+        .map(str::trim)
+        .unwrap_or_default()
+        .to_string();
+
+    append_notes_section(
+        &mut notes,
+        "Test Case",
+        &format!(
+            "[เปิด Test Case](/workspace/{}/test-cases/editor?suite={}&case={})",
+            test_case.workspace_id.to_hex(),
+            test_case.suite_id,
+            test_case.id
+        ),
+    );
+    append_optional_notes_section(
+        &mut notes,
+        "Pre-conditions",
+        test_case.preconditions.as_deref(),
+    );
+    append_optional_notes_section(
+        &mut notes,
+        "Post-conditions",
+        test_case.postconditions.as_deref(),
+    );
+    append_optional_notes_section(&mut notes, "Input", test_case.input.as_deref());
+    append_optional_notes_section(
+        &mut notes,
+        "Expected Result",
+        test_case.expected_result.as_deref(),
+    );
+
+    if let Some(steps) = format_test_steps(test_case) {
+        append_notes_section(&mut notes, "Test Steps", &steps);
+    }
+
+    notes
+}
+
+fn append_optional_notes_section(notes: &mut String, title: &str, value: Option<&str>) {
+    if let Some(value) = value.map(str::trim).filter(|value| !value.is_empty()) {
+        append_notes_section(notes, title, value);
+    }
+}
+
+fn append_notes_section(notes: &mut String, title: &str, value: &str) {
+    if !notes.is_empty() {
+        notes.push_str("\n\n");
+    }
+
+    notes.push_str(&format!("**{}:**\n{}", title, value));
+}
+
+fn format_test_steps(test_case: &TestCase) -> Option<String> {
+    if test_case.step_format == "gherkin" {
+        format_gherkin_steps(test_case.gherkin_steps.as_deref())
+    } else {
+        format_classic_steps(test_case.classic_steps.as_deref())
+    }
+}
+
+fn format_gherkin_steps(steps: Option<&[GherkinStep]>) -> Option<String> {
+    let formatted_steps: Vec<String> = steps?
+        .iter()
+        .enumerate()
+        .filter_map(|(index, step)| {
+            let keyword = step.keyword.trim();
+            let text = step.text.trim();
+            if keyword.is_empty() && text.is_empty() {
+                return None;
+            }
+
+            Some(
+                format!("{}. **{}** {}", index + 1, keyword, text)
+                    .trim()
+                    .to_string(),
+            )
+        })
+        .collect();
+
+    (!formatted_steps.is_empty()).then(|| formatted_steps.join("\n"))
+}
+
+fn format_classic_steps(steps: Option<&[ClassicStep]>) -> Option<String> {
+    let formatted_steps: Vec<String> = steps?
+        .iter()
+        .enumerate()
+        .filter_map(|(index, step)| {
+            let lines = [
+                ("Action", step.action.trim()),
+                ("Data", step.data.trim()),
+                ("Expected", step.expected.trim()),
+            ]
+            .into_iter()
+            .filter_map(|(label, value)| {
+                (!value.is_empty()).then(|| format!("   - **{}:** {}", label, value))
+            })
+            .collect::<Vec<_>>();
+
+            if lines.is_empty() {
+                return None;
+            }
+
+            Some(format!("{}.\n{}", index + 1, lines.join("\n")))
+        })
+        .collect();
+
+    (!formatted_steps.is_empty()).then(|| formatted_steps.join("\n\n"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_case_fixture() -> TestCase {
+        TestCase {
+            id: "case-123".to_string(),
+            workspace_id: ObjectId::parse_str("507f1f77bcf86cd799439011").unwrap(),
+            test_no: 7,
+            suite_id: "suite-456".to_string(),
+            name: "Login fails with invalid password".to_string(),
+            description: Some("Verify login validation".to_string()),
+            preconditions: Some("User account exists".to_string()),
+            postconditions: None,
+            input: None,
+            expected_result: Some("Login is rejected".to_string()),
+            actual_result: None,
+            status: "actual".to_string(),
+            priority: "high".to_string(),
+            fixed: "no".to_string(),
+            assign_dev: None,
+            assign_tester: None,
+            dev_note: None,
+            test_note: None,
+            step_format: "classic".to_string(),
+            gherkin_steps: None,
+            classic_steps: Some(vec![ClassicStep {
+                action: "Open login page".to_string(),
+                data: "email=user@example.com, password=wrong".to_string(),
+                expected: "Error message appears".to_string(),
+            }]),
+            attachments: None,
+            created_at: None,
+            updated_at: None,
+        }
+    }
+
+    #[test]
+    fn builds_task_title_with_fixing_prefix() {
+        let test_case = test_case_fixture();
+
+        assert_eq!(
+            build_task_title_from_test_case(&test_case),
+            "กำลังแก้: Login fails with invalid password"
+        );
+    }
+
+    #[test]
+    fn builds_task_notes_with_test_case_link_and_classic_steps() {
+        let test_case = test_case_fixture();
+
+        let notes = build_task_notes_from_test_case(&test_case);
+
+        assert!(notes.contains("Verify login validation"));
+        assert!(notes.contains(
+            "[เปิด Test Case](/workspace/507f1f77bcf86cd799439011/test-cases/editor?suite=suite-456&case=case-123)"
+        ));
+        assert!(notes.contains("**Test Steps:**\n1.\n   - **Action:** Open login page"));
+        assert!(notes.contains("\n   - **Data:** email=user@example.com, password=wrong"));
+        assert!(notes.contains("\n   - **Expected:** Error message appears"));
+    }
+
+    #[test]
+    fn builds_task_notes_with_gherkin_steps_on_separate_lines() {
+        let mut test_case = test_case_fixture();
+        test_case.step_format = "gherkin".to_string();
+        test_case.classic_steps = None;
+        test_case.gherkin_steps = Some(vec![
+            GherkinStep {
+                keyword: "Given".to_string(),
+                text: "the user is on the login page".to_string(),
+            },
+            GherkinStep {
+                keyword: "When".to_string(),
+                text: "they submit an invalid password".to_string(),
+            },
+        ]);
+
+        let notes = build_task_notes_from_test_case(&test_case);
+
+        assert!(notes.contains(
+            "**Test Steps:**\n1. **Given** the user is on the login page\n2. **When** they submit an invalid password"
+        ));
     }
 }
 

@@ -45,6 +45,7 @@
   } from "lucide-svelte";
   import TestCaseStepList from "$lib/components/TestCaseStepList.svelte";
   import { broadcastTestCaseAssignment } from "$lib/stores/testCaseNotifications";
+  import { connectRealtime, disconnectRealtime } from "$lib/stores/realtime";
 
   type Status =
     | "draft"
@@ -317,10 +318,18 @@
 
   onDestroy(() => {
     attachments.forEach((a) => URL.revokeObjectURL(a.url));
+    disconnectRealtime();
   });
 
   onMount(async () => {
     try {
+      const roomCode =
+        $page.url.searchParams.get("room") ||
+        (browser ? localStorage.getItem("sync-room-code") : null);
+      if (roomCode) {
+        connectRealtime(roomCode);
+      }
+
       workspaceAssignees = await getAssignees(true);
 
       // Fetch suites

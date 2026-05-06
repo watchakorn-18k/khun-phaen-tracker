@@ -36,6 +36,7 @@
     MY_TASKS_WORKSPACE_ID,
   } from "$lib/stores/workspace";
   import { modals } from "$lib/stores/uiActions";
+  import { connectRealtime, disconnectRealtime } from "$lib/stores/realtime";
   import {
     MoreHorizontal,
     PanelRight,
@@ -141,6 +142,7 @@
   
   onDestroy(() => {
     attachedFiles.forEach(af => revokePreview(af.preview));
+    disconnectRealtime();
   });
 
   let projects: Project[] = [];
@@ -285,6 +287,20 @@
   });
 
   onMount(() => {
+    const roomCode =
+      $page.url.searchParams.get("room") ||
+      (browser ? localStorage.getItem("sync-room-code") : null);
+    if (roomCode && workspaceId !== MY_TASKS_WORKSPACE_ID) {
+      connectRealtime(roomCode, (payload) => {
+        if (
+          payload.entity === "task" &&
+          String(payload.id || payload.data?.id || "") === String(taskId)
+        ) {
+          void loadRouteTask(routeTaskKey, taskId, workspaceId);
+        }
+      });
+    }
+
     // Hard refresh fallback — afterNavigate may not fire if the page was loaded fresh
     const tid = $page.params.task_id || "";
     const wid = $page.params.workspace_id || "";

@@ -380,14 +380,8 @@
   {:else if isWorkspacePage || isDashboard || isSettingsPage || isProfilePage}
     <slot />
 
-    {#if $user}
-      <div class="fixed right-4 top-4 z-110">
-        <NotificationCenter />
-      </div>
-    {/if}
-
     {#if whiteboardMessage}
-      <div class="fixed top-16 right-4 z-110 animate-fade-in">
+      <div class="fixed top-4 right-4 z-110 animate-fade-in">
         <div
           class="{whiteboardMessageType === 'success'
             ? 'bg-success'
@@ -601,10 +595,6 @@
               {/if}
             </div>
 
-            {#if $user}
-              <NotificationCenter />
-            {/if}
-
             <!-- Theme Toggle -->
             <button
               on:click={toggleTheme}
@@ -634,6 +624,8 @@
               <div
                 class="flex items-center gap-4 border-l border-gray-200 dark:border-gray-700 pl-4 h-10"
               >
+                <NotificationCenter />
+
                 <div class="relative">
                   <button
                     type="button"
