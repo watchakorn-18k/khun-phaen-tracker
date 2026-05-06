@@ -49,6 +49,9 @@
     RotateCcw,
     FileCheck,
     MinusCircle,
+    ArrowUp,
+    Minus,
+    ArrowDown,
   } from "lucide-svelte";
   import { _ } from "svelte-i18n";
   import TestCaseStepList from "$lib/components/TestCaseStepList.svelte";
@@ -1914,9 +1917,27 @@
   ];
 
   const priorityOptions = [
-    { value: "high", label: "High" },
-    { value: "medium", label: "Medium" },
-    { value: "low", label: "Low" },
+    {
+      value: "high",
+      label: "High",
+      icon: ArrowUp,
+      iconClass: "text-rose-500",
+      pillClass: "text-rose-500 bg-rose-50 border-rose-100 dark:bg-rose-500/10 dark:border-rose-500/20",
+    },
+    {
+      value: "medium",
+      label: "Medium",
+      icon: Minus,
+      iconClass: "text-amber-500",
+      pillClass: "text-amber-600 bg-amber-50 border-amber-100 dark:bg-amber-500/10 dark:border-amber-500/20",
+    },
+    {
+      value: "low",
+      label: "Low",
+      icon: ArrowDown,
+      iconClass: "text-gray-400",
+      pillClass: "text-gray-500 bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-700",
+    },
   ];
 
   const statusOptions = [
@@ -2235,13 +2256,6 @@
     }
   }
 
-  function priorityColor(priority: TestCase["priority"]) {
-    if (priority === "high")
-      return "text-rose-500 bg-rose-50 border-rose-100 dark:bg-rose-500/10 dark:border-rose-500/20";
-    if (priority === "medium")
-      return "text-amber-600 bg-amber-50 border-amber-100 dark:bg-amber-500/10 dark:border-amber-500/20";
-    return "text-gray-500 bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-700";
-  }
 
   function clampDetailWidth(width: number) {
     if (!browser) return width;
@@ -3258,7 +3272,7 @@
                           : 'hover:bg-slate-50 dark:hover:bg-gray-900/70'}"
                       >
                         <button
-                          class="col-span-3 grid grid-cols-[24px_52px_1fr] sm:grid-cols-[60px_52px_1fr] items-center gap-3 text-left"
+                          class="col-span-3 grid grid-cols-[24px_1fr] sm:grid-cols-[60px_1fr] items-center gap-3 text-left"
                           on:click={() => {
                             selectCase(suite, testCase);
                             showDetail = true;
@@ -3271,18 +3285,13 @@
                               class="h-2.5 w-2.5 rounded-full border-2 {testCase.priority ===
                               'high'
                                 ? 'border-rose-500'
+                                : testCase.priority === 'medium'
+                                ? 'border-amber-400'
                                 : 'border-slate-300'}"
                             ></span>
                           </span>
                           <span
-                            class="hidden w-full items-center justify-center rounded-md border px-1 py-0.5 text-[10px] font-black uppercase tracking-wide sm:flex {priorityColor(
-                              testCase.priority,
-                            )}"
-                          >
-                            {testCase.priority}
-                          </span>
-                          <span
-                            class="font-mono text-sm font-bold text-slate-400 text-left"
+                            class="hidden font-mono text-sm font-bold text-slate-400 text-left sm:block"
                             >TC-{testCase.test_no}</span
                           >
                           <span
@@ -3291,6 +3300,30 @@
                           >
                         </button>
                         <div class="flex items-center gap-2">
+                          {#if isAuthorized}
+                            <div class="property-select min-w-18">
+                              <SearchableSelect
+                                id="priority-update-{testCase.id}"
+                                value={testCase.priority}
+                                options={priorityOptions}
+                                showSearch={false}
+                                minimal={true}
+                                on:select={(e) =>
+                                  updatePriority(testCase, e.detail)}
+                              />
+                            </div>
+                          {:else}
+                            <div class="property-select min-w-18 pointer-events-none opacity-80">
+                              <SearchableSelect
+                                id="priority-update-{testCase.id}"
+                                value={testCase.priority}
+                                options={priorityOptions}
+                                showSearch={false}
+                                minimal={true}
+                                on:select={() => {}}
+                              />
+                            </div>
+                          {/if}
                           {#if isAuthorized}
                             <div class="property-select min-w-[80px]" data-status={testCase.status}>
                               <SearchableSelect
