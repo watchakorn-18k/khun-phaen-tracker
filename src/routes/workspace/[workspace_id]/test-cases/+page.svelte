@@ -48,6 +48,7 @@
     Copy,
     RotateCcw,
     FileCheck,
+    LoaderCircle,
     MinusCircle,
     ArrowUp,
     Minus,
@@ -325,6 +326,8 @@
   let selectedRunDetail: TestRunDetail | null = null;
   let isLoadingRunDetail = false;
   let updatingCaseId: string | null = null;
+  let openPriorityMenuId = "";
+  let updatingPriorityCaseIds: Set<string> = new Set();
   let newTestRunForm: NewTestRunForm = {
     name: "",
     description: "",
@@ -1264,24 +1267,35 @@
   }
 
   async function updatePriority(testCase: TestCase, newPriority: string) {
+    const priority = newPriority as TestCase["priority"];
+    if (testCase.priority === priority) {
+      openPriorityMenuId = "";
+      return;
+    }
+
+    const previousPriority = testCase.priority;
+    openPriorityMenuId = "";
+    updatingPriorityCaseIds = new Set(updatingPriorityCaseIds).add(testCase.id);
+    patchTestCase(testCase.id, { priority });
+
     try {
       const resp = await api.data.testCases.updatePriority(
         testCase.id,
-        newPriority,
+        priority,
       );
       if (resp.ok) {
-        suites = suites.map((s) => ({
-          ...s,
-          cases: s.cases.map((c) =>
-            c.id === testCase.id ? { ...c, priority: newPriority as any } : c,
-          ),
-        }));
         ui.showMessage("Priority updated", "success");
       } else {
+        patchTestCase(testCase.id, { priority: previousPriority });
         ui.showMessage("Failed to update priority", "error");
       }
     } catch (e) {
+      patchTestCase(testCase.id, { priority: previousPriority });
       ui.showMessage("Failed to update priority", "error");
+    } finally {
+      const next = new Set(updatingPriorityCaseIds);
+      next.delete(testCase.id);
+      updatingPriorityCaseIds = next;
     }
   }
 
@@ -1939,6 +1953,51 @@
       pillClass: "text-gray-500 bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-700",
     },
   ];
+
+  const priorityTone = {
+    high: {
+      button:
+        "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/15",
+      menu: "text-rose-600 dark:text-rose-300",
+      dot: "bg-rose-500",
+      icon: ArrowUp,
+    },
+    medium: {
+      button:
+        "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/15",
+      menu: "text-amber-600 dark:text-amber-300",
+      dot: "bg-amber-500",
+      icon: Minus,
+    },
+    low: {
+      button:
+        "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300 dark:hover:bg-slate-800",
+      menu: "text-slate-500 dark:text-slate-300",
+      dot: "bg-slate-400",
+      icon: ArrowDown,
+    },
+  } satisfies Record<
+    TestCase["priority"],
+    { button: string; menu: string; dot: string; icon: typeof ArrowUp }
+  >;
+
+  function getPriorityMeta(priority: string | null | undefined) {
+    return (
+      priorityTone[(priority || "medium") as TestCase["priority"]] ||
+      priorityTone.medium
+    );
+  }
+
+  function getPriorityLabel(priority: string | null | undefined) {
+    return priorityOptions.find((o) => o.value === priority)?.label || "Medium";
+  }
+
+  function patchTestCase(caseId: string, patch: Partial<TestCase>) {
+    suites = suites.map((s) => ({
+      ...s,
+      cases: s.cases.map((c) => (c.id === caseId ? { ...c, ...patch } : c)),
+    }));
+  }
 
   const statusOptions = [
     {
@@ -3300,30 +3359,104 @@
                           >
                         </button>
                         <div class="flex items-center gap-2">
-                          {#if isAuthorized}
-                            <div class="property-select min-w-18">
-                              <SearchableSelect
-                                id="priority-update-{testCase.id}"
-                                value={testCase.priority}
-                                options={priorityOptions}
-                                showSearch={false}
-                                minimal={true}
-                                on:select={(e) =>
-                                  updatePriority(testCase, e.detail)}
-                              />
-                            </div>
-                          {:else}
-                            <div class="property-select min-w-18 pointer-events-none opacity-80">
-                              <SearchableSelect
-                                id="priority-update-{testCase.id}"
-                                value={testCase.priority}
-                                options={priorityOptions}
-                                showSearch={false}
-                                minimal={true}
-                                on:select={() => {}}
-                              />
-                            </div>
-                          {/if}
+                          <div class="relative">
+                            {#if isAuthorized}
+                              <button
+                                type="button"
+                                class="inline-flex h-8 min-w-[92px] items-center justify-between gap-1.5 rounded-full border px-2.5 text-[12px] font-black transition-colors disabled:cursor-wait disabled:opacity-70 {getPriorityMeta(
+                                  testCase.priority,
+                                ).button}"
+                                title="Change priority"
+                                aria-label="Change priority for TC-{testCase.test_no}"
+                                disabled={updatingPriorityCaseIds.has(testCase.id)}
+                                on:click|stopPropagation={() =>
+                                  (openPriorityMenuId =
+                                    openPriorityMenuId === testCase.id
+                                      ? ""
+                                      : testCase.id)}
+                              >
+                                <span class="inline-flex min-w-0 items-center gap-1.5">
+                                  {#if updatingPriorityCaseIds.has(testCase.id)}
+                                    <LoaderCircle size={13} class="shrink-0 animate-spin" />
+                                  {:else}
+                                    <svelte:component
+                                      this={getPriorityMeta(testCase.priority).icon}
+                                      size={13}
+                                      class="shrink-0"
+                                    />
+                                  {/if}
+                                  <span class="truncate">
+                                    {getPriorityLabel(testCase.priority)}
+                                  </span>
+                                </span>
+                                <ChevronDown
+                                  size={12}
+                                  class="shrink-0 opacity-60 transition-transform {openPriorityMenuId ===
+                                  testCase.id
+                                    ? 'rotate-180'
+                                    : ''}"
+                                />
+                              </button>
+
+                              {#if openPriorityMenuId === testCase.id}
+                                <button
+                                  type="button"
+                                  class="fixed inset-0 z-[8998] cursor-default bg-transparent"
+                                  aria-label="Close priority menu"
+                                  on:click|stopPropagation={() =>
+                                    (openPriorityMenuId = "")}
+                                ></button>
+                                <div
+                                  class="absolute right-0 top-full z-[8999] mt-1 w-40 overflow-hidden rounded-lg border border-slate-200 bg-white p-1 shadow-xl shadow-slate-900/10 ring-1 ring-black/5 dark:border-white/10 dark:bg-slate-900 dark:shadow-black/30"
+                                >
+                                  {#each priorityOptions as opt}
+                                    {@const optionMeta = getPriorityMeta(String(opt.value))}
+                                    {@const OptionIcon = optionMeta.icon}
+                                    <button
+                                      type="button"
+                                      class="flex h-9 w-full items-center justify-between rounded-md px-2.5 text-left text-[13px] font-bold transition-colors hover:bg-slate-100 dark:hover:bg-white/5 {testCase.priority ===
+                                      opt.value
+                                        ? 'bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white'
+                                        : 'text-slate-600 dark:text-slate-300'}"
+                                      on:click|stopPropagation={() =>
+                                        updatePriority(
+                                          testCase,
+                                          String(opt.value),
+                                        )}
+                                    >
+                                      <span class="inline-flex items-center gap-2 {optionMeta.menu}">
+                                        <span
+                                          class="h-1.5 w-1.5 rounded-full {optionMeta.dot}"
+                                        ></span>
+                                        <svelte:component
+                                          this={OptionIcon}
+                                          size={13}
+                                          class="shrink-0"
+                                        />
+                                        <span>{opt.label}</span>
+                                      </span>
+                                      {#if testCase.priority === opt.value}
+                                        <Check size={14} class="text-slate-400" />
+                                      {/if}
+                                    </button>
+                                  {/each}
+                                </div>
+                              {/if}
+                            {:else}
+                              <span
+                                class="inline-flex h-8 min-w-[92px] items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-black {getPriorityMeta(
+                                  testCase.priority,
+                                ).button}"
+                              >
+                                <svelte:component
+                                  this={getPriorityMeta(testCase.priority).icon}
+                                  size={13}
+                                  class="shrink-0"
+                                />
+                                {getPriorityLabel(testCase.priority)}
+                              </span>
+                            {/if}
+                          </div>
                           {#if isAuthorized}
                             <div class="property-select min-w-[80px]" data-status={testCase.status}>
                               <SearchableSelect
