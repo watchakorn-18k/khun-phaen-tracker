@@ -67,6 +67,7 @@
   import { sprints } from "$lib/stores/sprintStore";
   import { buildMonthlySummary } from "$lib/utils/monthly-summary";
   import { modals } from "$lib/stores/uiActions";
+  import { broadcastTestCaseAssignment } from "$lib/stores/testCaseNotifications";
 
   type Step = {
     action: string;
@@ -1309,12 +1310,23 @@
         newAssignTester,
       );
       if (resp.ok) {
+        const previousAssignee = testCase.assignee || "unassigned";
         suites = suites.map((s) => ({
           ...s,
           cases: s.cases.map((c) =>
             c.id === testCase.id ? { ...c, assignee: newAssignTester } : c,
           ),
         }));
+        broadcastTestCaseAssignment({
+          id: testCase.id,
+          title: testCase.title,
+          workspaceId: workspaceId!,
+          suiteId: testCase.suite_id,
+          assignees,
+          nextAssigneeIds: [newAssignTester],
+          previousAssigneeIds: [previousAssignee],
+          action: "update",
+        });
         ui.showMessage("Tester updated", "success");
       } else {
         ui.showMessage("Failed to update tester", "error");
@@ -1331,12 +1343,23 @@
         newAssignDev,
       );
       if (resp.ok) {
+        const previousAssignee = testCase.assign_dev || "unassigned";
         suites = suites.map((s) => ({
           ...s,
           cases: s.cases.map((c) =>
             c.id === testCase.id ? { ...c, assign_dev: newAssignDev } : c,
           ),
         }));
+        broadcastTestCaseAssignment({
+          id: testCase.id,
+          title: testCase.title,
+          workspaceId: workspaceId!,
+          suiteId: testCase.suite_id,
+          assignees,
+          nextAssigneeIds: [newAssignDev],
+          previousAssigneeIds: [previousAssignee],
+          action: "update",
+        });
         ui.showMessage("Assignee updated", "success");
       } else {
         const err = await resp.text();
@@ -2228,6 +2251,18 @@
       if (resp.ok) {
         const result = await resp.json();
         const newCase = mapBackendToFrontend(result);
+        broadcastTestCaseAssignment({
+          id: newCase.id,
+          title: newCase.title,
+          workspaceId,
+          suiteId: newCase.suite_id,
+          assignees,
+          nextAssigneeIds: [
+            newCase.assignee || "unassigned",
+            newCase.assign_dev || "unassigned",
+          ],
+          action: "create",
+        });
 
         suites = suites.map((suite) =>
           suite.id === newCase.suite_id

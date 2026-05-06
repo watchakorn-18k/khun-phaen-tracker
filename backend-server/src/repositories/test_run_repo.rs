@@ -1,4 +1,4 @@
-use crate::models::test_run::{TestRun, TestRunCase};
+use crate::models::test_run::TestRun;
 use futures::stream::StreamExt;
 use mongodb::{
     bson::{doc, oid::ObjectId},
@@ -139,28 +139,6 @@ impl TestRunRepository {
                         "updated_at": updated_at,
                     }
                 },
-                None,
-            )
-            .await?;
-        Ok(res.matched_count > 0)
-    }
-
-    /// Replace the whole test_cases array (used when adding/removing cases).
-    pub async fn replace_cases(
-        &self,
-        id: &str,
-        workspace_id: &ObjectId,
-        cases: Vec<TestRunCase>,
-        updated_at: &str,
-    ) -> mongodb::error::Result<bool> {
-        let bson_cases = mongodb::bson::to_bson(&cases)
-            .map_err(|e| mongodb::error::Error::custom(e.to_string()))?;
-
-        let res = self
-            .collection
-            .update_one(
-                doc! { "_id": Self::build_id_filter(id), "workspace_id": workspace_id },
-                doc! { "$set": { "test_cases": bson_cases, "updated_at": updated_at } },
                 None,
             )
             .await?;

@@ -44,6 +44,7 @@
     FileText,
   } from "lucide-svelte";
   import TestCaseStepList from "$lib/components/TestCaseStepList.svelte";
+  import { broadcastTestCaseAssignment } from "$lib/stores/testCaseNotifications";
 
   type Status =
     | "draft"
@@ -210,6 +211,8 @@
   let fixed: "no" | "yes" = "no";
   let assignDev = "unassigned";
   let assignTester = initialCase?.assignee || "unassigned";
+  let savedAssignDev = assignDev;
+  let savedAssignTester = assignTester;
   let devNote = "";
   let testNote = "";
   let stepFormat: StepFormat = "classic";
@@ -369,6 +372,8 @@
           priority = tc.priority || "medium";
           assignDev = tc.assign_dev || "unassigned";
           assignTester = tc.assign_tester || "unassigned";
+          savedAssignDev = assignDev;
+          savedAssignTester = assignTester;
           testNo = `TC-${tc.test_no}`;
           input = tc.input || "";
           expectedResult = tc.expected_result || "";
@@ -459,6 +464,18 @@
       if (resp.ok) {
         const result = isEditing ? { id: caseId } : await resp.json();
         const testCaseId = result.id;
+        broadcastTestCaseAssignment({
+          id: testCaseId,
+          title: name.trim(),
+          workspaceId,
+          suiteId,
+          assignees: workspaceAssignees,
+          nextAssigneeIds: [assignDev, assignTester],
+          previousAssigneeIds: isEditing
+            ? [savedAssignDev, savedAssignTester]
+            : [],
+          action: isEditing ? "update" : "create",
+        });
 
         // Upload attachments if any
         if (attachments.length > 0) {

@@ -27,6 +27,12 @@ import {
 } from "./stores/workspace";
 import { broadcastChange } from "./stores/realtime";
 import { user as userStore } from "./stores/auth";
+import {
+  getAssignmentIds,
+  getUserDisplayName,
+  resolveRecipientUserIds,
+  type AssignmentNotificationMeta,
+} from "./stores/notifications";
 
 // ===== Initialisation =====
 
@@ -79,6 +85,35 @@ function resolveTaskWorkspaceId(taskOrId?: Partial<Task> | string | number | nul
     return taskOrId.workspace_id;
   }
   return wsId();
+}
+
+async function buildTaskAssignmentNotification(
+  task: Task,
+  assignmentIds: string[],
+): Promise<AssignmentNotificationMeta | null> {
+  if (assignmentIds.length === 0 || !task.id) return null;
+
+  try {
+    const actor = get(userStore);
+    const assignees = await getAssignees(true);
+    const recipientUserIds = resolveRecipientUserIds(assignees, assignmentIds);
+    if (recipientUserIds.length === 0) return null;
+
+    return {
+      source_type: "task",
+      source_id: String(task.id),
+      source_title: task.title || "Untitled task",
+      workspace_id: resolveTaskWorkspaceId(task),
+      assignment_ids: assignmentIds,
+      recipient_user_ids: recipientUserIds,
+      actor_user_id: actor?.id || actor?.user_id,
+      actor_name: getUserDisplayName(actor),
+      created_at: new Date().toISOString(),
+    };
+  } catch (error) {
+    console.warn("Failed to build task assignment notification:", error);
+    return null;
+  }
 }
 
 function extractId(doc: any): string {
@@ -259,7 +294,14 @@ export async function addTask(
   if (!res.ok) throw new Error(data.error || "Failed to create task");
   const newTask = docToTask(data.task);
   _assigneesCache = null; // Invalidate cache in case of new assignee IDs
-  broadcastChange("task", "create", newTask.id as string, newTask);
+  const notification = await buildTaskAssignmentNotification(
+    newTask,
+    getAssignmentIds(newTask.assignee_ids || []),
+  );
+  broadcastChange("task", "create", newTask.id as string, {
+    ...newTask,
+    _notification: notification || undefined,
+  });
   return newTask;
 }
 
@@ -267,6 +309,16 @@ export async function updateTask(
   id: string | number,
   updates: Partial<Task>,
 ): Promise<Task | null> {
+  let previousAssigneeIds: (string | number)[] = [];
+  if (updates.assignee_ids !== undefined) {
+    try {
+      previousAssigneeIds =
+        (await getTaskById(id, resolveTaskWorkspaceId(updates)))?.assignee_ids ||
+        [];
+    } catch (error) {
+      console.warn("Failed to load previous task assignees:", error);
+    }
+  }
   const payload: Record<string, any> = {};
   if (updates.title !== undefined) payload.title = updates.title;
   if (updates.project !== undefined) payload.project = updates.project;
@@ -312,7 +364,18 @@ export async function updateTask(
   const raw = data?.task || data;
   const taskFromServer = raw ? docToTask(raw) : null;
   if (taskFromServer) {
-    broadcastChange("task", "update", String(id), taskFromServer);
+    const assignmentIds =
+      updates.assignee_ids !== undefined
+        ? getAssignmentIds(taskFromServer.assignee_ids || [], previousAssigneeIds)
+        : [];
+    const notification = await buildTaskAssignmentNotification(
+      taskFromServer,
+      assignmentIds,
+    );
+    broadcastChange("task", "update", String(id), {
+      ...taskFromServer,
+      _notification: notification || undefined,
+    });
   }
   return taskFromServer;
 }

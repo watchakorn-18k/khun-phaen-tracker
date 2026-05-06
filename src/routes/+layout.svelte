@@ -29,6 +29,7 @@
   import CsvJsonViewer from "$lib/components/CsvJsonViewer.svelte";
   import EncoderDecoder from "$lib/components/EncoderDecoder.svelte";
   import GlobalConfirmModal from "$lib/components/GlobalConfirmModal.svelte";
+  import NotificationCenter from "$lib/components/NotificationCenter.svelte";
   import { _ } from "svelte-i18n";
   import { initAuth, user, authLoading } from "$lib/stores/auth";
   import {
@@ -50,6 +51,10 @@
   } from "$lib/stores/workspace";
   import { githubStore } from "$lib/stores/github";
   import { modals, createUIActions } from "$lib/stores/uiActions";
+  import {
+    destroyNotifications,
+    initNotifications,
+  } from "$lib/stores/notifications";
 
   const ui = createUIActions();
 
@@ -112,6 +117,7 @@
 
     try {
       await Promise.all([initDB(), initAuth()]);
+      initNotifications();
       loading = false;
     } catch (e) {
       error = $_("layout__db_error");
@@ -138,6 +144,7 @@
 
   onDestroy(() => {
     if (githubInterval) clearInterval(githubInterval);
+    destroyNotifications();
     if (browser) {
       document.removeEventListener(
         "open-utility-modal",
@@ -373,8 +380,14 @@
   {:else if isWorkspacePage || isDashboard || isSettingsPage || isProfilePage}
     <slot />
 
+    {#if $user}
+      <div class="fixed right-4 top-4 z-110">
+        <NotificationCenter />
+      </div>
+    {/if}
+
     {#if whiteboardMessage}
-      <div class="fixed top-4 right-4 z-110 animate-fade-in">
+      <div class="fixed top-16 right-4 z-110 animate-fade-in">
         <div
           class="{whiteboardMessageType === 'success'
             ? 'bg-success'
@@ -587,6 +600,10 @@
                 </div>
               {/if}
             </div>
+
+            {#if $user}
+              <NotificationCenter />
+            {/if}
 
             <!-- Theme Toggle -->
             <button
