@@ -185,6 +185,24 @@ impl NotificationRepository {
             .await?;
         Ok(result.modified_count)
     }
+
+    pub async fn delete_for_user(
+        &self,
+        notification_id: &ObjectId,
+        user_keys: &[String],
+    ) -> mongodb::error::Result<bool> {
+        let result = self
+            .collection
+            .delete_one(
+                doc! {
+                    "_id": notification_id,
+                    "recipient_user_id": { "$in": user_keys },
+                },
+                None,
+            )
+            .await?;
+        Ok(result.deleted_count > 0)
+    }
 }
 
 fn unique_non_empty(values: Vec<String>) -> Vec<String> {

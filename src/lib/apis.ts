@@ -1223,6 +1223,12 @@ export const api = {
         headers: api.data._headers(),
         credentials: "include",
       }),
+    delete: (dbId: string): Promise<Response> =>
+      fetch(`${API_BASE_URL}/notifications/${dbId}`, {
+        method: "DELETE",
+        headers: api.data._headers(),
+        credentials: "include",
+      }),
     markAllRead: (): Promise<Response> =>
       fetch(`${API_BASE_URL}/notifications/read-all`, {
         method: "POST",

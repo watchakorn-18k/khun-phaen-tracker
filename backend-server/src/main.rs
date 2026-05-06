@@ -262,6 +262,10 @@ async fn main() {
             patch(handlers::notification_handler::mark_notification_read),
         )
         .route(
+            "/api/notifications/:id",
+            delete(handlers::notification_handler::delete_notification),
+        )
+        .route(
             "/api/notifications/read-all",
             post(handlers::notification_handler::mark_all_notifications_read),
         )

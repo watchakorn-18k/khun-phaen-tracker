@@ -307,6 +307,27 @@ export function markAllNotificationsRead() {
   api.userNotifications.markAllRead().catch(() => {});
 }
 
+export async function deleteNotification(id: string): Promise<void> {
+  const previousItems = get(notifications);
+  const item = previousItems.find((notification) => notification.id === id);
+  if (!item) return;
+
+  updateStored((items) =>
+    items.filter((notification) => notification.id !== id),
+  );
+
+  if (!item.dbId) return;
+
+  try {
+    const res = await api.userNotifications.delete(item.dbId);
+    if (!res.ok) {
+      updateStored(() => previousItems);
+    }
+  } catch {
+    updateStored(() => previousItems);
+  }
+}
+
 export function clearNotificationsForTest() {
   notifications.set([]);
   activeUserKey = "";

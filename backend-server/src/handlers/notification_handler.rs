@@ -183,6 +183,43 @@ pub async fn mark_all_notifications_read(
     }
 }
 
+pub async fn delete_notification(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    jar: CookieJar,
+    Path(id): Path<String>,
+) -> axum::response::Response {
+    let user_keys = match current_user_keys(&state, &headers, &jar).await {
+        Ok(keys) => keys,
+        Err(response) => return response,
+    };
+    let notification_id = match ObjectId::parse_str(&id) {
+        Ok(id) => id,
+        Err(_) => {
+            return (
+                axum::http::StatusCode::BAD_REQUEST,
+                axum::Json(serde_json::json!({ "error": "Invalid notification ID" })),
+            )
+                .into_response()
+        }
+    };
+
+    let repo = NotificationRepository::new(&state.db);
+    match repo.delete_for_user(&notification_id, &user_keys).await {
+        Ok(true) => axum::Json(serde_json::json!({ "success": true })).into_response(),
+        Ok(false) => (
+            axum::http::StatusCode::NOT_FOUND,
+            axum::Json(serde_json::json!({ "error": "Notification not found" })),
+        )
+            .into_response(),
+        Err(error) => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            axum::Json(serde_json::json!({ "error": format!("{}", error) })),
+        )
+            .into_response(),
+    }
+}
+
 async fn current_user_keys(
     state: &SharedState,
     headers: &HeaderMap,

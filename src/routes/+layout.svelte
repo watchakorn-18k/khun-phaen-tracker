@@ -277,8 +277,9 @@
       try {
         const res = await api.workspaces.getList();
         if (res.ok) {
-          const workspaces = await res.json();
-          const currentWs = workspaces.find((w: any) => w.id === workspaceId || w._id === workspaceId);
+          const data = await res.json();
+          const wsList = data.workspaces || data;
+          const currentWs = (Array.isArray(wsList) ? wsList : []).find((w: any) => w.id === workspaceId || w._id === workspaceId);
           if (currentWs?.room_code) {
             localStorage.setItem("sync-room-code", currentWs.room_code);
             const newUrl = new URL(window.location.href);
@@ -291,8 +292,11 @@
         console.error("Failed to recover room:", e);
       }
       
-      // If all else fails, only then go to dashboard
-      goto(`${base}/dashboard`);
+      // If all else fails, go to dashboard — but task detail pages can load without a room code
+      const isTaskPage = $page.url.pathname.includes('/task/');
+      if (!isTaskPage) {
+        goto(`${base}/dashboard`);
+      }
     }
   }
 

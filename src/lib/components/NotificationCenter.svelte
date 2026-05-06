@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { Bell, CheckCheck } from "lucide-svelte";
+  import { Bell, CheckCheck, Trash2 } from "lucide-svelte";
   import {
+    deleteNotification,
     markAllNotificationsRead,
     markNotificationRead,
     notificationItems,
@@ -100,28 +101,41 @@
           </div>
         {:else}
           {#each $notificationItems as item (item.id)}
-            <button
-              type="button"
-              class="flex w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/60"
-              on:click={() => openNotification(item)}
+            <div
+              class="flex w-full items-start gap-2 px-4 py-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/60"
             >
-              <span
-                class="mt-1 h-2.5 w-2.5 shrink-0 rounded-full {item.readAt
-                  ? 'bg-gray-300 dark:bg-gray-600'
-                  : 'bg-indigo-500'}"
-              ></span>
-              <span class="min-w-0 flex-1">
-                <span class="block truncate text-sm font-semibold text-gray-900 dark:text-white">
-                  {item.sourceTitle}
+              <button
+                type="button"
+                class="flex min-w-0 flex-1 gap-3 text-left"
+                on:click={() => openNotification(item)}
+              >
+                <span
+                  class="mt-1 h-2.5 w-2.5 shrink-0 rounded-full {item.readAt
+                    ? 'bg-gray-300 dark:bg-gray-600'
+                    : 'bg-indigo-500'}"
+                ></span>
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm font-semibold text-gray-900 dark:text-white">
+                    {item.sourceTitle}
+                  </span>
+                  <span class="mt-0.5 block text-sm leading-5 text-gray-600 dark:text-gray-300">
+                    {item.message}
+                  </span>
+                  <span class="mt-1 block text-xs text-gray-400 dark:text-gray-500">
+                    {formatTime(item.createdAt)}
+                  </span>
                 </span>
-                <span class="mt-0.5 block text-sm leading-5 text-gray-600 dark:text-gray-300">
-                  {item.message}
-                </span>
-                <span class="mt-1 block text-xs text-gray-400 dark:text-gray-500">
-                  {formatTime(item.createdAt)}
-                </span>
-              </span>
-            </button>
+              </button>
+              <button
+                type="button"
+                class="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-300"
+                title="Delete notification"
+                aria-label="Delete notification"
+                on:click|stopPropagation={() => void deleteNotification(item.id)}
+              >
+                <Trash2 size={15} />
+              </button>
+            </div>
           {/each}
         {/if}
       </div>
