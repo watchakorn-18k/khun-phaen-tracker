@@ -13,7 +13,7 @@
   let isFullscreen = $state(false);
   let splitRatio = $state(50);
   let isDragging = $state(false);
-  let containerEl: HTMLElement | null = null;
+  let containerEl = $state<HTMLElement | null>(null);
 
   onMount(() => {
     if (browser) {
@@ -77,6 +77,20 @@
     document.body.style.userSelect = "none";
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
+  }
+
+  function handleDividerKeydown(e: KeyboardEvent) {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+
+    e.preventDefault();
+    splitRatio = Math.min(
+      80,
+      Math.max(20, splitRatio + (e.key === "ArrowLeft" ? -5 : 5)),
+    );
+
+    if (browser) {
+      localStorage.setItem("html-preview-split", String(splitRatio));
+    }
   }
 </script>
 
@@ -177,14 +191,16 @@
         </div>
 
         <!-- Divider -->
-        <div
-          class="w-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-indigo-400 dark:hover:bg-indigo-500 cursor-col-resize transition-colors relative group shrink-0"
-          role="separator"
+        <button
+          type="button"
+          class="w-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-indigo-400 dark:hover:bg-indigo-500 cursor-col-resize transition-colors relative group shrink-0 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          aria-label="Resize preview panes"
           onmousedown={handleDividerDrag}
+          onkeydown={handleDividerKeydown}
         >
           <div class="absolute inset-y-0 -left-1 -right-1"></div>
           <div class="absolute inset-y-0 left-1/2 -translate-x-1/2 w-0.5 bg-gray-400 dark:bg-gray-500 group-hover:bg-indigo-500 transition-colors"></div>
-        </div>
+        </button>
 
         <!-- Right: Preview -->
         <div class="flex flex-col overflow-hidden" style="width: {100 - splitRatio}%;">

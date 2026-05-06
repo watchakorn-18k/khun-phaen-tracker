@@ -38,6 +38,12 @@ describe("taskActions", () => {
     const event = {
       detail: { title: "New Task" },
     } as any;
+    vi.mocked(db.addTask).mockResolvedValue({
+      ...event.detail,
+      id: 123,
+      created_at: "2026-02-10T00:00:00.000Z",
+    });
+    vi.mocked(db.getAssignees).mockResolvedValue([]);
 
     await actions.handleAddTask(event);
 

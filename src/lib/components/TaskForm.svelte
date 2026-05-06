@@ -87,6 +87,7 @@
     submit: Omit<Task, "id" | "created_at">;
     cancel: void;
     close: void;
+    addTask: Task;
     addAssignee: { name: string; color: string };
     checklistUpdate: { checklist: ChecklistItem[] };
   }>();

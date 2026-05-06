@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { render, fireEvent } from '@testing-library/svelte';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import TableView from './TableView.svelte';
 import type { Task } from '$lib/types';
 import { cleanup } from '@testing-library/svelte';
@@ -21,6 +21,17 @@ function makeTask(id: number): Task {
 }
 
 describe('TableView', () => {
+	beforeEach(() => {
+		vi.stubGlobal(
+			'ResizeObserver',
+			class ResizeObserver {
+				observe() {}
+				unobserve() {}
+				disconnect() {}
+			}
+		);
+	});
+
 	afterEach(() => cleanup());
 
 	it('sorts rows by title when title header is clicked', async () => {

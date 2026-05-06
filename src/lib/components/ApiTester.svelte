@@ -434,7 +434,7 @@
                   : 'text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-300'}"
               >
                 {t.label}
-                {#if 'count' in t && t.count > 0}
+                {#if "count" in t && (t.count ?? 0) > 0}
                   <span class="ml-1.5 px-1.5 py-0.5 rounded-md text-[10px] bg-gray-100 dark:bg-gray-700">{t.count}</span>
                 {/if}
               </button>

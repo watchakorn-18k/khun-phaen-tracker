@@ -226,9 +226,9 @@
         {/if}
         <!-- Pattern Input -->
         <div>
-          <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+          <p class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
             {$_('regexTester__pattern') || 'Pattern'}
-          </label>
+          </p>
           <div class="flex items-center gap-2">
             <div class="flex-1 flex items-center bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden focus-within:border-purple-400 dark:focus-within:border-purple-600 transition-colors">
               <span class="px-3 text-purple-500 font-mono font-bold text-lg">/</span>
@@ -278,9 +278,9 @@
 
         <!-- Common Patterns -->
         <div>
-          <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+          <p class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
             {$_('regexTester__common') || 'Common Patterns'}
-          </label>
+          </p>
           <div class="flex flex-wrap gap-2">
             {#each commonPatterns as p}
               <button
@@ -295,10 +295,11 @@
 
         <!-- Test String -->
         <div>
-          <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+          <label for="regex-test-string" class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
             {$_('regexTester__test_string') || 'Test String'}
           </label>
           <textarea
+            id="regex-test-string"
             bind:value={testString}
             class="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-mono text-gray-800 dark:text-gray-200 outline-none resize-y min-h-[100px] focus:border-purple-400 dark:focus:border-purple-600 transition-colors placeholder-gray-400"
             placeholder={$_('regexTester__test_placeholder') || 'Enter text to test against...'}
@@ -307,9 +308,9 @@
 
         <!-- Highlighted Result -->
         <div>
-          <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+          <p class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
             {$_('regexTester__result') || 'Result'}
-          </label>
+          </p>
           <div class="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-mono text-gray-800 dark:text-gray-200 min-h-[80px] whitespace-pre-wrap break-all leading-relaxed">
             {@html highlightedHtml || '<span class="text-gray-400">-</span>'}
           </div>
@@ -318,9 +319,9 @@
         <!-- Match List -->
         {#if matches.length > 0}
           <div>
-            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+            <p class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
               {$_('regexTester__matches') || 'Matches'} ({matches.length})
-            </label>
+            </p>
             <div class="space-y-1.5 max-h-48 overflow-y-auto">
               {#each matches as m, i}
                 <div class="flex items-center gap-3 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2">

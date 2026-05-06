@@ -264,10 +264,11 @@
 
         <!-- Input -->
         <div>
-          <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+          <label for="base64-input" class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
             {base64Mode === "encode" ? "Plain Text" : "Base64 String"}
           </label>
           <textarea
+            id="base64-input"
             bind:value={base64Input}
             oninput={() => processBase64()}
             rows="4"
@@ -287,9 +288,9 @@
         <!-- Output -->
         <div>
           <div class="flex items-center justify-between mb-1.5">
-            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+            <p class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
               {base64Mode === "encode" ? "Base64 Output" : "Decoded Output"}
-            </label>
+            </p>
             {#if base64Output}
               <button
                 onclick={() => copyToClipboard(base64Output, "base64-output")}
@@ -317,10 +318,11 @@
       {:else if activeTab === "jwt"}
         <!-- JWT Input -->
         <div>
-          <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+          <label for="jwt-input" class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
             JWT Token
           </label>
           <textarea
+            id="jwt-input"
             bind:value={jwtInput}
             oninput={() => decodeJwt()}
             rows="3"
@@ -356,9 +358,9 @@
           <!-- Header -->
           <div>
             <div class="flex items-center justify-between mb-1.5">
-              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              <p class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Header
-              </label>
+              </p>
               <button
                 onclick={() => copyToClipboard(JSON.stringify(jwtHeader, null, 2), "jwt-header")}
                 class="flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
@@ -378,9 +380,9 @@
           <!-- Payload -->
           <div>
             <div class="flex items-center justify-between mb-1.5">
-              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              <p class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Payload
-              </label>
+              </p>
               <button
                 onclick={() => copyToClipboard(JSON.stringify(jwtPayload, null, 2), "jwt-payload")}
                 class="flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
@@ -399,9 +401,9 @@
 
           <!-- Decoded Claims -->
           <div>
-            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+            <p class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
               Key Claims
-            </label>
+            </p>
             <div class="space-y-1.5">
               {#each Object.entries(jwtPayload) as [key, value]}
                 {@const isKnown = ["exp", "iat", "nbf", "sub", "iss", "aud", "jti", "role", "user_id", "email", "name", "scope", "permissions"].includes(key)}

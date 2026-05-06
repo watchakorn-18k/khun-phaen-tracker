@@ -449,6 +449,8 @@
         {#if rows.length === 0 && !parseError || rawInput === ""}
           <!-- Drop Zone -->
           <div
+            role="button"
+            tabindex="0"
             class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-8 text-center transition-colors hover:border-cyan-400 dark:hover:border-cyan-500"
             ondragover={(e) => { e.preventDefault(); (e.currentTarget as HTMLElement).classList.add('border-cyan-400', 'dark:border-cyan-500', 'bg-cyan-50', 'dark:bg-cyan-900/10'); }}
             ondragleave={(e) => { (e.currentTarget as HTMLElement).classList.remove('border-cyan-400', 'dark:border-cyan-500', 'bg-cyan-50', 'dark:bg-cyan-900/10'); }}
@@ -662,7 +664,8 @@
                         <div class="flex items-center gap-1.5">
                           <span class="truncate max-w-[180px]">{col}</span>
                           {#if sortCol === col}
-                            <svelte:component this={sortIcon(col)} size={12} class={sortDir === "asc" ? "text-cyan-600 dark:text-cyan-400" : "text-cyan-600 dark:text-cyan-400"} />
+                            {@const SortIcon = sortIcon(col)}
+                            <SortIcon size={12} class={sortDir === "asc" ? "text-cyan-600 dark:text-cyan-400" : "text-cyan-600 dark:text-cyan-400"} />
                           {:else}
                             <ArrowUpDown size={12} class="text-gray-300 dark:text-gray-600" />
                           {/if}
