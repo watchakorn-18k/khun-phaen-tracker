@@ -1957,21 +1957,21 @@
   const priorityTone = {
     high: {
       button:
-        "border-rose-500/35 bg-rose-950/45 text-rose-200 hover:border-rose-400/45 hover:bg-rose-950/70 dark:border-rose-500/35 dark:bg-rose-950/45 dark:text-rose-200 dark:hover:bg-rose-950/70",
+        "border-rose-500/30 bg-[#1a0710] text-rose-200 hover:border-rose-400/45 hover:bg-[#240914] dark:border-rose-500/30 dark:bg-[#1a0710] dark:text-rose-200 dark:hover:bg-[#240914]",
       menu: "text-rose-300 dark:text-rose-300",
       dot: "bg-rose-500",
       icon: ArrowUp,
     },
     medium: {
       button:
-        "border-amber-500/35 bg-amber-950/50 text-amber-200 hover:border-amber-400/45 hover:bg-amber-950/75 dark:border-amber-500/35 dark:bg-amber-950/50 dark:text-amber-200 dark:hover:bg-amber-950/75",
+        "border-amber-500/30 bg-[#1d1305] text-amber-200 hover:border-amber-400/45 hover:bg-[#261805] dark:border-amber-500/30 dark:bg-[#1d1305] dark:text-amber-200 dark:hover:bg-[#261805]",
       menu: "text-amber-300 dark:text-amber-300",
       dot: "bg-amber-500",
       icon: Minus,
     },
     low: {
       button:
-        "border-slate-700 bg-slate-950/70 text-slate-400 hover:border-slate-600 hover:bg-slate-900 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-400 dark:hover:bg-slate-900",
+        "border-slate-700/80 bg-[#070b12] text-slate-400 hover:border-slate-600 hover:bg-[#0b1019] dark:border-slate-700/80 dark:bg-[#070b12] dark:text-slate-400 dark:hover:bg-[#0b1019]",
       menu: "text-slate-400 dark:text-slate-400",
       dot: "bg-slate-400",
       icon: ArrowDown,
@@ -3325,7 +3325,7 @@
                   <div class="divide-y divide-slate-200 dark:divide-gray-800">
                     {#each suite.cases || [] as testCase}
                       <div
-                        class="grid w-full grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-3 rounded-md px-3 py-2 text-left transition-colors sm:grid-cols-[60px_108px_minmax(0,1fr)_auto_auto] {selectedCaseId ===
+                        class="grid w-full grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-3 rounded-md px-3 py-2 text-left transition-colors sm:grid-cols-[108px_60px_minmax(0,1fr)_auto_auto] {selectedCaseId ===
                         testCase.id
                           ? 'bg-slate-100 dark:bg-transparent'
                           : 'hover:bg-slate-50 dark:hover:bg-gray-900/70'}"
@@ -3347,16 +3347,6 @@
                                 ? 'border-amber-400'
                                 : 'border-slate-300'}"
                           ></span>
-                        </button>
-                        <button
-                          type="button"
-                          class="hidden font-mono text-sm font-bold text-slate-400 text-left sm:block"
-                          on:click={() => {
-                            selectCase(suite, testCase);
-                            showDetail = true;
-                          }}
-                        >
-                          TC-{testCase.test_no}
                         </button>
                         <div class="relative hidden sm:block">
                           {#if isAuthorized}
@@ -3406,16 +3396,16 @@
                                   (openPriorityMenuId = "")}
                               ></button>
                               <div
-                                class="absolute left-0 top-full z-[8999] mt-1 w-40 overflow-hidden rounded-lg border border-slate-800 bg-[#070b17] p-1 shadow-2xl shadow-black/50 ring-1 ring-white/5"
+                                class="absolute left-0 top-full z-[8999] mt-1 w-40 overflow-hidden rounded-lg border border-slate-800/80 bg-[#030712] p-1 shadow-2xl shadow-black/60 ring-1 ring-white/[0.04]"
                               >
                                 {#each priorityOptions as opt}
                                   {@const optionMeta = getPriorityMeta(String(opt.value))}
                                   {@const OptionIcon = optionMeta.icon}
                                   <button
                                     type="button"
-                                    class="flex h-9 w-full items-center justify-between rounded-md px-2.5 text-left text-[13px] font-bold transition-colors hover:bg-white/[0.07] {testCase.priority ===
+                                    class="flex h-9 w-full items-center justify-between rounded-md px-2.5 text-left text-[13px] font-bold transition-colors hover:bg-white/[0.05] {testCase.priority ===
                                     opt.value
-                                      ? 'bg-white/10 text-white'
+                                      ? 'bg-white/[0.08] text-white'
                                       : 'text-slate-400'}"
                                     on:click|stopPropagation={() =>
                                       updatePriority(
@@ -3456,6 +3446,16 @@
                             </span>
                           {/if}
                         </div>
+                        <button
+                          type="button"
+                          class="hidden font-mono text-sm font-bold text-slate-400 text-left sm:block"
+                          on:click={() => {
+                            selectCase(suite, testCase);
+                            showDetail = true;
+                          }}
+                        >
+                          TC-{testCase.test_no}
+                        </button>
                         <button
                           type="button"
                           class="min-w-0 truncate text-sm font-bold text-slate-700 dark:text-gray-200 text-left"
