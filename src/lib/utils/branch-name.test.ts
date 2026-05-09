@@ -19,8 +19,8 @@ describe('branch-name utils', () => {
       expect(getWorkItemPrefix('MYLONGPROJECT', 123)).toBe('MYLONGPROJECT-123');
     });
 
-    it('should return task prefix if short name is missing', () => {
-      expect(getWorkItemPrefix('', 123)).toBe('task-123');
+    it('should not invent a task prefix if short name is missing', () => {
+      expect(getWorkItemPrefix('', 123)).toBe('');
     });
   });
 
@@ -54,6 +54,16 @@ describe('branch-name utils', () => {
         translatedTitle: 'Fix Bug'
       };
       expect(getComputedBranchName(options)).toBe('bugfix/PROJ-456-fix-bug');
+    });
+
+    it('should use the title slug directly when workspace short name is missing', () => {
+      const options = {
+        gitFlowType: 'feature' as const,
+        workspaceShortName: '',
+        taskNumber: 139,
+        title: 'API shows the dates'
+      };
+      expect(getComputedBranchName(options)).toBe('feature/api-shows-the-dates');
     });
   });
 });

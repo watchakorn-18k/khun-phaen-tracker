@@ -27,7 +27,6 @@ export function getWorkItemPrefix(workspaceShortName = '', taskNumber: number | 
   const ws = workspaceShortName.trim().toUpperCase().replace(/\s+/g, '');
   if (ws && taskNumber) return `${ws}-${taskNumber}`;
   if (ws) return ws;
-  if (taskNumber) return `task-${taskNumber}`;
   return '';
 }
 
@@ -39,20 +38,15 @@ export function getBranchSlug(options: Pick<BranchNameOptions, 'translatedTitle'
     if (slug) return slug;
   }
 
-  if (options.taskNumber) return `task-${options.taskNumber}`;
-
-  const workspaceFallback = slugifyBranchSegment(options.workspaceShortName || '');
-  if (workspaceFallback) return `${workspaceFallback}-task`;
-
-  return 'untitled-task';
+  return '';
 }
 
 export function getComputedBranchName(options: BranchNameOptions): string {
   const workItem = getWorkItemPrefix(options.workspaceShortName, options.taskNumber ?? null);
   const slug = getBranchSlug(options);
 
-  if (!workItem) return `${options.gitFlowType}/${slug}`;
-  if (slug === `task-${options.taskNumber}`) return `${options.gitFlowType}/${workItem}`;
+  if (!workItem) return `${options.gitFlowType}/${slug || 'untitled-task'}`;
+  if (!slug) return `${options.gitFlowType}/${workItem}`;
 
   return `${options.gitFlowType}/${workItem}-${slug}`;
 }
