@@ -3,6 +3,7 @@
   import { fade } from 'svelte/transition';
   import { _ } from 'svelte-i18n';
   import { GitBranch, X, Copy, Check, ChevronDown } from 'lucide-svelte';
+  import { currentWorkspaceName, currentWorkspaceShortName } from '$lib/stores/workspace';
   import {
     getBranchSlug as buildBranchSlug,
     getCheckoutCommand as buildCheckoutCommand,
@@ -105,14 +106,21 @@
       translatedTitle,
       editableTitle,
       title,
-      workspaceShortName,
+      workspaceShortName: effectiveWorkspaceShortName,
       taskNumber
     });
   }
 
+  $: workspaceNameFallback = ($currentWorkspaceName || '')
+    .replace(/\s+/g, '')
+    .slice(0, 4)
+    .toUpperCase();
+  $: effectiveWorkspaceShortName =
+    workspaceShortName.trim() || $currentWorkspaceShortName || workspaceNameFallback;
+
   $: computedBranchName = buildComputedBranchName({
     gitFlowType,
-    workspaceShortName,
+    workspaceShortName: effectiveWorkspaceShortName,
     taskNumber,
     translatedTitle,
     editableTitle,
@@ -121,7 +129,7 @@
 
   $: checkoutCommand = buildCheckoutCommand({
     gitFlowType,
-    workspaceShortName,
+    workspaceShortName: effectiveWorkspaceShortName,
     taskNumber,
     translatedTitle,
     editableTitle,
