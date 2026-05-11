@@ -615,6 +615,105 @@
       on:milestonesUpdated={fetchMilestones}
     />
     <DailyReflect bind:show={$modals.dailyReflect} {isOwner} />
+    {#if !isMyTasksWorkspace}
+      <button
+        type="button"
+        class="fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-2xl shadow-indigo-500/30 transition hover:bg-indigo-500"
+        aria-label="เปิด AI task chat"
+        on:click={() => (aiChatOpen = !aiChatOpen)}
+      >
+        AI
+      </button>
+
+      {#if aiChatOpen}
+        <div class="fixed bottom-24 right-5 z-50 w-[min(420px,calc(100vw-2.5rem))] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+          <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700">
+            <div>
+              <div class="font-semibold text-slate-900 dark:text-white">AI Task Chat</div>
+              <div class="text-xs text-slate-500 dark:text-slate-400">ค้นหา task ด้วย semantic search</div>
+            </div>
+            <button
+              type="button"
+              class="rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+              on:click={() => (aiChatOpen = false)}
+            >
+              ✕
+            </button>
+          </div>
+
+          <div class="max-h-[440px] space-y-3 overflow-y-auto p-4">
+            {#if aiChatMessages.length === 0}
+              <div class="rounded-2xl bg-slate-100 p-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                ลองถามเช่น “งาน priority สูงที่ยังไม่เสร็จมีอะไรบ้าง” หรือ “task เกี่ยวกับ login”
+              </div>
+            {/if}
+
+            {#each aiChatMessages as message}
+              <div class:ml-8={message.role === "user"} class:mr-8={message.role === "assistant"}>
+                <div class="rounded-2xl px-3 py-2 text-sm {message.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'}">
+                  {message.content}
+                </div>
+
+                {#if message.results?.length}
+                  <div class="mt-2 space-y-2">
+                    {#each message.results as result}
+                      <button
+                        type="button"
+                        class="w-full rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:border-indigo-300 hover:bg-indigo-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-indigo-700 dark:hover:bg-slate-800"
+                        on:click={() => openAiResult(result.task)}
+                      >
+                        <div class="flex items-start justify-between gap-3">
+                          <div class="min-w-0">
+                            <div class="truncate font-medium text-slate-900 dark:text-white">
+                              {#if result.task.task_number}#{result.task.task_number} {/if}{result.task.title}
+                            </div>
+                            <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                              {result.task.status} · {result.task.priority || "none"} · score {result.score.toFixed(3)}
+                            </div>
+                          </div>
+                          <span class="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                            เปิด
+                          </span>
+                        </div>
+                      </button>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
+            {/each}
+
+            {#if aiChatLoading}
+              <div class="mr-8 rounded-2xl bg-slate-100 px-3 py-2 text-sm text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+                กำลังค้นหา task...
+              </div>
+            {/if}
+
+            {#if aiChatError}
+              <div class="rounded-2xl bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/40 dark:text-red-300">
+                {aiChatError}
+              </div>
+            {/if}
+          </div>
+
+          <form class="flex gap-2 border-t border-slate-200 p-3 dark:border-slate-700" on:submit|preventDefault={sendAiChat}>
+            <input
+              class="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+              bind:value={aiChatInput}
+              placeholder="ถามเกี่ยวกับ task..."
+              disabled={aiChatLoading}
+            />
+            <button
+              type="submit"
+              class="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={aiChatLoading || !aiChatInput.trim()}
+            >
+              ส่ง
+            </button>
+          </form>
+        </div>
+      {/if}
+    {/if}
+
     <CommandPalette
       open={$modals.commandPalette}
       tasks={$allTasksIncludingArchived}
