@@ -1147,6 +1147,364 @@ export function createExportActions(deps: ExportActionDeps) {
     await handleExportVideo(undefined, context);
   }
 
+  async function handleExportVideoWithVoice(
+    event?: CustomEvent<number | void>,
+    contextOverride?: { taskSnapshot: Task[]; scopeLabel: string },
+  ) {
+    try {
+      if (typeof MediaRecorder === "undefined") {
+        deps.notify("เบราว์เซอร์ไม่รองรับการบันทึกวิดีโอ", "error");
+        return;
+      }
+
+      const now = new Date();
+      const reportDate = formatDateISO(now);
+      const { taskSnapshot, scopeLabel } =
+        contextOverride || (await getExportTaskContext(event));
+
+      if (event?.detail && taskSnapshot.length === 0) {
+        deps.notify("ไม่มีข้อมูลสำหรับสร้างวิดีโอ", "error");
+        return;
+      }
+
+      // Build report content for speech generation
+      const doneTasks = sortTasksForReport(
+        taskSnapshot.filter((task) => task.status === "done"),
+      );
+      const inProgressTasks = sortTasksForReport(
+        taskSnapshot.filter((task) => task.status === "in-progress"),
+      );
+      const todoTasks = sortTasksForReport(
+        taskSnapshot.filter((task) => task.status === "todo"),
+      );
+
+      const reportContent = `
+รายงานงานประจำวันที่ ${reportDate}
+ช่วงข้อมูล: ${scopeLabel}
+งานทั้งหมด ${taskSnapshot.length} งาน
+เสร็จแล้ว ${doneTasks.length} งาน
+กำลังทำ ${inProgressTasks.length} งาน
+รอดำเนินการ ${todoTasks.length} งาน
+      `.trim();
+
+      deps.setVideoExportState({
+        inProgress: true,
+        percent: 5,
+        elapsedMs: 0,
+        timer: setInterval(() => {
+          const st = deps.getVideoExportState();
+          deps.setVideoExportState({
+            ...st,
+            elapsedMs: st.elapsedMs + 200,
+          });
+        }, 200),
+      });
+
+      // Step 1: Generate speech script
+      deps.notify("กำลังสร้างบทพูด...");
+      const workspaceId = window.location.pathname.split("/")[2];
+      const scriptResponse = await fetch(
+        `/api/workspaces/${workspaceId}/ai/generate-speech`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ report_content: reportContent }),
+        },
+      );
+
+      if (!scriptResponse.ok) {
+        throw new Error("ไม่สามารถสร้างบทพูดได้");
+      }
+
+      const scriptData = await scriptResponse.json();
+      const script = scriptData.script;
+
+      deps.setVideoExportState({
+        ...deps.getVideoExportState(),
+        percent: 20,
+      });
+
+      // Step 2: Generate speech audio
+      deps.notify("กำลังสร้างเสียงพูด...");
+      const ttsResponse = await fetch(
+        `/api/workspaces/${workspaceId}/ai/text-to-speech`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ text: script }),
+        },
+      );
+
+      if (!ttsResponse.ok) {
+        throw new Error("ไม่สามารถสร้างเสียงพูดได้");
+      }
+
+      const audioBlob = await ttsResponse.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+
+      // Wait for audio to load
+      await new Promise<void>((resolve, reject) => {
+        audio.onloadedmetadata = () => resolve();
+        audio.onerror = () => reject(new Error("ไม่สามารถโหลดไฟล์เสียงได้"));
+      });
+
+      const audioDuration = audio.duration;
+
+      deps.setVideoExportState({
+        ...deps.getVideoExportState(),
+        percent: 40,
+      });
+
+      // Step 3: Create video slides
+      deps.notify("กำลังสร้างวิดีโอ...");
+      const summarize = (task: Task): string => {
+        const title = sanitizeMarkdownText(task.title || "ไม่ระบุชื่องาน");
+        const assignee = sanitizeMarkdownText(task.assignee?.name || "ไม่ระบุ");
+        return `• ${title} (${assignee})`;
+      };
+
+      const slides: VideoSlide[] = [];
+      slides.push({
+        kicker: "TASK REPORT VIDEO",
+        title: `รายงานงาน ${reportDate}`,
+        subtitle: "Khun Phaen Task Tracker",
+        accent: "#35d4ff",
+        lines: [
+          `ช่วงข้อมูล ${scopeLabel}`,
+          `งานทั้งหมด ${taskSnapshot.length} งาน`,
+          `เสร็จแล้ว ${doneTasks.length} งาน`,
+          `กำลังทำ ${inProgressTasks.length} งาน`,
+          `รอดำเนินการ ${todoTasks.length} งาน`,
+        ],
+      });
+
+      const assigneeStatsMap = new Map<
+        string,
+        { total: number; done: number }
+      >();
+      for (const task of taskSnapshot) {
+        const name = task.assignee?.name || "ไม่ระบุ";
+        const s = assigneeStatsMap.get(name) || { total: 0, done: 0 };
+        s.total++;
+        if (task.status === "done") s.done++;
+        assigneeStatsMap.set(name, s);
+      }
+
+      const assigneeEntries = [...assigneeStatsMap.entries()].sort(
+        (a, b) => b[1].total - a[1].total,
+      );
+      for (let i = 0; i < assigneeEntries.length; i += 6) {
+        const chunk = assigneeEntries.slice(i, i + 6);
+        slides.push({
+          kicker: "PERFORMANCE",
+          title: "ความสำเร็จรายบุคคล",
+          subtitle: `ผู้รับผิดชอบ ${assigneeEntries.length} คน (หน้า ${Math.floor(i / 6) + 1})`,
+          accent: "#a78bff",
+          lines: chunk.map(([name, s]) => {
+            const pct = s.total > 0 ? Math.round((s.done / s.total) * 100) : 0;
+            return `• ${name}: สำเร็จ ${pct}% (${s.done}/${s.total})`;
+          }),
+        });
+      }
+
+      const createTaskSlides = (
+        tasks: Task[],
+        kicker: string,
+        title: string,
+        accent: string,
+        celebrate = false,
+      ): VideoSlide[] => {
+        if (tasks.length === 0)
+          return [
+            {
+              kicker,
+              title,
+              subtitle: "0 รายการ",
+              accent,
+              lines: ["• ไม่มีงานในหมวดนี้"],
+            },
+          ];
+
+        const pageSz = 6;
+        const pages: VideoSlide[] = [];
+        for (let i = 0; i < tasks.length; i += pageSz) {
+          const chunk = tasks.slice(i, i + pageSz);
+          pages.push({
+            kicker,
+            title,
+            subtitle:
+              tasks.length > pageSz
+                ? `รายการที่ ${i + 1}-${Math.min(i + pageSz, tasks.length)} / ทั้งหมด ${tasks.length}`
+                : `${tasks.length} รายการ`,
+            accent,
+            celebrate: celebrate && i === 0,
+            lines: chunk.map(summarize),
+          });
+        }
+        return pages;
+      };
+
+      slides.push(
+        ...createTaskSlides(
+          doneTasks,
+          "DONE",
+          "งานที่เสร็จแล้ว",
+          "#64ffa8",
+          true,
+        ),
+      );
+      slides.push(
+        ...createTaskSlides(
+          inProgressTasks,
+          "IN PROGRESS",
+          "งานที่กำลังทำ",
+          "#6ec7ff",
+        ),
+      );
+      slides.push(
+        ...createTaskSlides(todoTasks, "TODO", "งานรอดำเนินการ", "#ffd470"),
+      );
+
+      // Step 4: Render video with audio
+      const canvas = document.createElement("canvas");
+      canvas.width = 1280;
+      canvas.height = 720;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        throw new Error("ไม่สามารถสร้าง canvas ได้");
+      }
+
+      const fps = 30;
+      const totalDuration = audioDuration;
+      const slideDuration = totalDuration / slides.length;
+      const transitionDuration = 0.6;
+      const totalFrames = Math.ceil(totalDuration * fps);
+
+      // Create audio context and stream
+      const audioContext = new AudioContext();
+      const audioSource = audioContext.createMediaElementSource(audio);
+      const audioDestination = audioContext.createMediaStreamDestination();
+      audioSource.connect(audioDestination);
+      audioSource.connect(audioContext.destination);
+
+      const stream = canvas.captureStream(fps);
+      audioDestination.stream.getAudioTracks().forEach((track) => {
+        stream.addTrack(track);
+      });
+
+      const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+        ? "video/webm;codecs=vp9"
+        : MediaRecorder.isTypeSupported("video/webm;codecs=vp8")
+          ? "video/webm;codecs=vp8"
+          : "video/webm";
+      const recorder = new MediaRecorder(stream, {
+        mimeType,
+        videoBitsPerSecond: 5_000_000,
+      });
+      const chunks: Blob[] = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) chunks.push(event.data);
+      };
+      const stopPromise = new Promise<void>((resolve) => {
+        recorder.onstop = () => resolve();
+      });
+
+      recorder.start();
+      audio.play();
+
+      for (let frame = 0; frame < totalFrames; frame++) {
+        const t = frame / fps;
+        const slideIndex = Math.min(
+          Math.floor(t / slideDuration),
+          slides.length - 1,
+        );
+        const localT = t - slideIndex * slideDuration;
+        const progress = Math.min(localT / slideDuration, 1);
+        renderVideoSlide(
+          ctx,
+          canvas.width,
+          canvas.height,
+          slides[slideIndex],
+          progress,
+        );
+
+        if (
+          localT > slideDuration - transitionDuration &&
+          slideIndex < slides.length - 1
+        ) {
+          const blend =
+            (localT - (slideDuration - transitionDuration)) /
+            transitionDuration;
+          ctx.globalAlpha = Math.min(Math.max(blend, 0), 1);
+          renderVideoSlide(
+            ctx,
+            canvas.width,
+            canvas.height,
+            slides[slideIndex + 1],
+            0,
+          );
+          ctx.globalAlpha = 1;
+        }
+
+        const currentPercent = Math.min(
+          100,
+          40 + Math.round(((frame + 1) / totalFrames) * 55),
+        );
+        deps.setVideoExportState({
+          ...deps.getVideoExportState(),
+          percent: currentPercent,
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, 1000 / fps));
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 120));
+      recorder.stop();
+      await stopPromise;
+      audio.pause();
+      audioContext.close();
+      stream.getTracks().forEach((track) => track.stop());
+      URL.revokeObjectURL(audioUrl);
+
+      const blob = new Blob(chunks, { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const timeStr = `${String(now.getHours()).padStart(2, "0")}-${String(now.getMinutes()).padStart(2, "0")}-${String(now.getSeconds()).padStart(2, "0")}`;
+      link.href = url;
+      link.download = `task_report_voice_${reportDate}_${timeStr}.webm`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      const st = deps.getVideoExportState();
+      if (st.timer) clearInterval(st.timer);
+      deps.setVideoExportState({
+        inProgress: false,
+        percent: 100,
+        elapsedMs: st.elapsedMs,
+        timer: null,
+      });
+      deps.notify("สร้างวิดีโอพร้อมเสียงสำเร็จ");
+    } catch (error) {
+      console.error("Video with voice export failed:", error);
+      const st = deps.getVideoExportState();
+      if (st.timer) clearInterval(st.timer);
+      deps.setVideoExportState({
+        ...st,
+        inProgress: false,
+        timer: null,
+      });
+      deps.notify(
+        `ไม่สามารถสร้างวิดีโอพร้อมเสียงได้: ${error instanceof Error ? error.message : "Unknown error"}`,
+        "error",
+      );
+    }
+  }
+
   async function handleExportMonthlySlide() {
     const context = getMonthlyExportTaskContext();
     if (context.taskSnapshot.length === 0) {
@@ -1237,6 +1595,7 @@ export function createExportActions(deps: ExportActionDeps) {
     handleExportDatabase,
     handleExportMarkdown,
     handleExportVideo,
+    handleExportVideoWithVoice,
     handleExportSlide,
     handleExportPDF,
     handleExportMonthlyPDF,

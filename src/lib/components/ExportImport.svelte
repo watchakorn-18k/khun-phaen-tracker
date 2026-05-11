@@ -271,6 +271,11 @@
     showExportDropdown = false;
   }
 
+  function handleExportVideoWithVoice() {
+    dispatch("exportVideoWithVoice");
+    showExportDropdown = false;
+  }
+
   function handleExportSlide() {
     dispatch("exportSlide");
     showExportDropdown = false;
@@ -407,6 +412,16 @@
         <Video size={16} />
       </div>
       <span class="font-bold">{$_("exportImport__export_video")}</span>
+    </button>
+
+    <button
+      on:click={handleExportVideoWithVoice}
+      class="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-pink-500/10 hover:text-pink-600 transition-colors whitespace-nowrap"
+    >
+      <div class="p-1.5 rounded-lg bg-pink-500/10 text-pink-600">
+        <Video size={16} />
+      </div>
+      <span class="font-bold">Video + Voice (AI)</span>
     </button>
 
     <button

@@ -228,5 +228,8 @@ export interface AiConfig {
   llm_url?: string;
   llm_api_key?: string;
   llm_model?: string;
+  tts_url?: string;
+  tts_api_key?: string;
+  tts_model?: string;
   updated_at?: string;
 }

@@ -668,6 +668,7 @@
       on:exportPDF={() => exportActions.handleExportPDF()}
       on:exportMarkdown={(e) => exportActions.handleExportMarkdown(e)}
       on:exportVideo={(e) => exportActions.handleExportVideo(e)}
+      on:exportVideoWithVoice={(e) => exportActions.handleExportVideoWithVoice(e)}
       on:exportSlide={(e) => exportActions.handleExportSlide(e)}
       on:exportDatabase={(e) => exportActions.handleExportDatabase(e)}
       on:importCSV={(e) => exportActions.handleImportCSV(e)}

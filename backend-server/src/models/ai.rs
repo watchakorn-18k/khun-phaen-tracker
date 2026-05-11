@@ -9,6 +9,9 @@ pub struct AiConfigDocument {
     pub llm_url: Option<String>,
     pub llm_api_key: Option<String>,
     pub llm_model: Option<String>,
+    pub tts_url: Option<String>,
+    pub tts_api_key: Option<String>,
+    pub tts_model: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub updated_at: Option<String>,
 }
@@ -21,4 +24,7 @@ pub struct UpdateAiConfigRequest {
     pub llm_url: Option<String>,
     pub llm_api_key: Option<String>,
     pub llm_model: Option<String>,
+    pub tts_url: Option<String>,
+    pub tts_api_key: Option<String>,
+    pub tts_model: Option<String>,
 }

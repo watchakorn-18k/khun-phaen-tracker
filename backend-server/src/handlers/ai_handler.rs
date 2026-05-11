@@ -12,7 +12,7 @@ use crate::models::ai::{AiConfigDocument, UpdateAiConfigRequest};
 use crate::models::data::TaskFilterQuery;
 use crate::repositories::ai_repo::AiRepository;
 use crate::repositories::data_repo::DataRepository;
-use crate::services::ai_service::{AiConfig, AiService, LlmConfig};
+use crate::services::ai_service::{AiConfig, AiService, LlmConfig, TtsConfig};
 use crate::state::SharedState;
 
 #[derive(Debug, Deserialize)]
@@ -149,6 +149,8 @@ pub async fn generate_task(
     let data_repo = DataRepository::new(&state.db);
     let projects = data_repo.find_projects(&ws_oid).await.unwrap_or_default();
     let assignees = data_repo.find_assignees(&ws_oid).await.unwrap_or_default();
+    let projects = data_repo.find_projects(&ws_oid).await.unwrap_or_default();
+    let assignees = data_repo.find_assignees(&ws_oid).await.unwrap_or_default();
 
     let project_names: Vec<String> = projects.iter().map(|p| p.name.clone()).collect();
     let assignee_names: Vec<String> = assignees.iter().map(|a| a.name.clone()).collect();
@@ -260,6 +262,9 @@ pub async fn get_ai_config_handler(
     let env_llm_url = std::env::var("AI_LLM_URL").ok();
     let env_llm_key = std::env::var("AI_LLM_API_KEY").ok();
     let env_llm_model = std::env::var("AI_LLM_MODEL").ok();
+    let env_tts_url = std::env::var("AI_TTS_URL").ok();
+    let env_tts_key = std::env::var("AI_TTS_API_KEY").ok();
+    let env_tts_model = std::env::var("AI_TTS_MODEL").ok();
 
     Json(serde_json::json!({
         "success": true,
@@ -270,6 +275,9 @@ pub async fn get_ai_config_handler(
             "llm_url": stored.as_ref().and_then(|c| c.llm_url.clone()).or(env_llm_url),
             "llm_api_key": stored.as_ref().and_then(|c| c.llm_api_key.clone()).or(env_llm_key),
             "llm_model": stored.as_ref().and_then(|c| c.llm_model.clone()).or(env_llm_model),
+            "tts_url": stored.as_ref().and_then(|c| c.tts_url.clone()).or(env_tts_url),
+            "tts_api_key": stored.as_ref().and_then(|c| c.tts_api_key.clone()).or(env_tts_key),
+            "tts_model": stored.as_ref().and_then(|c| c.tts_model.clone()).or(env_tts_model),
             "updated_at": stored.as_ref().and_then(|c| c.updated_at.clone())
         }
     }))
@@ -292,6 +300,9 @@ pub async fn update_ai_config_handler(
     let llm_url = normalize_optional(payload.llm_url);
     let llm_api_key = normalize_optional(payload.llm_api_key);
     let llm_model = normalize_optional(payload.llm_model);
+    let tts_url = normalize_optional(payload.tts_url);
+    let tts_api_key = normalize_optional(payload.tts_api_key);
+    let tts_model = normalize_optional(payload.tts_model);
 
     let config = AiConfigDocument {
         key: "ai_config".to_string(),
@@ -301,6 +312,9 @@ pub async fn update_ai_config_handler(
         llm_url,
         llm_api_key,
         llm_model,
+        tts_url,
+        tts_api_key,
+        tts_model,
         updated_at: Some(chrono::Utc::now().to_rfc3339()),
     };
 
@@ -323,6 +337,9 @@ pub async fn update_ai_config_handler(
             "llm_url": config.llm_url,
             "llm_api_key": config.llm_api_key,
             "llm_model": config.llm_model,
+            "tts_url": config.tts_url,
+            "tts_api_key": config.tts_api_key,
+            "tts_model": config.tts_model,
             "updated_at": config.updated_at
         }
     }))
@@ -528,6 +545,107 @@ pub async fn list_embeddings_models_handler(
             "error": format!("Failed to connect to Embeddings API: {}", e)
         }))
         .into_response(),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GenerateSpeechScriptRequest {
+    pub report_content: String,
+}
+
+pub async fn generate_speech_script_handler(
+    State(state): State<SharedState>,
+    Path(ws_id): Path<String>,
+    headers: HeaderMap,
+    jar: CookieJar,
+    Json(payload): Json<GenerateSpeechScriptRequest>,
+) -> axum::response::Response {
+    let ws_oid = match verify_workspace_access(&state, &headers, &jar, &ws_id).await {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+
+    let ai_repo = AiRepository::new(&state.db);
+    let stored_config = ai_repo.get_ai_config().await.ok().flatten();
+
+    let llm_config = stored_config
+        .as_ref()
+        .and_then(LlmConfig::from_doc)
+        .or_else(LlmConfig::from_env);
+
+    let llm_config = match llm_config {
+        Some(config) => config,
+        None => {
+            return (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                axum::Json(serde_json::json!({ "error": "LLM config is missing" })),
+            )
+                .into_response()
+        }
+    };
+
+    match AiService::generate_speech_script(&llm_config, &payload.report_content).await {
+        Ok(script) => axum::Json(serde_json::json!({
+            "success": true,
+            "script": script
+        }))
+        .into_response(),
+        Err(e) => (
+            axum::http::StatusCode::BAD_GATEWAY,
+            axum::Json(serde_json::json!({ "error": e })),
+        )
+            .into_response(),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TextToSpeechRequest {
+    pub text: String,
+}
+
+pub async fn text_to_speech_handler(
+    State(state): State<SharedState>,
+    Path(ws_id): Path<String>,
+    headers: HeaderMap,
+    jar: CookieJar,
+    Json(payload): Json<TextToSpeechRequest>,
+) -> axum::response::Response {
+    let ws_oid = match verify_workspace_access(&state, &headers, &jar, &ws_id).await {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+
+    let ai_repo = AiRepository::new(&state.db);
+    let stored_config = ai_repo.get_ai_config().await.ok().flatten();
+
+    let tts_config = stored_config
+        .as_ref()
+        .and_then(TtsConfig::from_doc)
+        .or_else(TtsConfig::from_env);
+
+    let tts_config = match tts_config {
+        Some(config) => config,
+        None => {
+            return (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                axum::Json(serde_json::json!({ "error": "TTS config is missing" })),
+            )
+                .into_response()
+        }
+    };
+
+    match AiService::text_to_speech(&tts_config, &payload.text).await {
+        Ok(audio_bytes) => (
+            axum::http::StatusCode::OK,
+            [(axum::http::header::CONTENT_TYPE, "audio/mpeg")],
+            audio_bytes,
+        )
+            .into_response(),
+        Err(e) => (
+            axum::http::StatusCode::BAD_GATEWAY,
+            axum::Json(serde_json::json!({ "error": e })),
+        )
+            .into_response(),
     }
 }
 

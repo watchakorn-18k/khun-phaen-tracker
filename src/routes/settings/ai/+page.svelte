@@ -21,6 +21,9 @@
   let llm_url = "";
   let llm_api_key = "";
   let llm_model = "";
+  let tts_url = "";
+  let tts_api_key = "";
+  let tts_model = "";
   let pageError = "";
   let pageSuccess = "";
   let modalError = "";
@@ -34,8 +37,12 @@
   let draftLlmUrl = "";
   let draftLlmApiKey = "";
   let draftLlmModel = "";
+  let draftTtsUrl = "";
+  let draftTtsApiKey = "";
+  let draftTtsModel = "";
   let showApiKey = false;
   let showLlmApiKey = false;
+  let showTtsApiKey = false;
   let availableModels: string[] = [];
   let availableEmbeddingsModels: string[] = [];
   let loadingModels = false;
@@ -94,8 +101,12 @@
     draftLlmUrl = llm_url;
     draftLlmApiKey = llm_api_key;
     draftLlmModel = llm_model;
+    draftTtsUrl = tts_url;
+    draftTtsApiKey = tts_api_key;
+    draftTtsModel = tts_model;
     showApiKey = false;
     showLlmApiKey = false;
+    showTtsApiKey = false;
     configModalOpen = true;
   }
 
@@ -105,6 +116,7 @@
     modalSuccess = "";
     showApiKey = false;
     showLlmApiKey = false;
+    showTtsApiKey = false;
     configModalOpen = false;
   }
 
@@ -125,12 +137,18 @@
       llm_url = config.llm_url || "";
       llm_api_key = config.llm_api_key || "";
       llm_model = config.llm_model || "";
+      tts_url = config.tts_url || "";
+      tts_api_key = config.tts_api_key || "";
+      tts_model = config.tts_model || "";
       draftEmbeddingsUrl = embeddings_url;
       draftEmbeddingsApiKey = embeddings_api_key;
       draftEmbeddingsModel = embeddings_model;
       draftLlmUrl = llm_url;
       draftLlmApiKey = llm_api_key;
       draftLlmModel = llm_model;
+      draftTtsUrl = tts_url;
+      draftTtsApiKey = tts_api_key;
+      draftTtsModel = tts_model;
     } catch (error) {
       console.error("Failed to load AI config:", error);
       modalError = "Failed to load AI config";
@@ -160,6 +178,9 @@
         llm_url: draftLlmUrl || null,
         llm_api_key: draftLlmApiKey || null,
         llm_model: draftLlmModel || null,
+        tts_url: draftTtsUrl || null,
+        tts_api_key: draftTtsApiKey || null,
+        tts_model: draftTtsModel || null,
       });
       const data = await response.json();
 
@@ -337,6 +358,36 @@
           </div>
         </div>
       </div>
+
+      <div>
+        <h4 class="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">TTS (Text-to-Speech)</h4>
+        <div class="grid gap-3 lg:grid-cols-2">
+          <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/60">
+            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
+              TTS URL
+            </p>
+            <p class="mt-2 truncate text-sm text-gray-900 dark:text-white">
+              {tts_url || "Not configured"}
+            </p>
+          </div>
+          <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/60">
+            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
+              Model
+            </p>
+            <p class="mt-2 text-sm text-gray-900 dark:text-white">
+              {tts_model || "Not configured"}
+            </p>
+          </div>
+          <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/60 lg:col-span-2">
+            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
+              API Key
+            </p>
+            <p class="mt-2 font-mono text-sm text-gray-900 dark:text-white">
+              {tts_api_key ? "••••••••••••••••" : "Not configured"}
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
 
     {#if pageError}
@@ -365,7 +416,7 @@
       aria-label="Close settings"
     ></button>
 
-    <div class="relative z-[1] w-full max-w-3xl overflow-hidden rounded-[28px] border border-slate-200/80 bg-white text-slate-900 shadow-[0_24px_80px_rgba(15,23,42,0.14)] dark:border-slate-700/80 dark:bg-slate-900 dark:text-white dark:shadow-[0_30px_100px_rgba(15,23,42,0.6)]">
+    <div class="relative z-[1] w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden rounded-[28px] border border-slate-200/80 bg-white text-slate-900 shadow-[0_24px_80px_rgba(15,23,42,0.14)] dark:border-slate-700/80 dark:bg-slate-900 dark:text-white dark:shadow-[0_30px_100px_rgba(15,23,42,0.6)]">
       <div class="bg-[radial-gradient(circle_at_top_left,_rgba(139,92,246,0.12),_transparent_35%),linear-gradient(135deg,_#faf5ff_0%,_#f3e8ff_55%,_#ede9fe_100%)] px-6 py-5 dark:bg-[radial-gradient(circle_at_top_left,_rgba(139,92,246,0.18),_transparent_35%),linear-gradient(135deg,_#0f172a_0%,_#111827_55%,_#1e1b4b_100%)] sm:px-7">
         <div class="flex items-start justify-between gap-4">
           <div class="flex items-center gap-3">
@@ -390,7 +441,7 @@
         </div>
       </div>
 
-      <div class="px-6 py-6 sm:px-7">
+      <div class="overflow-y-auto px-6 py-6 sm:px-7">
         {#if modalError}
           <div class="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-100">
             {modalError}
@@ -546,6 +597,53 @@
                     class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white"
                   />
                 {/if}
+              </label>
+            </div>
+          </div>
+
+          <div class="border-t border-slate-200 pt-4 dark:border-slate-700">
+            <h5 class="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">TTS (Text-to-Speech)</h5>
+            <div class="space-y-4">
+              <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                <span>TTS URL</span>
+                <input
+                  bind:value={draftTtsUrl}
+                  placeholder="http://example.com/v1/audio/speech"
+                  class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white"
+                />
+              </label>
+
+              <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                <span>API Key</span>
+                <div class="relative">
+                  <input
+                    bind:value={draftTtsApiKey}
+                    type={showTtsApiKey ? "text" : "password"}
+                    placeholder="sk-..."
+                    class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-12 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white"
+                  />
+                  <button
+                    type="button"
+                    class="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
+                    aria-label={showTtsApiKey ? "Hide API key" : "Show API key"}
+                    on:click={() => (showTtsApiKey = !showTtsApiKey)}
+                  >
+                    {#if showTtsApiKey}
+                      <EyeOff size={16} />
+                    {:else}
+                      <Eye size={16} />
+                    {/if}
+                  </button>
+                </div>
+              </label>
+
+              <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                <span>Model</span>
+                <input
+                  bind:value={draftTtsModel}
+                  placeholder="google-tts/th"
+                  class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white"
+                />
               </label>
             </div>
           </div>

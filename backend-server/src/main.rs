@@ -303,6 +303,14 @@ async fn main() {
             post(handlers::ai_handler::generate_task),
         )
         .route(
+            "/api/workspaces/:ws_id/ai/generate-speech",
+            post(handlers::ai_handler::generate_speech_script_handler),
+        )
+        .route(
+            "/api/workspaces/:ws_id/ai/text-to-speech",
+            post(handlers::ai_handler::text_to_speech_handler),
+        )
+        .route(
             "/api/workspaces/:ws_id/tasks/next-number",
             get(handlers::task_handler::get_next_task_number),
         )
