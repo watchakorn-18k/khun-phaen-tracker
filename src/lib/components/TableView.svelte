@@ -77,9 +77,17 @@
   ];
 
   let priorityDropdownTaskId: string | number | null = null;
+  let priorityDropdownPos = { top: 0, left: 0 };
 
-  function togglePriorityDropdown(taskId: string | number) {
-    priorityDropdownTaskId = priorityDropdownTaskId === taskId ? null : taskId;
+  function togglePriorityDropdown(taskId: string | number, event: MouseEvent) {
+    if (priorityDropdownTaskId === taskId) {
+      priorityDropdownTaskId = null;
+      return;
+    }
+    const btn = event.currentTarget as HTMLElement;
+    const rect = btn.getBoundingClientRect();
+    priorityDropdownPos = { top: rect.bottom + 4, left: rect.left };
+    priorityDropdownTaskId = taskId;
   }
 
   function selectPriority(taskId: string | number, priority: PriorityValue) {
@@ -90,12 +98,27 @@
   function handleClickOutsidePriority(event: MouseEvent) {
     if (priorityDropdownTaskId === null) return;
     const target = event.target as HTMLElement;
-    if (!target.closest(".priority-dropdown-container")) {
+    if (!target.closest(".priority-dropdown-portal") && !target.closest(".priority-dropdown-trigger")) {
       priorityDropdownTaskId = null;
     }
   }
 
   let quickPreviewTask: Task | null = null;
+
+  // Keep preview in sync with task data
+  $: if (quickPreviewTask) {
+    const updated = tasks.find((t) => String(t.id) === String(quickPreviewTask!.id));
+    if (updated && updated !== quickPreviewTask) quickPreviewTask = updated;
+  }
+
+  function portalAction(node: HTMLElement) {
+    document.body.appendChild(node);
+    return {
+      destroy() {
+        if (node.parentNode) node.parentNode.removeChild(node);
+      },
+    };
+  }
 
   function openQuickPreview(task: Task) {
     quickPreviewTask = task;
@@ -712,37 +735,19 @@
             </td>
             {#if enabledColumns.get('priority')}
               <td class="px-2 py-2">
-                <div class="relative priority-dropdown-container">
-                  <button
-                    on:click|stopPropagation={() => togglePriorityDropdown(task.id!)}
-                    class="hover:bg-gray-100 dark:hover:bg-gray-700 rounded p-0.5 transition-colors"
-                    title={$_("tableView__priority_click_hint", { default: "Click to change priority" })}
-                  >
-                    <PriorityBadge priority={task.priority} />
-                    {#if !task.priority || task.priority === 'none'}
-                      <span class="inline-flex items-center gap-1 text-[10px] text-gray-400 dark:text-gray-500 font-medium px-1.5 py-0.5">
-                        <Minus size={10} />
-                        -
-                      </span>
-                    {/if}
-                  </button>
-                  {#if priorityDropdownTaskId === task.id}
-                    <div class="absolute z-50 left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 min-w-35">
-                      {#each priorityOptions as opt}
-                        <button
-                          on:click|stopPropagation={() => selectPriority(task.id!, opt.value)}
-                          class="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors {task.priority === opt.value ? 'bg-gray-100 dark:bg-gray-700 font-semibold' : ''}"
-                        >
-                          <svelte:component this={opt.icon} size={12} class={opt.colorClass} />
-                          <span class="text-gray-700 dark:text-gray-300">{opt.label}</span>
-                          {#if task.priority === opt.value || (!task.priority && opt.value === 'none')}
-                            <Check size={12} class="ml-auto text-primary" />
-                          {/if}
-                        </button>
-                      {/each}
-                    </div>
+                <button
+                  on:click|stopPropagation={(e) => togglePriorityDropdown(task.id!, e)}
+                  class="priority-dropdown-trigger hover:bg-gray-100 dark:hover:bg-gray-700 rounded p-0.5 transition-colors"
+                  title={$_("tableView__priority_click_hint", { default: "Click to change priority" })}
+                >
+                  <PriorityBadge priority={task.priority} />
+                  {#if !task.priority || task.priority === 'none'}
+                    <span class="inline-flex items-center gap-1 text-[10px] text-gray-400 dark:text-gray-500 font-medium px-1.5 py-0.5">
+                      <Minus size={10} />
+                      -
+                    </span>
                   {/if}
-                </div>
+                </button>
               </td>
             {/if}
             <td class="px-3 py-2 overflow-hidden">
@@ -1038,29 +1043,13 @@
                 <div class="flex items-start justify-between gap-2">
                   <div class="flex-1 min-w-0">
                     {#if task.priority && task.priority !== 'none'}
-                      <div class="flex items-center mb-1 relative priority-dropdown-container">
+                      <div class="flex items-center mb-1">
                         <button
-                          on:click|stopPropagation={() => togglePriorityDropdown(task.id!)}
-                          class="hover:bg-gray-100 dark:hover:bg-gray-700 rounded p-0.5 transition-colors"
+                          on:click|stopPropagation={(e) => togglePriorityDropdown(task.id!, e)}
+                          class="priority-dropdown-trigger hover:bg-gray-100 dark:hover:bg-gray-700 rounded p-0.5 transition-colors"
                         >
                           <PriorityBadge priority={task.priority} />
                         </button>
-                        {#if priorityDropdownTaskId === task.id}
-                          <div class="absolute z-50 left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 min-w-35">
-                            {#each priorityOptions as opt}
-                              <button
-                                on:click|stopPropagation={() => selectPriority(task.id!, opt.value)}
-                                class="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors {task.priority === opt.value ? 'bg-gray-100 dark:bg-gray-700 font-semibold' : ''}"
-                              >
-                                <svelte:component this={opt.icon} size={12} class={opt.colorClass} />
-                                <span class="text-gray-700 dark:text-gray-300">{opt.label}</span>
-                                {#if task.priority === opt.value}
-                                  <Check size={12} class="ml-auto text-primary" />
-                                {/if}
-                              </button>
-                            {/each}
-                          </div>
-                        {/if}
                       </div>
                     {/if}
                     <Tooltip text={task.title}>
@@ -1423,7 +1412,7 @@
           {$_("tableView__close", { default: "Close" })}
         </button>
         <button
-          on:click={() => { closeQuickPreview(); dispatch("edit", quickPreviewTask); }}
+          on:click={() => { const t = quickPreviewTask; closeQuickPreview(); if (t) dispatch("edit", t); }}
           class="px-3 py-1.5 text-xs font-medium text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors flex items-center gap-1"
         >
           <Edit2 size={12} />
@@ -1432,6 +1421,31 @@
       </div>
     </div>
   </div>
+{/if}
+
+<!-- Priority Dropdown Portal -->
+{#if priorityDropdownTaskId !== null}
+  {@const currentTask = sortedTasks.find((t) => t.id === priorityDropdownTaskId)}
+  {#if currentTask}
+    <div
+      use:portalAction
+      class="priority-dropdown-portal fixed z-9999 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 min-w-35"
+      style="top: {priorityDropdownPos.top}px; left: {priorityDropdownPos.left}px;"
+    >
+      {#each priorityOptions as opt}
+        <button
+          on:click|stopPropagation={() => selectPriority(currentTask.id!, opt.value)}
+          class="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors {currentTask.priority === opt.value ? 'bg-gray-100 dark:bg-gray-700 font-semibold' : ''} {!currentTask.priority && opt.value === 'none' ? 'bg-gray-100 dark:bg-gray-700 font-semibold' : ''}"
+        >
+          <svelte:component this={opt.icon} size={12} class={opt.colorClass} />
+          <span class="text-gray-700 dark:text-gray-300">{opt.label}</span>
+          {#if currentTask.priority === opt.value || (!currentTask.priority && opt.value === 'none')}
+            <Check size={12} class="ml-auto text-primary" />
+          {/if}
+        </button>
+      {/each}
+    </div>
+  {/if}
 {/if}
 
 <style>
@@ -1485,5 +1499,20 @@
 
   .animate-expand {
     animation: expand 0.2s ease-out;
+  }
+
+  @keyframes preview-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95) translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  :global(.animate-preview-in) {
+    animation: preview-in 0.2s ease-out;
   }
 </style>
