@@ -92,6 +92,15 @@
   let suppressTaskAutoOpen = false;
   let activeWorkspaceKey = "";
   let workspaceInitRun = 0;
+  let aiChatOpen = false;
+  let aiChatInput = "";
+  let aiChatLoading = false;
+  let aiChatError = "";
+  let aiChatMessages: Array<{
+    role: "user" | "assistant";
+    content: string;
+    results?: Array<{ task: Task; score: number }>;
+  }> = [];
   let filterDropdownEl: HTMLDivElement | null = null;
   let filterPanelEl: HTMLDivElement | null = null;
   let filterDropdownPos = { top: 0, left: 0 };
@@ -359,6 +368,44 @@
         assignee_id: nextIsActive ? myAssigneeId : "all",
       };
     });
+  }
+
+  async function sendAiChat() {
+    const message = aiChatInput.trim();
+    const workspaceId = $page.params.workspace_id;
+    if (!message || !workspaceId || aiChatLoading) return;
+
+    aiChatMessages = [...aiChatMessages, { role: "user", content: message }];
+    aiChatInput = "";
+    aiChatLoading = true;
+    aiChatError = "";
+
+    try {
+      const res = await api.data.ai.chatTasks(workspaceId, {
+        message,
+        limit: 5,
+        task_limit: 100,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "AI chat failed");
+      aiChatMessages = [
+        ...aiChatMessages,
+        {
+          role: "assistant",
+          content: data.answer || "เจอ task ที่เกี่ยวข้อง",
+          results: data.results || [],
+        },
+      ];
+    } catch (error) {
+      aiChatError = error instanceof Error ? error.message : "AI chat failed";
+    } finally {
+      aiChatLoading = false;
+    }
+  }
+
+  function openAiResult(task: Task) {
+    openTaskPage(task);
+    aiChatOpen = false;
   }
 </script>
 

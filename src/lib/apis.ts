@@ -582,6 +582,17 @@ export const api = {
       return h;
     },
 
+    ai: {
+      chatTasks: (wsId: string, payload: Record<string, any>): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/ai/tasks/chat`, {
+          method: "POST",
+          headers: api.data._headers(true),
+          credentials: "include",
+          body: JSON.stringify(payload),
+        });
+      },
+    },
+
     // Tasks
     tasks: {
       list: (
