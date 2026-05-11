@@ -11,6 +11,7 @@
     Users,
     ChevronRight,
     HardDrive,
+    Sparkles,
   } from "lucide-svelte";
 
   function normalizePath(pathname: string) {
@@ -47,6 +48,16 @@
       match: (pathname: string) =>
         normalizePath(pathname).startsWith(
           normalizePath(`${base}/settings/storage`),
+        ),
+    },
+    {
+      href: `${base}/settings/ai`,
+      label: "settings__tab_ai",
+      description: "settings__tab_ai_desc",
+      icon: Sparkles,
+      match: (pathname: string) =>
+        normalizePath(pathname).startsWith(
+          normalizePath(`${base}/settings/ai`),
         ),
     },
   ];

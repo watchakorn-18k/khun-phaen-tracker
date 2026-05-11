@@ -6,8 +6,11 @@ use axum::{
 use axum_extra::extract::cookie::CookieJar;
 use serde::Deserialize;
 
+use crate::handlers::auth_handler::extract_claims;
 use crate::handlers::common::verify_workspace_access;
+use crate::models::ai::{AiConfigDocument, UpdateAiConfigRequest};
 use crate::models::data::TaskFilterQuery;
+use crate::repositories::ai_repo::AiRepository;
 use crate::repositories::data_repo::DataRepository;
 use crate::services::ai_service::{AiConfig, AiService};
 use crate::state::SharedState;
@@ -40,7 +43,15 @@ pub async fn chat_with_tasks(
         Err(resp) => return resp,
     };
 
-    let config = match AiConfig::from_env() {
+    let ai_repo = AiRepository::new(&state.db);
+    let stored_config = ai_repo.get_ai_config().await.ok().flatten();
+
+    let config = stored_config
+        .as_ref()
+        .and_then(AiConfig::from_doc)
+        .or_else(AiConfig::from_env);
+
+    let config = match config {
         Some(config) => config,
         None => {
             return (
@@ -87,4 +98,150 @@ pub async fn chat_with_tasks(
         )
             .into_response(),
     }
+}
+
+fn ensure_admin(
+    headers: &HeaderMap,
+    jar: &CookieJar,
+    state: &SharedState,
+) -> Result<(), axum::response::Response> {
+    let claims = match extract_claims(headers, jar, &state.jwt_secret) {
+        Some(c) => c,
+        None => {
+            return Err((
+                axum::http::StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({ "error": "Unauthorized" })),
+            )
+                .into_response())
+        }
+    };
+
+    if claims.role != "admin" {
+        return Err((
+            axum::http::StatusCode::FORBIDDEN,
+            Json(serde_json::json!({ "error": "Admin access required" })),
+        )
+            .into_response());
+    }
+
+    Ok(())
+}
+
+fn normalize_optional(value: Option<String>) -> Option<String> {
+    value.and_then(|v| {
+        let trimmed = v.trim().to_string();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    })
+}
+
+pub async fn get_ai_config_handler(
+    State(state): State<SharedState>,
+    jar: CookieJar,
+    headers: HeaderMap,
+) -> axum::response::Response {
+    if let Err(response) = ensure_admin(&headers, &jar, &state) {
+        return response;
+    }
+
+    let repo = AiRepository::new(&state.db);
+    let stored = match repo.get_ai_config().await {
+        Ok(config) => config,
+        Err(error) => {
+            tracing::error!("Failed to load AI config: {:?}", error);
+            return (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": "Failed to load AI config" })),
+            )
+                .into_response();
+        }
+    };
+
+    let env_url = std::env::var("AI_EMBEDDINGS_URL").ok();
+    let env_key = std::env::var("AI_EMBEDDINGS_API_KEY").ok();
+    let env_model = std::env::var("AI_EMBEDDINGS_MODEL").ok();
+
+    Json(serde_json::json!({
+        "success": true,
+        "config": {
+            "embeddings_url": stored.as_ref().and_then(|c| c.embeddings_url.clone()).or(env_url),
+            "embeddings_api_key": stored.as_ref().and_then(|c| c.embeddings_api_key.clone()).or(env_key),
+            "embeddings_model": stored.as_ref().and_then(|c| c.embeddings_model.clone()).or(env_model),
+            "updated_at": stored.as_ref().and_then(|c| c.updated_at.clone())
+        }
+    }))
+    .into_response()
+}
+
+pub async fn update_ai_config_handler(
+    State(state): State<SharedState>,
+    jar: CookieJar,
+    headers: HeaderMap,
+    Json(payload): Json<UpdateAiConfigRequest>,
+) -> axum::response::Response {
+    if let Err(response) = ensure_admin(&headers, &jar, &state) {
+        return response;
+    }
+
+    let embeddings_url = normalize_optional(payload.embeddings_url);
+    let embeddings_api_key = normalize_optional(payload.embeddings_api_key);
+    let embeddings_model = normalize_optional(payload.embeddings_model);
+
+    let config = AiConfigDocument {
+        key: "ai_config".to_string(),
+        embeddings_url,
+        embeddings_api_key,
+        embeddings_model,
+        updated_at: Some(chrono::Utc::now().to_rfc3339()),
+    };
+
+    let repo = AiRepository::new(&state.db);
+    if let Err(error) = repo.save_ai_config(&config).await {
+        tracing::error!("Failed to save AI config: {:?}", error);
+        return (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": "Failed to save AI config" })),
+        )
+            .into_response();
+    }
+
+    Json(serde_json::json!({
+        "success": true,
+        "config": {
+            "embeddings_url": config.embeddings_url,
+            "embeddings_api_key": config.embeddings_api_key,
+            "embeddings_model": config.embeddings_model,
+            "updated_at": config.updated_at
+        }
+    }))
+    .into_response()
+}
+
+pub async fn reset_ai_config_handler(
+    State(state): State<SharedState>,
+    jar: CookieJar,
+    headers: HeaderMap,
+) -> axum::response::Response {
+    if let Err(response) = ensure_admin(&headers, &jar, &state) {
+        return response;
+    }
+
+    let repo = AiRepository::new(&state.db);
+    if let Err(error) = repo.delete_ai_config().await {
+        tracing::error!("Failed to reset AI config: {:?}", error);
+        return (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": "Failed to reset AI config" })),
+        )
+            .into_response();
+    }
+
+    Json(serde_json::json!({
+        "success": true,
+        "message": "AI config reset to environment defaults"
+    }))
+    .into_response()
 }

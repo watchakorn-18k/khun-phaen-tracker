@@ -1077,6 +1077,8 @@
 	"settings__tab_users_desc": "จัดการบัญชีและสิทธิ์การเข้าถึง",
 	"settings__tab_storage": "พื้นที่เก็บไฟล์",
 	"settings__tab_storage_desc": "ภาพรวม bucket, ความจุ และนโยบายเก็บไฟล์",
+	"settings__tab_ai": "AI",
+	"settings__tab_ai_desc": "ตั้งค่า AI embeddings และฟีเจอร์แชท",
 	"settings__general_title": "การตั้งค่าทั่วไปสำหรับผู้ดูแลระบบ",
 	"settings__admin_only": "เฉพาะแอดมิน",
 	"settings__general_subtitle": "ศูนย์กลางสำหรับการควบคุมระดับผู้ดูแลระบบ ข้อมูลบริบทของระบบ และทางลัดการจัดการที่สำคัญ",

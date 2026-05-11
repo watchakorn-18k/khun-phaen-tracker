@@ -224,6 +224,65 @@ export const api = {
         credentials: "include",
       });
     },
+    aiConfig: async (): Promise<Response> => {
+      let token = "";
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(
+          new RegExp("(^| )_khun_ph_token=([^;]+)"),
+        );
+        if (match) token = match[2];
+      }
+
+      const headers: Record<string, string> = { Accept: "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      return fetch(`${API_BASE_URL}/admin/ai/config`, {
+        headers,
+        credentials: "include",
+      });
+    },
+    updateAiConfig: async (
+      payload: Record<string, any>,
+    ): Promise<Response> => {
+      let token = "";
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(
+          new RegExp("(^| )_khun_ph_token=([^;]+)"),
+        );
+        if (match) token = match[2];
+      }
+
+      const headers: Record<string, string> = {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      return fetch(`${API_BASE_URL}/admin/ai/config`, {
+        method: "PUT",
+        headers,
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+    },
+    resetAiConfig: async (): Promise<Response> => {
+      let token = "";
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(
+          new RegExp("(^| )_khun_ph_token=([^;]+)"),
+        );
+        if (match) token = match[2];
+      }
+
+      const headers: Record<string, string> = { Accept: "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      return fetch(`${API_BASE_URL}/admin/ai/config/reset`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+      });
+    },
     storageStats: async (): Promise<Response> => {
       let token = "";
       if (typeof document !== "undefined") {

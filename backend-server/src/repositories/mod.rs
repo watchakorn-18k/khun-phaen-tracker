@@ -1,3 +1,4 @@
+pub mod ai_repo;
 pub mod data_repo;
 pub mod milestone_repo;
 pub mod notification_repo;

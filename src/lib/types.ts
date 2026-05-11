@@ -219,3 +219,10 @@ export interface StorageConfig {
   secret_key?: string;
   updated_at?: string;
 }
+
+export interface AiConfig {
+  embeddings_url?: string;
+  embeddings_api_key?: string;
+  embeddings_model?: string;
+  updated_at?: string;
+}

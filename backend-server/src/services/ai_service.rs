@@ -1,3 +1,4 @@
+use crate::models::ai::AiConfigDocument;
 use crate::models::data::TaskDocument;
 use serde::{Deserialize, Serialize};
 
@@ -15,6 +16,16 @@ impl AiConfig {
             embeddings_api_key: std::env::var("AI_EMBEDDINGS_API_KEY").ok()?,
             embeddings_model: std::env::var("AI_EMBEDDINGS_MODEL")
                 .unwrap_or_else(|_| "mistral/mistral-embed".to_string()),
+        })
+    }
+
+    pub fn from_doc(doc: &AiConfigDocument) -> Option<Self> {
+        Some(Self {
+            embeddings_url: doc.embeddings_url.clone().or_else(|| std::env::var("AI_EMBEDDINGS_URL").ok())?,
+            embeddings_api_key: doc.embeddings_api_key.clone().or_else(|| std::env::var("AI_EMBEDDINGS_API_KEY").ok())?,
+            embeddings_model: doc.embeddings_model.clone()
+                .or_else(|| std::env::var("AI_EMBEDDINGS_MODEL").ok())
+                .unwrap_or_else(|| "mistral/mistral-embed".to_string()),
         })
     }
 }

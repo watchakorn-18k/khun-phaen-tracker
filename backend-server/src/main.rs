@@ -187,6 +187,18 @@ async fn main() {
             post(handlers::storage_handler::reset_storage_config_handler),
         )
         .route(
+            "/api/admin/ai/config",
+            get(handlers::ai_handler::get_ai_config_handler),
+        )
+        .route(
+            "/api/admin/ai/config",
+            put(handlers::ai_handler::update_ai_config_handler),
+        )
+        .route(
+            "/api/admin/ai/config/reset",
+            post(handlers::ai_handler::reset_ai_config_handler),
+        )
+        .route(
             "/api/admin/storage/stats",
             get(handlers::storage_handler::get_storage_stats_handler),
         )

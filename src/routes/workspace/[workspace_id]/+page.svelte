@@ -46,6 +46,7 @@
   import DailyReflect from "$lib/components/DailyReflect.svelte";
   import CommandPalette from "$lib/components/CommandPalette.svelte";
   import MilestoneCountdown from "$lib/components/MilestoneCountdown.svelte";
+  import { Sparkles, Send, X, MessageSquare, ArrowUp, Loader2 } from "lucide-svelte";
 
   const ws = createWorkspacePageStore();
   const {
@@ -386,8 +387,9 @@
         limit: 5,
         task_limit: 100,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "AI chat failed");
+      const raw = await res.text();
+      const data = raw ? JSON.parse(raw) : {};
+      if (!res.ok) throw new Error(data.error || `AI chat failed (${res.status})`);
       aiChatMessages = [
         ...aiChatMessages,
         {
@@ -615,65 +617,87 @@
       on:milestonesUpdated={fetchMilestones}
     />
     <DailyReflect bind:show={$modals.dailyReflect} {isOwner} />
-    {#if !isMyTasksWorkspace}
+    {#if !isMyTasksWorkspace && $user?.role === "admin"}
       <button
         type="button"
-        class="fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-2xl shadow-indigo-500/30 transition hover:bg-indigo-500"
+        class="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-white shadow-xl shadow-indigo-500/40 transition-all hover:scale-110 hover:bg-indigo-500 active:scale-95"
         aria-label="เปิด AI task chat"
         on:click={() => (aiChatOpen = !aiChatOpen)}
       >
-        AI
+        <Sparkles size={24} fill={aiChatOpen ? "currentColor" : "none"} />
       </button>
 
       {#if aiChatOpen}
-        <div class="fixed bottom-24 right-5 z-50 w-[min(420px,calc(100vw-2.5rem))] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-          <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700">
-            <div>
-              <div class="font-semibold text-slate-900 dark:text-white">AI Task Chat</div>
-              <div class="text-xs text-slate-500 dark:text-slate-400">ค้นหา task ด้วย semantic search</div>
+        <div class="fixed bottom-24 right-6 z-50 flex w-[min(420px,calc(100vw-3rem))] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl transition-all animate-in fade-in slide-in-from-bottom-4 dark:border-slate-800 dark:bg-slate-900">
+          <!-- Header -->
+          <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-5 py-4 dark:border-slate-800 dark:bg-slate-800/50">
+            <div class="flex items-center gap-3">
+              <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400">
+                <Sparkles size={18} />
+              </div>
+              <div>
+                <div class="text-sm font-bold text-slate-900 dark:text-white">AI Task Assistant</div>
+                <div class="text-[10px] font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">Semantic Search Engine</div>
+              </div>
             </div>
             <button
               type="button"
-              class="rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+              class="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-200"
               on:click={() => (aiChatOpen = false)}
             >
-              ✕
+              <X size={18} />
             </button>
           </div>
 
-          <div class="max-h-[440px] space-y-3 overflow-y-auto p-4">
+          <!-- Messages Area -->
+          <div class="flex max-h-[480px] min-h-[300px] flex-col gap-4 overflow-y-auto p-5 scrollbar-thin">
             {#if aiChatMessages.length === 0}
-              <div class="rounded-2xl bg-slate-100 p-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                ลองถามเช่น “งาน priority สูงที่ยังไม่เสร็จมีอะไรบ้าง” หรือ “task เกี่ยวกับ login”
+              <div class="flex flex-col items-center justify-center py-8 text-center">
+                <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-600">
+                  <MessageSquare size={24} />
+                </div>
+                <p class="mb-1 text-sm font-medium text-slate-600 dark:text-slate-300">ถามอะไรผมดี?</p>
+                <p class="max-w-[200px] text-xs text-slate-400">ลองถามเกี่ยวกับงาน เช่น "งานที่ด่วนที่สุด" หรือ "งานของคุณเอก"</p>
               </div>
             {/if}
 
             {#each aiChatMessages as message}
-              <div class:ml-8={message.role === "user"} class:mr-8={message.role === "assistant"}>
-                <div class="rounded-2xl px-3 py-2 text-sm {message.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'}">
+              <div class="flex flex-col {message.role === 'user' ? 'items-end' : 'items-start'}">
+                <div class="max-w-[85%] rounded-2xl px-4 py-2.5 text-sm shadow-sm {message.role === 'user' ? 'bg-indigo-600 font-medium text-white rounded-tr-none' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 rounded-tl-none border border-slate-200 dark:border-slate-700'}">
                   {message.content}
                 </div>
 
                 {#if message.results?.length}
-                  <div class="mt-2 space-y-2">
+                  <div class="mt-3 w-full space-y-2">
+                    <div class="flex items-center gap-2 px-1">
+                      <div class="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
+                      <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Relevant Tasks</span>
+                      <div class="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
+                    </div>
                     {#each message.results as result}
                       <button
                         type="button"
-                        class="w-full rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:border-indigo-300 hover:bg-indigo-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-indigo-700 dark:hover:bg-slate-800"
+                        class="group relative w-full overflow-hidden rounded-2xl border border-slate-100 bg-white p-3 text-left transition-all hover:border-indigo-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-950 dark:hover:border-indigo-900"
                         on:click={() => openAiResult(result.task)}
                       >
                         <div class="flex items-start justify-between gap-3">
-                          <div class="min-w-0">
-                            <div class="truncate font-medium text-slate-900 dark:text-white">
-                              {#if result.task.task_number}#{result.task.task_number} {/if}{result.task.title}
+                          <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-1.5 truncate">
+                              {#if result.task.task_number}
+                                <span class="text-[10px] font-black text-indigo-500">#{result.task.task_number}</span>
+                              {/if}
+                              <span class="truncate text-sm font-semibold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                                {result.task.title}
+                              </span>
                             </div>
-                            <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                              {result.task.status} · {result.task.priority || "none"} · score {result.score.toFixed(3)}
+                            <div class="mt-1.5 flex flex-wrap items-center gap-2 text-[10px] font-medium text-slate-400">
+                              <span class="rounded bg-slate-100 px-1.5 py-0.5 uppercase dark:bg-slate-800">{result.task.status}</span>
+                              {#if result.task.priority && result.task.priority !== 'none'}
+                                <span class="rounded bg-red-50 px-1.5 py-0.5 text-red-500 dark:bg-red-950/30">{result.task.priority}</span>
+                              {/if}
+                              <span class="ml-auto text-slate-300 dark:text-slate-600">match {Math.round(result.score * 100)}%</span>
                             </div>
                           </div>
-                          <span class="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-                            เปิด
-                          </span>
                         </div>
                       </button>
                     {/each}
@@ -683,33 +707,46 @@
             {/each}
 
             {#if aiChatLoading}
-              <div class="mr-8 rounded-2xl bg-slate-100 px-3 py-2 text-sm text-slate-500 dark:bg-slate-800 dark:text-slate-300">
-                กำลังค้นหา task...
+              <div class="flex items-start gap-2">
+                <div class="flex h-8 w-8 animate-pulse items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+                  <Sparkles size={14} class="text-slate-400" />
+                </div>
+                <div class="flex gap-1 py-3">
+                  <div class="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-300 dark:bg-slate-600"></div>
+                  <div class="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-300 [animation-delay:0.2s] dark:bg-slate-600"></div>
+                  <div class="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-300 [animation-delay:0.4s] dark:bg-slate-600"></div>
+                </div>
               </div>
             {/if}
 
             {#if aiChatError}
-              <div class="rounded-2xl bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/40 dark:text-red-300">
-                {aiChatError}
+              <div class="rounded-xl border border-red-100 bg-red-50/50 p-3 text-xs font-medium text-red-600 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-400">
+                ⚠️ {aiChatError}
               </div>
             {/if}
           </div>
 
-          <form class="flex gap-2 border-t border-slate-200 p-3 dark:border-slate-700" on:submit|preventDefault={sendAiChat}>
-            <input
-              class="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-              bind:value={aiChatInput}
-              placeholder="ถามเกี่ยวกับ task..."
-              disabled={aiChatLoading}
-            />
-            <button
-              type="submit"
-              class="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={aiChatLoading || !aiChatInput.trim()}
+          <!-- Input Area -->
+          <div class="border-t border-slate-100 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+            <form
+              class="relative flex items-center"
+              on:submit|preventDefault={sendAiChat}
             >
-              ส่ง
-            </button>
-          </form>
+              <input
+                class="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-4 pr-12 text-sm text-slate-900 transition-all focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white dark:focus:border-indigo-500 dark:focus:bg-slate-900"
+                bind:value={aiChatInput}
+                placeholder="พิมพ์ข้อความที่นี่..."
+                disabled={aiChatLoading}
+              />
+              <button
+                type="submit"
+                class="absolute right-1.5 flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white transition-all hover:bg-indigo-500 disabled:bg-slate-200 dark:disabled:bg-slate-800"
+                disabled={aiChatLoading || !aiChatInput.trim()}
+              >
+                <ArrowUp size={20} />
+              </button>
+            </form>
+          </div>
         </div>
       {/if}
     {/if}
