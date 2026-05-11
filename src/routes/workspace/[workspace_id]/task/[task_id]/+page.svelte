@@ -485,6 +485,7 @@
         syncWorkspaceFromTask(result);
         editedTitle = task.title;
         editedDescription = task.notes || "";
+        await resolveWorkspaceShortName(result);
         await syncPinnedTaskMeta(result);
         await loadComments(result.id, routeKey);
       } else {

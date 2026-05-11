@@ -8,6 +8,7 @@
     ArrowDown,
     Edit2,
     Trash2,
+    Eye,
     CheckCircle2,
     Circle,
     PlayCircle,
@@ -92,6 +93,16 @@
     if (!target.closest(".priority-dropdown-container")) {
       priorityDropdownTaskId = null;
     }
+  }
+
+  let quickPreviewTask: Task | null = null;
+
+  function openQuickPreview(task: Task) {
+    quickPreviewTask = task;
+  }
+
+  function closeQuickPreview() {
+    quickPreviewTask = null;
   }
 
   function getSprintName(
@@ -914,6 +925,13 @@
             <td class="px-3 py-2">
               <div class="flex items-center justify-center gap-1">
                 <button
+                  on:click|stopPropagation={() => openQuickPreview(task)}
+                  class="p-1 text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
+                  title={$_("tableView__quick_preview", { default: "Quick preview" })}
+                >
+                  <Eye size={13} />
+                </button>
+                <button
                   on:click|stopPropagation={() => dispatch("edit", task)}
                   class="p-1 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                   title={$_("taskList__edit")}
@@ -1059,6 +1077,12 @@
                     </Tooltip>
                   </div>
                   <div class="flex items-center gap-1 shrink-0">
+                    <button
+                      on:click|stopPropagation={() => openQuickPreview(task)}
+                      class="p-1.5 text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
+                    >
+                      <Eye size={16} />
+                    </button>
                     <button
                       on:click|stopPropagation={() => dispatch("edit", task)}
                       class="p-1.5 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
@@ -1252,6 +1276,163 @@
     />
   {/if}
 </div>
+
+<!-- Quick Preview Modal -->
+{#if quickPreviewTask}
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+  <div
+    class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+    on:click|self={closeQuickPreview}
+    on:keydown={(e) => e.key === "Escape" && closeQuickPreview()}
+    role="dialog"
+    aria-modal="true"
+    tabindex="-1"
+  >
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full max-w-md mx-4 overflow-hidden animate-preview-in">
+      <!-- Header -->
+      <div class="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80">
+        <div class="flex items-center gap-2">
+          <Eye size={16} class="text-indigo-500" />
+          <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">{$_("tableView__quick_preview", { default: "Quick preview" })}</span>
+        </div>
+        <button
+          on:click={closeQuickPreview}
+          class="p-1 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
+        >
+          <X size={16} />
+        </button>
+      </div>
+
+      <!-- Body -->
+      <div class="px-5 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
+        <!-- Task Number + Title -->
+        <div>
+          {#if quickPreviewTask.task_number}
+            <span class="text-xs font-bold text-gray-400 dark:text-gray-500">
+              {quickPreviewTask.workspace_short_name || $currentWorkspaceShortName || "TASK"}-{quickPreviewTask.task_number}
+            </span>
+          {/if}
+          <h2 class="text-lg font-bold text-gray-900 dark:text-white leading-snug mt-0.5">
+            {quickPreviewTask.title}
+          </h2>
+        </div>
+
+        <!-- Priority -->
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide w-20 shrink-0">{$_("tableView__column_priority")}</span>
+          <PriorityBadge priority={quickPreviewTask.priority} />
+          {#if !quickPreviewTask.priority || quickPreviewTask.priority === 'none'}
+            <span class="text-xs text-gray-400 dark:text-gray-500">—</span>
+          {/if}
+        </div>
+
+        <!-- Status -->
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide w-20 shrink-0">{$_("tableView__column_status")}</span>
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium {getStatusClass(quickPreviewTask.status, quickPreviewTask.is_archived)}">
+            <svelte:component this={getStatusIcon(quickPreviewTask.status)} size={12} />
+            {getStatusLabel(quickPreviewTask.status, quickPreviewTask.is_archived)}
+          </span>
+        </div>
+
+        <!-- Assignees -->
+        <div class="flex items-start gap-2">
+          <span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide w-20 shrink-0 pt-1">{$_("tableView__column_assignee")}</span>
+          <div class="flex flex-wrap gap-2">
+            {#if quickPreviewTask.assignees && quickPreviewTask.assignees.length > 0}
+              {#each quickPreviewTask.assignees as assignee}
+                <div class="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 rounded-full pl-0.5 pr-2.5 py-0.5">
+                  <div
+                    class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                    style="background-color: {assignee.color || '#6366f1'}"
+                  >
+                    {#if assignee.avatar_url}
+                      <img src={assignee.avatar_url} alt={assignee.name} class="w-full h-full rounded-full object-cover" />
+                    {:else}
+                      {assignee.name?.[0]?.toUpperCase() || "?"}
+                    {/if}
+                  </div>
+                  <span class="text-xs text-gray-700 dark:text-gray-300">{assignee.name}</span>
+                </div>
+              {/each}
+            {:else}
+              <span class="text-xs text-gray-400 dark:text-gray-500">—</span>
+            {/if}
+          </div>
+        </div>
+
+        <!-- Notes / Description -->
+        <div>
+          <span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide block mb-1">{$_("tableView__notes_label", { default: "Notes" })}</span>
+          {#if quickPreviewTask.notes}
+            <div class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap bg-gray-50 dark:bg-gray-900/30 rounded-lg px-3 py-2 border border-gray-100 dark:border-gray-700 max-h-48 overflow-y-auto">
+              {quickPreviewTask.notes}
+            </div>
+          {:else}
+            <span class="text-sm text-gray-400 dark:text-gray-500 italic">{$_("tableView__no_notes", { default: "No notes" })}</span>
+          {/if}
+        </div>
+
+        <!-- Due Date -->
+        {#if dueDateOf(quickPreviewTask)}
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide w-20 shrink-0">{$_("tableView__column_due_date")}</span>
+            <span class="text-xs text-gray-700 dark:text-gray-300 flex items-center gap-1">
+              <Calendar size={12} />
+              {formatDateFull(dueDateOf(quickPreviewTask))}
+              {#if isOverdue(dueDateOf(quickPreviewTask), quickPreviewTask.status, quickPreviewTask.is_archived)}
+                <span class="text-red-500 font-medium ml-1">{$_("tableView__overdue_label")}</span>
+              {/if}
+            </span>
+          </div>
+        {/if}
+
+        <!-- Project -->
+        {#if quickPreviewTask.project}
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide w-20 shrink-0">{$_("tableView__column_project")}</span>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+              <Folder size={10} />
+              {quickPreviewTask.project}
+            </span>
+          </div>
+        {/if}
+
+        <!-- Checklist summary -->
+        {#if quickPreviewTask.checklist && quickPreviewTask.checklist.length > 0}
+          {@const completed = quickPreviewTask.checklist.filter(i => i.completed).length}
+          {@const total = quickPreviewTask.checklist.length}
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide w-20 shrink-0">Checklist</span>
+            <div class="flex items-center gap-2">
+              <div class="w-20 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div class="h-full {completed === total ? 'bg-green-500' : 'bg-blue-500'} transition-all" style="width: {(completed / total) * 100}%"></div>
+              </div>
+              <span class="text-xs {completed === total ? 'text-green-500' : 'text-gray-500 dark:text-gray-400'} font-medium">{completed}/{total}</span>
+            </div>
+          </div>
+        {/if}
+      </div>
+
+      <!-- Footer -->
+      <div class="px-5 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 flex justify-end gap-2">
+        <button
+          on:click={closeQuickPreview}
+          class="px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+        >
+          {$_("tableView__close", { default: "Close" })}
+        </button>
+        <button
+          on:click={() => { closeQuickPreview(); dispatch("edit", quickPreviewTask); }}
+          class="px-3 py-1.5 text-xs font-medium text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors flex items-center gap-1"
+        >
+          <Edit2 size={12} />
+          {$_("tableView__open_full", { default: "Open full" })}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <style>
   .col-resize-handle {

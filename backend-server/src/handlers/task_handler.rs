@@ -375,6 +375,48 @@ pub async fn create_task(
         .into_response()
 }
 
+pub async fn get_task(
+    State(state): State<SharedState>,
+    Path((ws_id, task_id)): Path<(String, String)>,
+    headers: HeaderMap,
+    jar: CookieJar,
+) -> axum::response::Response {
+    let _ws_oid = match verify_workspace_access(&state, &headers, &jar, &ws_id).await {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+
+    let task_oid = match ObjectId::parse_str(&task_id) {
+        Ok(id) => id,
+        Err(_) => {
+            return (
+                axum::http::StatusCode::BAD_REQUEST,
+                axum::Json(serde_json::json!({ "error": "Invalid task ID" })),
+            )
+                .into_response()
+        }
+    };
+
+    let repo = DataRepository::new(&state.db);
+    match repo.find_task_by_id(&task_oid).await {
+        Ok(Some(task)) => axum::Json(serde_json::json!({
+            "success": true,
+            "task": task,
+        }))
+        .into_response(),
+        Ok(None) => (
+            axum::http::StatusCode::NOT_FOUND,
+            axum::Json(serde_json::json!({ "error": "Task not found" })),
+        )
+            .into_response(),
+        Err(e) => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            axum::Json(serde_json::json!({ "error": format!("{}", e) })),
+        )
+            .into_response(),
+    }
+}
+
 pub async fn update_task(
     State(state): State<SharedState>,
     Path((ws_id, task_id)): Path<(String, String)>,

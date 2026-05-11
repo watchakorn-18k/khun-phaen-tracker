@@ -284,6 +284,10 @@ async fn main() {
         )
         .route(
             "/api/workspaces/:ws_id/tasks/:task_id",
+            get(handlers::task_handler::get_task),
+        )
+        .route(
+            "/api/workspaces/:ws_id/tasks/:task_id",
             put(handlers::task_handler::update_task),
         )
         .route(
