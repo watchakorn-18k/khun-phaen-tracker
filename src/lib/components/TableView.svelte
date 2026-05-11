@@ -553,9 +553,13 @@
   function dueDateOf(task: Task): string {
     return task.due_date || task.end_date || "";
   }
+  function closeAllDropdowns() {
+    priorityDropdownTaskId = null;
+    statusDropdownTaskId = null;
+  }
 </script>
 
-<svelte:window on:click={handleClickOutsideDropdowns} />
+<svelte:window on:click={handleClickOutsideDropdowns} on:scroll={closeAllDropdowns} />
 
 <div
   class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
@@ -624,6 +628,7 @@
     class:select-none={!!resizingCol}
     class:cursor-col-resize={!!resizingCol}
     bind:clientWidth={tableViewportWidth}
+    on:scroll={closeAllDropdowns}
   >
     <table class="w-full min-w-[1080px] table-fixed">
       <thead class="bg-gray-50 dark:bg-gray-700/50">

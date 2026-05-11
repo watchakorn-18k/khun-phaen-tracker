@@ -1,3 +1,4 @@
+pub mod ai_service;
 pub mod auth_service;
 pub mod milestone_service;
 pub mod notification_service;

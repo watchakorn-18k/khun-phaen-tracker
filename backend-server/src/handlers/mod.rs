@@ -1,3 +1,4 @@
+pub mod ai_handler;
 pub mod assignee_handler;
 pub mod attachment_handler;
 pub mod auth_handler;
