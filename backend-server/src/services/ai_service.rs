@@ -155,7 +155,8 @@ impl AiService {
                 "model": llm_config.llm_model,
                 "messages": messages,
                 "temperature": 0.7,
-                "max_tokens": 500
+                "max_tokens": 500,
+                "stream": false
             }))
             .send()
             .await
@@ -167,11 +168,15 @@ impl AiService {
             return Err(format!("LLM request failed: {} {}", status, body));
         }
 
-        let body: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
+        let response_text = response.text().await.map_err(|e| e.to_string())?;
+        tracing::debug!("LLM raw response: {}", response_text);
+
+        let body: serde_json::Value = serde_json::from_str(&response_text)
+            .map_err(|e| format!("Failed to parse LLM response as JSON: {}. Response: {}", e, response_text))?;
 
         let content = body["choices"][0]["message"]["content"]
             .as_str()
-            .ok_or_else(|| "No content in LLM response".to_string())?;
+            .ok_or_else(|| format!("No content in LLM response. Response structure: {}", serde_json::to_string_pretty(&body).unwrap_or_default()))?;
 
         Ok(content.to_string())
     }

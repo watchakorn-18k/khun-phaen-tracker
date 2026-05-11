@@ -104,6 +104,9 @@
     content: string;
     results?: Array<{ task: Task; score: number }>;
     generatedTask?: any;
+    showAssignPrompt?: boolean;
+    createdTaskUrl?: string;
+    createdTask?: any;
   }> = [];
   let filterDropdownEl: HTMLDivElement | null = null;
   let filterPanelEl: HTMLDivElement | null = null;
@@ -434,8 +437,9 @@
         ...aiChatMessages,
         {
           role: "assistant",
-          content: "สร้าง task ให้แล้ว คุณสามารถแก้ไขและบันทึกได้เลย",
+          content: "ฉันสร้าง task ให้แล้ว ต้องการ assign ให้คุณด้วยไหม?",
           generatedTask: data.task,
+          showAssignPrompt: true,
         },
       ];
     } catch (error) {
@@ -445,20 +449,60 @@
     }
   }
 
-  function useGeneratedTask(generatedTask: any) {
+  async function createTaskFromAi(generatedTask: any, assignToMe: boolean) {
+    const workspaceId = $page.params.workspace_id;
+    if (!workspaceId) return;
+
     const today = new Date().toISOString().split("T")[0];
-    $editingTask = {
-      title: generatedTask.title || "",
-      category: generatedTask.category || "feature",
-      priority: generatedTask.priority || "medium",
-      notes: generatedTask.notes || "",
-      project: generatedTask.project || "",
-      date: today,
-      duration_minutes: 60,
-      status: "todo",
-    } as any;
-    uiActions.openModal("form");
-    aiChatOpen = false;
+
+    try {
+      const taskData: any = {
+        title: generatedTask.title || "",
+        category: generatedTask.category || "feature",
+        priority: generatedTask.priority || "medium",
+        notes: generatedTask.notes || "",
+        project: generatedTask.project || "",
+        date: today,
+        duration_minutes: 60,
+        status: "todo",
+      };
+
+      if (assignToMe && myAssigneeId) {
+        taskData.assignee_ids = [myAssigneeId];
+      }
+
+      const res = await api.data.tasks.create(workspaceId, taskData);
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || "Failed to create task");
+
+      const taskId = data.task?.id || data.id;
+      const taskUrl = `${window.location.origin}${base}/workspace/${workspaceId}/task/${taskId}`;
+
+      aiChatMessages = [
+        ...aiChatMessages,
+        {
+          role: "assistant",
+          content: "สร้าง task สำเร็จแล้ว!",
+          createdTaskUrl: taskUrl,
+          createdTask: data.task || data,
+        },
+      ];
+
+      await loadData();
+    } catch (error) {
+      aiChatError = error instanceof Error ? error.message : "Failed to create task";
+    }
+  }
+
+  function cancelTaskCreation() {
+    aiChatMessages = [
+      ...aiChatMessages,
+      {
+        role: "assistant",
+        content: "ยกเลิกการสร้าง task แล้ว",
+      },
+    ];
   }
 </script>
 
@@ -762,28 +806,86 @@
                       <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Generated Task</span>
                       <div class="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
                     </div>
-                    <div class="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4 dark:border-emerald-900/30 dark:bg-emerald-900/10">
-                      <div class="mb-3 flex items-start justify-between gap-2">
-                        <h4 class="text-sm font-bold text-slate-800 dark:text-slate-100">{message.generatedTask.title}</h4>
-                        <div class="flex gap-1">
-                          <span class="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-medium uppercase text-slate-600 dark:bg-slate-800 dark:text-slate-300">{message.generatedTask.category}</span>
-                          <span class="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-medium uppercase text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{message.generatedTask.priority}</span>
+                    <div class="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-3.5 dark:border-emerald-900/30 dark:bg-emerald-900/10">
+                      <div class="mb-2.5 flex items-start justify-between gap-2">
+                        <h4 class="text-[13px] font-bold leading-tight text-slate-800 dark:text-slate-100">{message.generatedTask.title}</h4>
+                        <div class="flex gap-1 shrink-0">
+                          <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-medium uppercase text-slate-600 dark:bg-slate-800 dark:text-slate-300">{message.generatedTask.category}</span>
+                          <span class="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-medium uppercase text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{message.generatedTask.priority}</span>
                         </div>
                       </div>
                       {#if message.generatedTask.project}
-                        <div class="mb-2 text-xs text-slate-600 dark:text-slate-400">
+                        <div class="mb-2 text-[11px] text-slate-600 dark:text-slate-400">
                           <span class="font-semibold">Project:</span> {message.generatedTask.project}
                         </div>
                       {/if}
-                      <p class="mb-3 text-xs text-slate-600 dark:text-slate-400">{message.generatedTask.notes}</p>
-                      <button
-                        type="button"
-                        class="w-full rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500"
-                        on:click={() => useGeneratedTask(message.generatedTask)}
-                      >
-                        ใช้ Task นี้
-                      </button>
+                      {#if message.generatedTask.notes}
+                        <div class="mb-2.5 rounded-xl bg-white/60 p-2.5 text-[11px] leading-relaxed text-slate-700 dark:bg-slate-800/40 dark:text-slate-300">
+                          <div class="font-semibold mb-1 text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">Description</div>
+                          <div class="whitespace-pre-wrap">{message.generatedTask.notes}</div>
+                        </div>
+                      {/if}
+
+                      {#if message.showAssignPrompt}
+                        <div class="flex gap-1.5">
+                          <button
+                            type="button"
+                            class="flex-1 rounded-xl bg-indigo-600 px-3 py-2 text-[11px] font-semibold text-white transition hover:bg-indigo-500"
+                            on:click={() => createTaskFromAi(message.generatedTask, true)}
+                          >
+                            ✓ สร้าง & Assign ให้ฉัน
+                          </button>
+                          <button
+                            type="button"
+                            class="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                            on:click={() => createTaskFromAi(message.generatedTask, false)}
+                          >
+                            สร้างโดยไม่ Assign
+                          </button>
+                          <button
+                            type="button"
+                            class="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[11px] font-semibold text-red-600 transition hover:bg-red-100 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-400 dark:hover:bg-red-900/20"
+                            on:click={cancelTaskCreation}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      {/if}
                     </div>
+                  </div>
+                {/if}
+
+                {#if message.createdTaskUrl}
+                  <div class="mt-3 w-full">
+                    <div class="flex items-center gap-2 px-1 mb-2">
+                      <div class="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
+                      <span class="text-[10px] font-bold uppercase tracking-widest text-emerald-500">Task Created</span>
+                      <div class="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
+                    </div>
+                    <a
+                      href={message.createdTaskUrl}
+                      class="block rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-emerald-100/50 p-4 transition hover:shadow-md dark:border-emerald-800/50 dark:from-emerald-900/20 dark:to-emerald-900/10"
+                      on:click={() => aiChatOpen = false}
+                    >
+                      <div class="mb-2 flex items-center gap-2">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-white">
+                          <span class="text-lg">✓</span>
+                        </div>
+                        <div class="flex-1">
+                          <div class="text-sm font-bold text-emerald-900 dark:text-emerald-100">
+                            {message.createdTask?.title || "Task Created"}
+                          </div>
+                          {#if message.createdTask?.task_number}
+                            <div class="text-xs text-emerald-600 dark:text-emerald-400">
+                              #{message.createdTask.task_number}
+                            </div>
+                          {/if}
+                        </div>
+                      </div>
+                      <div class="text-xs text-emerald-700 dark:text-emerald-300">
+                        คลิกเพื่อดู task →
+                      </div>
+                    </a>
                   </div>
                 {/if}
               </div>
