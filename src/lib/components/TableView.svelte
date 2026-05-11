@@ -103,6 +103,45 @@
     }
   }
 
+  // --- Status dropdown (portal-based, same pattern as priority) ---
+  type StatusValue = Task["status"];
+  const statusOptions: { value: StatusValue; label: () => string; icon: any; colorClass: string }[] = [
+    { value: "pending", label: () => $_("page__filter_status_pending"), icon: Circle, colorClass: "text-slate-500" },
+    { value: "in-progress", label: () => $_("page__filter_status_in_progress"), icon: PlayCircle, colorClass: "text-blue-500" },
+    { value: "in-test", label: () => $_("page__filter_status_in_test"), icon: FlaskConicalIcon, colorClass: "text-purple-500" },
+    { value: "done", label: () => $_("page__filter_status_done"), icon: CheckCircle2, colorClass: "text-green-500" },
+  ];
+
+  let statusDropdownTaskId: string | number | null = null;
+  let statusDropdownPos = { top: 0, left: 0 };
+
+  function toggleStatusDropdown(taskId: string | number, event: MouseEvent) {
+    if (statusDropdownTaskId === taskId) {
+      statusDropdownTaskId = null;
+      return;
+    }
+    // Close priority dropdown if open
+    priorityDropdownTaskId = null;
+    const btn = event.currentTarget as HTMLElement;
+    const rect = btn.getBoundingClientRect();
+    statusDropdownPos = { top: rect.bottom + 4, left: rect.left };
+    statusDropdownTaskId = taskId;
+  }
+
+  function selectStatus(taskId: string | number, status: StatusValue) {
+    handleStatusChange(taskId, status);
+    statusDropdownTaskId = null;
+  }
+
+  function handleClickOutsideDropdowns(event: MouseEvent) {
+    handleClickOutsidePriority(event);
+    if (statusDropdownTaskId === null) return;
+    const target = event.target as HTMLElement;
+    if (!target.closest(".status-dropdown-portal") && !target.closest(".status-dropdown-trigger")) {
+      statusDropdownTaskId = null;
+    }
+  }
+
   let quickPreviewTask: Task | null = null;
 
   // Keep preview in sync with task data
@@ -516,7 +555,7 @@
   }
 </script>
 
-<svelte:window on:click={handleClickOutsidePriority} />
+<svelte:window on:click={handleClickOutsideDropdowns} />
 
 <div
   class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
@@ -893,19 +932,20 @@
             {#if enabledColumns.get('status')}
               <td class="px-3 py-2">
                 <button
-                  on:click|stopPropagation={() =>
-                    handleStatusChange(task.id!, nextStatus(task.status))}
-                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors {getStatusClass(
+                  on:click|stopPropagation={(e) => toggleStatusDropdown(task.id!, e)}
+                  class="status-dropdown-trigger inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors {getStatusClass(
                     task.status,
                     task.is_archived,
                   )} hover:opacity-80 whitespace-nowrap"
                   title={$_("tableView__status_click_hint")}
+                  disabled={task.is_archived}
                 >
                   <svelte:component this={getStatusIcon(task.status)} size={11} />
                   <span class="hidden sm:inline"
                     >{getStatusLabel(task.status, task.is_archived)}</span
                   >
                   <span class="sm:hidden">{getStatusShort(task.status)}</span>
+                  <ChevronDown size={10} class="ml-0.5 opacity-60" />
                 </button>
               </td>
             {/if}
@@ -1101,10 +1141,9 @@
 
                 <div class="flex flex-wrap items-center gap-2 mt-2">
                   <button
-                    on:click|stopPropagation={() =>
-                      !task.is_archived &&
-                      handleStatusChange(task.id!, nextStatus(task.status))}
-                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors {getStatusClass(
+                    on:click|stopPropagation={(e) =>
+                      !task.is_archived && toggleStatusDropdown(task.id!, e)}
+                    class="status-dropdown-trigger inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors {getStatusClass(
                       task.status,
                       task.is_archived,
                     )}"
@@ -1115,6 +1154,9 @@
                       size={12}
                     />
                     {getStatusLabel(task.status, task.is_archived)}
+                    {#if !task.is_archived}
+                      <ChevronDown size={10} class="ml-0.5 opacity-60" />
+                    {/if}
                   </button>
 
                   <span
@@ -1270,7 +1312,7 @@
 {#if quickPreviewTask}
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <div
-    class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+    class="fixed inset-0 z-9999 flex items-center justify-center bg-black/40 backdrop-blur-sm"
     on:click|self={closeQuickPreview}
     on:keydown={(e) => e.key === "Escape" && closeQuickPreview()}
     role="dialog"
@@ -1440,6 +1482,31 @@
           <svelte:component this={opt.icon} size={12} class={opt.colorClass} />
           <span class="text-gray-700 dark:text-gray-300">{opt.label}</span>
           {#if currentTask.priority === opt.value || (!currentTask.priority && opt.value === 'none')}
+            <Check size={12} class="ml-auto text-primary" />
+          {/if}
+        </button>
+      {/each}
+    </div>
+  {/if}
+{/if}
+
+<!-- Status Dropdown Portal -->
+{#if statusDropdownTaskId !== null}
+  {@const currentTask = sortedTasks.find((t) => t.id === statusDropdownTaskId)}
+  {#if currentTask}
+    <div
+      use:portalAction
+      class="status-dropdown-portal fixed z-9999 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 min-w-40"
+      style="top: {statusDropdownPos.top}px; left: {statusDropdownPos.left}px;"
+    >
+      {#each statusOptions as opt}
+        <button
+          on:click|stopPropagation={() => selectStatus(currentTask.id!, opt.value)}
+          class="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors {currentTask.status === opt.value ? 'bg-gray-100 dark:bg-gray-700 font-semibold' : ''}"
+        >
+          <svelte:component this={opt.icon} size={12} class={opt.colorClass} />
+          <span class="text-gray-700 dark:text-gray-300">{opt.label()}</span>
+          {#if currentTask.status === opt.value}
             <Check size={12} class="ml-auto text-primary" />
           {/if}
         </button>

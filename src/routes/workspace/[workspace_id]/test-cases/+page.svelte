@@ -2506,7 +2506,7 @@
         <div class="flex flex-col gap-4">
           <div class="flex items-baseline gap-3">
             <h1
-              class="text-2xl font-black tracking-tight text-slate-800 dark:text-white"
+              class="text-xl font-semibold tracking-tight text-slate-800 dark:text-white"
             >
               {workspaceLabel} repository
             </h1>
@@ -2527,7 +2527,7 @@
                   />
                   <input
                     bind:value={query}
-                    class="min-w-0 flex-1 border-0 bg-transparent text-sm font-bold text-slate-700 outline-none placeholder:text-slate-400 dark:!bg-transparent dark:text-gray-200"
+                    class="min-w-0 flex-1 border-0 bg-transparent text-sm font-normal text-slate-700 outline-none placeholder:text-slate-400 dark:!bg-transparent dark:text-gray-200"
                     placeholder={$_("tc__ph_search")}
                   />
                   {#if query}
@@ -2556,7 +2556,7 @@
               {#each Object.entries(activeFilters) as [prop, values]}
                 {#if values.length > 0}
                   <div
-                    class="flex items-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-100 px-2.5 py-1.5 text-[13px] font-black text-indigo-700 dark:bg-indigo-500/10 dark:border-indigo-500/20 dark:text-indigo-300 shadow-sm"
+                    class="flex items-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-100 px-2.5 py-1.5 text-[13px] font-medium text-indigo-700 dark:bg-indigo-500/10 dark:border-indigo-500/20 dark:text-indigo-300 shadow-sm"
                   >
                     <span class="opacity-60"
                       >{filterProperties.find((p) => p.id === prop)?.label ||
@@ -2583,7 +2583,7 @@
               <!-- Add Filter Dropdown -->
               <div class="relative">
                 <button
-                  class="flex h-10 items-center gap-2 rounded-xl bg-slate-100 px-4 text-[13px] font-black text-slate-600 hover:bg-slate-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition-all active:scale-95"
+                  class="flex h-10 items-center gap-2 rounded-xl bg-slate-100 px-4 text-[13px] font-medium text-slate-600 hover:bg-slate-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition-all active:scale-95"
                   on:click={() => {
                     showFilterDropdown = !showFilterDropdown;
                     activeFilterProperty = null;
@@ -2606,13 +2606,13 @@
                     {#if !activeFilterProperty}
                       <div class="flex flex-col py-1">
                         <div
-                          class="px-4 py-2 text-[10px] font-black uppercase tracking-wider text-slate-400"
+                          class="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400"
                         >
                           Filter by
                         </div>
                         {#each filterProperties as prop}
                           <button
-                            class="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm font-bold text-slate-700 hover:bg-slate-50 dark:text-gray-200 dark:hover:bg-gray-700/50 transition-colors"
+                            class="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 dark:text-gray-200 dark:hover:bg-gray-700/50 transition-colors"
                             on:click={() => {
                               activeFilterProperty = prop.id;
                             }}
@@ -2625,7 +2625,7 @@
                           class="h-px bg-slate-100 dark:bg-gray-700 my-1"
                         ></div>
                         <button
-                          class="px-4 py-2 text-sm font-black text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/10 text-center w-full transition-colors"
+                          class="px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/10 text-center w-full transition-colors"
                           on:click={() => {
                             activeFilters = {
                               priority: [],
@@ -2652,7 +2652,7 @@
                             <ChevronLeft size={16} />
                           </button>
                           <span
-                            class="text-[10px] font-black uppercase tracking-wider text-slate-400"
+                            class="text-[10px] font-semibold uppercase tracking-wider text-slate-400"
                             >{filterProperties.find(
                               (p) => p.id === activeFilterProperty,
                             )?.label}</span
@@ -2678,7 +2678,7 @@
                                   toggleFilterValue("priority", opt.value)}
                               />
                               <span
-                                class="text-sm font-bold text-slate-700 dark:text-gray-200"
+                                class="text-sm font-medium text-slate-700 dark:text-gray-200"
                                 >{opt.label}</span
                               >
                             </label>
@@ -2698,7 +2698,7 @@
                                   toggleFilterValue("status", opt.value)}
                               />
                               <span
-                                class="text-sm font-bold text-slate-700 dark:text-gray-200"
+                                class="text-sm font-medium text-slate-700 dark:text-gray-200"
                                 >{opt.label}</span
                               >
                             </label>
@@ -2718,7 +2718,7 @@
                                   toggleFilterValue("fixed", opt.value)}
                               />
                               <span
-                                class="text-sm font-bold text-slate-700 dark:text-gray-200"
+                                class="text-sm font-medium text-slate-700 dark:text-gray-200"
                                 >{opt.label}</span
                               >
                             </label>
@@ -2738,7 +2738,7 @@
                                   toggleFilterValue("assign_dev", opt.value)}
                               />
                               <span
-                                class="text-sm font-bold text-slate-700 dark:text-gray-200"
+                                class="text-sm font-medium text-slate-700 dark:text-gray-200"
                                 >{opt.label}</span
                               >
                             </label>
@@ -2774,7 +2774,7 @@
                   >
                     <div class="flex flex-col py-1">
                       <button
-                        class="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-black text-slate-700 hover:bg-slate-50 dark:text-gray-200 dark:hover:bg-gray-700/50 transition-colors"
+                        class="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 dark:text-gray-200 dark:hover:bg-gray-700/50 transition-colors"
                         on:click={() => {
                           downloadTemplate();
                           showActionsMenu = false;
@@ -2786,7 +2786,7 @@
 
                       {#if isAuthorized}
                         <label
-                          class="flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left text-sm font-black text-slate-700 hover:bg-slate-50 dark:text-gray-200 dark:hover:bg-gray-700/50 transition-colors"
+                          class="flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 dark:text-gray-200 dark:hover:bg-gray-700/50 transition-colors"
                         >
                           <FileUp size={16} class="text-slate-400" />
                           {$_("testCases__import")}
@@ -2803,7 +2803,7 @@
                       {/if}
 
                       <button
-                        class="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-black text-slate-700 hover:bg-slate-50 dark:text-gray-200 dark:hover:bg-gray-700/50 transition-colors"
+                        class="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 dark:text-gray-200 dark:hover:bg-gray-700/50 transition-colors"
                         on:click={() => {
                           exportToCSV();
                           showActionsMenu = false;
@@ -2818,7 +2818,7 @@
                       ></div>
 
                       <button
-                        class="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-black text-slate-700 hover:bg-slate-50 dark:text-gray-200 dark:hover:bg-gray-700/50 transition-colors"
+                        class="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 dark:text-gray-200 dark:hover:bg-gray-700/50 transition-colors"
                         on:click={() => {
                           window.open(
                             `${base}/public/${workspaceId}/test-cases/`,
@@ -2864,7 +2864,7 @@
                 />
               </button>
               <h2
-                class="text-lg font-black text-slate-800 dark:text-white flex-1"
+                class="text-sm font-semibold text-slate-800 dark:text-white flex-1"
               >
                 Suites
               </h2>
@@ -2891,13 +2891,13 @@
                     <button
                       class="flex flex-1 min-w-0 items-center gap-2 text-left {selectedSuiteId ===
                       suite.id
-                        ? 'font-black text-slate-800 dark:text-white'
-                        : 'font-bold text-slate-600 dark:text-gray-400'}"
+                        ? 'font-semibold text-slate-800 dark:text-white'
+                        : 'font-medium text-slate-600 dark:text-gray-400'}"
                       on:click={() => selectSuite(suite)}
                     >
                       <ChevronDown size={14} class="shrink-0 text-slate-500" />
                       <span class="min-w-0 flex-1 truncate">{suite.title}</span>
-                      <span class="text-xs font-black text-slate-500"
+                      <span class="text-xs font-semibold text-slate-500"
                         >{suite.totalCount ?? suite.cases?.length ?? 0}</span
                       >
                     </button>
@@ -2917,7 +2917,7 @@
                             data-context-menu
                           >
                             <button
-                              class="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                              class="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
                               on:click|stopPropagation={() => {
                                 suiteToDelete = suite;
                                 showDeleteSuiteModal = true;
@@ -2954,11 +2954,11 @@
                   />
                 </button>
                 <h2
-                  class="text-lg font-black text-slate-800 dark:text-white flex-1"
+                  class="text-sm font-semibold text-slate-800 dark:text-white flex-1"
                 >
                   Test Runs
                 </h2>
-                <span class="text-xs font-black text-slate-400"
+                <span class="text-xs font-semibold text-slate-400"
                   >{testRunsTotal || testRuns.length}</span
                 >
                 {#if isAuthorized}
@@ -2983,7 +2983,7 @@
                   <div class="space-y-1">
                     {#each testRuns as run}
                       <div
-                        class="group relative flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-bold transition-colors {selectedRunDetail?.id ===
+                        class="group relative flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium transition-colors {selectedRunDetail?.id ===
                         run._id
                           ? 'bg-indigo-50 dark:bg-indigo-500/10'
                           : 'hover:bg-slate-50 dark:hover:bg-gray-900'}"
@@ -3005,7 +3005,7 @@
                           ></div>
                           <span class="min-w-0 flex-1 truncate">{run.name}</span
                           >
-                          <span class="text-xs font-black text-slate-400"
+                          <span class="text-xs font-semibold text-slate-400"
                             >{run.test_cases.length}</span
                           >
                         </button>
@@ -3025,7 +3025,7 @@
                                 data-context-menu
                               >
                                 <button
-                                  class="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                                  class="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
                                   on:click|stopPropagation={() => {
                                     runToDelete = run;
                                     showDeleteRunModal = true;
@@ -3043,7 +3043,7 @@
                     {/each}
                     {#if testRuns.length < testRunsTotal}
                       <button
-                        class="flex w-full items-center justify-center gap-1.5 mt-2 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-500 dark:text-gray-400 bg-slate-100 dark:bg-gray-800 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        class="flex w-full items-center justify-center gap-1.5 mt-2 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 dark:text-gray-400 bg-slate-100 dark:bg-gray-800 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         disabled={isLoadingMoreRuns}
                         on:click={loadMoreTestRuns}
                       >
@@ -3109,13 +3109,13 @@
                 </button>
                 <div class="flex items-center gap-3 min-w-0 flex-1">
                   <h2
-                    class="text-lg font-black text-slate-800 dark:text-white truncate"
+                    class="text-base font-semibold text-slate-800 dark:text-white truncate"
                   >
                     {selectedRunDetail?.name ?? "Test run"}
                   </h2>
                   {#if selectedRunDetail}
                     <span
-                      class="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-black
+                      class="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold
                       {selectedRunDetail.status === 'completed'
                         ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400'
                         : selectedRunDetail.status === 'aborted'
@@ -3133,13 +3133,13 @@
                 {#if isAuthorized}
                   {#if selectedRunDetail?.status === "running"}
                     <button
-                      class="shrink-0 rounded-xl bg-emerald-600 px-4 py-1.5 text-xs font-black text-white hover:bg-emerald-500"
+                      class="shrink-0 rounded-xl bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"
                       on:click={() => updateRunStatus("completed")}
                       >{$_("tc__mark_complete")}</button
                     >
                   {:else if selectedRunDetail?.status === "completed"}
                     <button
-                      class="shrink-0 rounded-xl bg-amber-500 px-4 py-1.5 text-xs font-black text-white hover:bg-amber-400"
+                      class="shrink-0 rounded-xl bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-400"
                       on:click={() => updateRunStatus("running")}>{$_("tc__reopen")}</button
                     >
                   {/if}
@@ -3157,7 +3157,7 @@
               {#if selectedRunDetail}
                 {@const s = selectedRunDetail.stats}
                 <div
-                  class="flex items-center gap-5 px-6 py-3 shrink-0 border-b border-slate-100 dark:border-gray-800 text-xs font-bold flex-wrap"
+                  class="flex items-center gap-5 px-6 py-3 shrink-0 border-b border-slate-100 dark:border-gray-800 text-xs font-medium flex-wrap"
                 >
                   <span class="text-slate-400">{s.total} total</span>
                   {#if s.passed}
@@ -3194,7 +3194,7 @@
                             {(selectedRunDetail.created_by_name || selectedRunDetail.created_by || '?')[0].toUpperCase()}
                           {/if}
                         </span>
-                        <span class="text-slate-600 dark:text-gray-300 font-bold">{selectedRunDetail.created_by_name || selectedRunDetail.created_by}</span>
+                        <span class="text-slate-600 dark:text-gray-300 font-medium">{selectedRunDetail.created_by_name || selectedRunDetail.created_by}</span>
                       </span>
                     </span>
                   {/if}
@@ -3224,7 +3224,7 @@
                 {:else if selectedRunDetail}
                   <!-- Header row -->
                   <div
-                    class="grid grid-cols-[60px_52px_1fr_140px] items-center gap-3 px-5 py-2 border-b border-slate-100 dark:border-gray-800 bg-slate-50 dark:bg-gray-900/60 text-xs font-black uppercase tracking-widest text-slate-400"
+                    class="grid grid-cols-[60px_52px_1fr_140px] items-center gap-3 px-5 py-2 border-b border-slate-100 dark:border-gray-800 bg-slate-50 dark:bg-gray-900/60 text-xs font-semibold uppercase tracking-widest text-slate-400"
                   >
                     <span>#</span>
                     <span></span>
@@ -3249,7 +3249,7 @@
                       >
                         <!-- TC-no -->
                         <button
-                          class="font-mono text-sm font-bold text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors text-left"
+                          class="font-mono text-sm font-medium text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors text-left"
                           title={$_("tc__title_view_case")}
                           on:click={() => {
                             if (!entry.test_case) return;
@@ -3272,7 +3272,7 @@
                         </span>
                         <!-- Name -->
                         <span
-                          class="min-w-0 truncate text-sm font-bold text-slate-700 dark:text-gray-200"
+                          class="min-w-0 truncate text-sm font-medium text-slate-700 dark:text-gray-200"
                         >
                           {entry.test_case?.name ?? entry.test_case_id}
                         </span>
@@ -3334,7 +3334,7 @@
                       : 'bg-slate-100 dark:bg-gray-900'}"
                   >
                     <h3
-                      class="min-w-0 flex-1 truncate text-base font-black text-slate-700 dark:text-white"
+                      class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-700 dark:text-white"
                     >
                       {suite.title}
                     </h3>
@@ -3494,7 +3494,7 @@
                         </div>
                         <button
                           type="button"
-                          class="hidden font-mono text-sm font-bold text-slate-400 text-left sm:block"
+                          class="hidden font-mono text-sm font-medium text-slate-400 text-left sm:block"
                           on:click={() => {
                             selectCase(suite, testCase);
                             showDetail = true;
@@ -3504,7 +3504,7 @@
                         </button>
                         <button
                           type="button"
-                          class="min-w-0 truncate text-sm font-bold text-slate-700 dark:text-gray-200 text-left"
+                          class="min-w-0 truncate text-sm font-medium text-slate-700 dark:text-gray-200 text-left"
                           on:click={() => {
                             selectCase(suite, testCase);
                             showDetail = true;
@@ -3626,7 +3626,7 @@
                           />
                         {:else}
                           <button
-                            class="text-sm font-black text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+                            class="text-sm font-semibold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
                             on:click={() => {
                               quickTestInputSuiteId = suite.id;
                               quickTestTitle = "";
@@ -3642,7 +3642,7 @@
                       <div class="flex gap-2 ml-auto">
                         {#if suite.page > 1 || suite.hasMore}
                           <button
-                            class="flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-30 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-900"
+                            class="flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-30 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-900"
                             disabled={suite.page <= 1}
                             on:click={() =>
                               loadSuitePage(suite.id, suite.page - 1)}
@@ -3651,7 +3651,7 @@
                             {$_("pagination__previous")}
                           </button>
                           <button
-                            class="flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-30 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-900"
+                            class="flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-30 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-900"
                             disabled={!suite.hasMore}
                             on:click={() =>
                               loadSuitePage(suite.id, suite.page + 1)}
@@ -3689,12 +3689,12 @@
           <div class="flex items-start gap-3">
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-2">
-                <p class="font-mono text-sm font-bold text-slate-400">
+                <p class="font-mono text-sm font-medium text-slate-400">
                   TC-{selectedCase.test_no}
                 </p>
               </div>
               <h2
-                class="mt-1 truncate text-2xl font-black text-slate-800 dark:text-white"
+                class="mt-1 truncate text-lg font-semibold text-slate-800 dark:text-white"
               >
                 {selectedCase.title}
               </h2>
@@ -3713,7 +3713,7 @@
 
           <div class="mt-4 flex flex-wrap items-center gap-2">
             <button
-              class="flex h-9 items-center gap-2 rounded-lg bg-indigo-600 px-3 text-sm font-black text-white hover:bg-indigo-500 transition-colors shadow-sm"
+              class="flex h-9 items-center gap-2 rounded-lg bg-indigo-600 px-3 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors shadow-sm"
               title={$_("tc__title_create_task")}
               on:click={() => handleConvertToTask(selectedCase.id)}
             >
@@ -3740,7 +3740,7 @@
           </div>
 
           <div
-            class="mt-4 flex gap-6 border-b border-gray-200 text-sm font-black text-slate-500 dark:border-gray-800"
+            class="mt-4 flex gap-6 border-b border-gray-200 text-sm font-medium text-slate-500 dark:border-gray-800"
           >
             <button
               class="pb-2 transition-colors {sidebarTab === 'general'
@@ -3783,7 +3783,7 @@
             <section>
               <div class="flex items-center justify-between group">
                 <h3
-                  class="text-sm font-black text-slate-700 dark:text-gray-200"
+                  class="text-sm font-semibold text-slate-700 dark:text-gray-200"
                 >
                   Description
                 </h3>
@@ -3833,7 +3833,7 @@
               <div>
                 <div class="flex items-center justify-between group">
                   <h3
-                    class="text-sm font-black text-slate-700 dark:text-gray-200"
+                    class="text-sm font-semibold text-slate-700 dark:text-gray-200"
                   >
                     Pre-conditions
                   </h3>
@@ -3882,7 +3882,7 @@
               <div>
                 <div class="flex items-center justify-between group">
                   <h3
-                    class="text-sm font-black text-slate-700 dark:text-gray-200"
+                    class="text-sm font-semibold text-slate-700 dark:text-gray-200"
                   >
                     Post-conditions
                   </h3>
@@ -3934,7 +3934,7 @@
               <div>
                 <div class="flex items-center justify-between group">
                   <h3
-                    class="text-sm font-black text-slate-700 dark:text-gray-200"
+                    class="text-sm font-semibold text-slate-700 dark:text-gray-200"
                   >
                     Input
                   </h3>
@@ -3982,7 +3982,7 @@
               <div>
                 <div class="flex items-center justify-between group">
                   <h3
-                    class="text-sm font-black text-slate-700 dark:text-gray-200"
+                    class="text-sm font-semibold text-slate-700 dark:text-gray-200"
                   >
                     Expected Result
                   </h3>
@@ -4033,7 +4033,7 @@
               <div>
                 <div class="flex items-center justify-between group">
                   <h3
-                    class="text-sm font-black text-slate-700 dark:text-gray-200"
+                    class="text-sm font-semibold text-slate-700 dark:text-gray-200"
                   >
                     Actual Result
                   </h3>
@@ -4084,7 +4084,7 @@
             <section>
               <div class="mb-5 flex items-center justify-between">
                 <h3
-                  class="text-sm font-black text-slate-700 dark:text-gray-200"
+                  class="text-sm font-semibold text-slate-700 dark:text-gray-200"
                 >
                   Steps
                 </h3>
@@ -4113,7 +4113,7 @@
                           />
                         </div>
                         <button
-                          class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-black text-white hover:bg-indigo-500 disabled:opacity-50 dark:bg-indigo-500 dark:hover:bg-indigo-400"
+                          class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 disabled:opacity-50 dark:bg-indigo-500 dark:hover:bg-indigo-400"
                           on:click={saveSidebarSteps}
                           disabled={isSavingSidebarSteps}
                         >
@@ -4156,7 +4156,7 @@
           <div class="space-y-6 px-5 py-6">
             <section>
               <h3
-                class="mb-3 text-sm font-black text-slate-700 dark:text-gray-200"
+                class="mb-3 text-sm font-semibold text-slate-700 dark:text-gray-200"
               >
                 Priority
               </h3>
@@ -4174,7 +4174,7 @@
 
             <section>
               <h3
-                class="mb-3 text-sm font-black text-slate-700 dark:text-gray-200"
+                class="mb-3 text-sm font-semibold text-slate-700 dark:text-gray-200"
               >
                 Status
               </h3>
@@ -4192,7 +4192,7 @@
 
             <section>
               <h3
-                class="mb-3 text-sm font-black text-slate-700 dark:text-gray-200"
+                class="mb-3 text-sm font-semibold text-slate-700 dark:text-gray-200"
               >
                 Fix Status
               </h3>
@@ -4209,7 +4209,7 @@
 
             <section>
               <h3
-                class="mb-3 text-sm font-black text-slate-700 dark:text-gray-200"
+                class="mb-3 text-sm font-semibold text-slate-700 dark:text-gray-200"
               >
                 Assign Developer
               </h3>
@@ -4226,7 +4226,7 @@
 
             <section>
               <h3
-                class="mb-3 text-sm font-black text-slate-700 dark:text-gray-200"
+                class="mb-3 text-sm font-semibold text-slate-700 dark:text-gray-200"
               >
                 Assign Tester
               </h3>
@@ -4247,12 +4247,12 @@
             <section>
               <div class="flex items-center justify-between mb-2">
                 <h3
-                  class="text-sm font-black text-slate-700 dark:text-gray-200"
+                  class="text-sm font-semibold text-slate-700 dark:text-gray-200"
                 >
                   Dev Notes
                 </h3>
                 <button
-                  class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-black text-white hover:bg-indigo-500 disabled:opacity-50 dark:bg-indigo-500 dark:hover:bg-indigo-400 transition-all active:scale-95 shadow-sm shadow-indigo-200 dark:shadow-none"
+                  class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 disabled:opacity-50 dark:bg-indigo-500 dark:hover:bg-indigo-400 transition-all active:scale-95 shadow-sm shadow-indigo-200 dark:shadow-none"
                   on:click={handleUpdateNotes}
                   disabled={isSavingNotes}
                 >
@@ -4271,13 +4271,13 @@
             <section>
               <div class="flex items-center justify-between mb-2">
                 <h3
-                  class="text-sm font-black text-slate-700 dark:text-gray-200"
+                  class="text-sm font-semibold text-slate-700 dark:text-gray-200"
                 >
                   Tester Notes
                 </h3>
                 {#if isAuthorized}
                   <button
-                    class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-black text-white hover:bg-indigo-500 disabled:opacity-50 dark:bg-indigo-500 dark:hover:bg-indigo-400 transition-all active:scale-95 shadow-sm shadow-indigo-200 dark:shadow-none"
+                    class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 disabled:opacity-50 dark:bg-indigo-500 dark:hover:bg-indigo-400 transition-all active:scale-95 shadow-sm shadow-indigo-200 dark:shadow-none"
                     on:click={handleUpdateNotes}
                     disabled={isSavingNotes}
                   >
@@ -4332,7 +4332,7 @@
                   <Paperclip size={32} />
                 </div>
                 <h3
-                  class="text-sm font-black text-slate-700 dark:text-gray-200"
+                  class="text-sm font-semibold text-slate-700 dark:text-gray-200"
                 >
                   No attachments yet
                 </h3>
@@ -4436,7 +4436,7 @@
             <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
               <label>
                 <span
-                  class="text-[12px] font-black uppercase tracking-widest text-gray-500"
+                  class="text-[12px] font-semibold uppercase tracking-widest text-gray-500"
                   >{$_("tc__preconditions")}</span
                 >
                 <textarea
@@ -4448,7 +4448,7 @@
 
               <label>
                 <span
-                  class="text-[12px] font-black uppercase tracking-widest text-gray-500"
+                  class="text-[12px] font-semibold uppercase tracking-widest text-gray-500"
                   >{$_("tc__postconditions")}</span
                 >
                 <textarea
@@ -4463,7 +4463,7 @@
           <div class="border-t border-white/5 pt-5">
             <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div class="flex items-center gap-2">
-                <h3 class="text-sm font-black text-gray-200">
+                <h3 class="text-sm font-semibold text-gray-200">
                   Test Case Steps
                 </h3>
                 <div class="property-select min-w-[96px]">
@@ -4478,7 +4478,7 @@
               </div>
               {#if stepFormat === "gherkin"}
                 <div
-                  class="flex items-center gap-4 text-xs font-black text-gray-500"
+                  class="flex items-center gap-4 text-xs font-semibold text-gray-500"
                 >
                   <span>{$_("tc__raw")}</span>
                   <span class="text-indigo-400">{$_("tc__steps")}</span>
@@ -4508,14 +4508,14 @@
       >
         <button
           type="button"
-          class="h-10 rounded-lg px-4 text-sm font-black text-gray-400 hover:!bg-transparent hover:text-white"
+          class="h-10 rounded-lg px-4 text-sm font-semibold text-gray-400 hover:!bg-transparent hover:text-white"
           on:click={closeTestCaseModal}
         >
           Cancel
         </button>
         <button
           type="submit"
-          class="h-10 rounded-xl bg-indigo-600 px-6 text-sm font-black text-white shadow-lg shadow-indigo-600/25 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-indigo-500/40"
+          class="h-10 rounded-xl bg-indigo-600 px-6 text-sm font-semibold text-white shadow-lg shadow-indigo-600/25 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-indigo-500/40"
           disabled={!testCaseForm.name.trim()}
         >
           Create test case
@@ -4539,7 +4539,7 @@
     <div
       class="relative w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-800 dark:bg-gray-900"
     >
-      <h3 class="text-lg font-black text-slate-800 dark:text-white">
+      <h3 class="text-base font-semibold text-slate-800 dark:text-white">
         Create New Suite
       </h3>
       <p class="mt-1 text-sm text-slate-500">
@@ -4549,7 +4549,7 @@
       <div class="mt-6">
         <label
           for="new-suite-name"
-          class="block text-[12px] font-black uppercase tracking-widest text-slate-500"
+          class="block text-[12px] font-semibold uppercase tracking-widest text-slate-500"
         >
           Suite Name
         </label>
@@ -4568,14 +4568,14 @@
       <div class="mt-8 flex items-center justify-end gap-3">
         <button
           type="button"
-          class="rounded-xl px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
+          class="rounded-xl px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
           on:click={() => (showCreateSuiteModal = false)}
         >
           Cancel
         </button>
         <button
           type="button"
-          class="rounded-xl bg-indigo-600 px-6 py-2 text-sm font-black text-white hover:bg-indigo-500 disabled:opacity-50"
+          class="rounded-xl bg-indigo-600 px-6 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
           disabled={!newSuiteName.trim()}
           on:click={handleCreateSuite}
         >
@@ -4594,13 +4594,13 @@
     <div
       class="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900"
     >
-      <h2 class="text-xl font-black text-slate-800 dark:text-white">
+      <h2 class="text-base font-semibold text-slate-800 dark:text-white">
         Edit Suite
       </h2>
       <div class="mt-6">
         <label
           for="edit-suite-name"
-          class="block text-[12px] font-black uppercase tracking-widest text-slate-500"
+          class="block text-[12px] font-semibold uppercase tracking-widest text-slate-500"
           >{$_("tc__suite_name")}</label
         >
         <!-- svelte-ignore a11y_autofocus -->
@@ -4615,11 +4615,11 @@
       </div>
       <div class="mt-8 flex items-center justify-end gap-3">
         <button
-          class="rounded-xl px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
+          class="rounded-xl px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
           on:click={() => (editingSuite = null)}>{$_("tc__cancel")}</button
         >
         <button
-          class="rounded-xl bg-indigo-600 px-6 py-2 text-sm font-black text-white hover:bg-indigo-500 disabled:opacity-50"
+          class="rounded-xl bg-indigo-600 px-6 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
           disabled={!editingSuite.title.trim()}
           on:click={handleUpdateSuite}>{$_("tc__save_changes")}</button
         >
@@ -4636,7 +4636,7 @@
     <div
       class="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900"
     >
-      <h2 class="text-xl font-black text-slate-800 dark:text-white">
+      <h2 class="text-base font-semibold text-slate-800 dark:text-white">
         Delete Suite
       </h2>
       <p class="mt-2 text-sm text-slate-500">
@@ -4648,7 +4648,7 @@
       {#if suiteToDelete.id !== "unassigned"}
         <div class="mt-6 space-y-3">
           <p
-            class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400"
+            class="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400"
           >
             Handle associated cases
           </p>
@@ -4730,11 +4730,11 @@
 
       <div class="mt-8 flex items-center justify-end gap-3">
         <button
-          class="rounded-xl px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
+          class="rounded-xl px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
           on:click={() => (showDeleteSuiteModal = false)}>{$_("tc__cancel")}</button
         >
         <button
-          class="rounded-xl bg-rose-600 px-6 py-2 text-sm font-black text-white hover:bg-rose-500"
+          class="rounded-xl bg-rose-600 px-6 py-2 text-sm font-semibold text-white hover:bg-rose-500"
           on:click={handleDeleteSuite}>{$_("tc__delete_suite")}</button
         >
       </div>
@@ -4752,7 +4752,7 @@
     >
       <!-- Header -->
       <div class="flex items-center justify-between px-8 pt-8 pb-4 shrink-0">
-        <h2 class="text-xl font-black text-slate-800 dark:text-white">
+        <h2 class="text-base font-semibold text-slate-800 dark:text-white">
           New test run
         </h2>
         <button
@@ -4778,7 +4778,7 @@
         <div>
           <!-- svelte-ignore a11y_label_has_associated_control -->
           <label
-            class="block text-sm font-black text-slate-700 dark:text-gray-200 mb-2"
+            class="block text-sm font-semibold text-slate-700 dark:text-gray-200 mb-2"
             >{$_("tc__description")}</label
           >
           <textarea
@@ -4794,7 +4794,7 @@
           <div>
             <!-- svelte-ignore a11y_label_has_associated_control -->
             <label
-              class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-gray-400 mb-2"
+              class="block text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-gray-400 mb-2"
               >{$_("tc__default_assignee")}</label
             >
             <div class="property-select w-full">
@@ -4810,7 +4810,7 @@
           <div>
             <!-- svelte-ignore a11y_label_has_associated_control -->
             <label
-              class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-gray-400 mb-2"
+              class="block text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-gray-400 mb-2"
               >{$_("tc__operating_system")}</label
             >
             <div class="property-select w-full">
@@ -4828,7 +4828,7 @@
         <!-- Test cases -->
         <div>
           <div class="flex items-center justify-between mb-3">
-            <h3 class="text-sm font-black text-slate-700 dark:text-gray-200">
+            <h3 class="text-sm font-semibold text-slate-700 dark:text-gray-200">
               Test cases
             </h3>
             <span class="text-xs text-slate-400"
@@ -4875,7 +4875,7 @@
             </div>
             <div class="relative shrink-0">
               <button
-                class="flex h-10 items-center gap-2 rounded-xl px-4 text-[13px] font-black transition-all active:scale-95 {hasTestRunFilters
+                class="flex h-10 items-center gap-2 rounded-xl px-4 text-[13px] font-semibold transition-all active:scale-95 {hasTestRunFilters
                   ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-300'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'}"
                 on:click={() => {
@@ -4887,7 +4887,7 @@
                 Add filter
                 {#if hasTestRunFilters}
                   <span
-                    class="ml-0.5 h-4 w-4 rounded-full bg-indigo-600 text-[10px] font-black text-white flex items-center justify-center"
+                    class="ml-0.5 h-4 w-4 rounded-full bg-indigo-600 text-[10px] font-semibold text-white flex items-center justify-center"
                   >
                     {Object.values(testRunActiveFilters).reduce(
                       (s, v) => s + v.length,
@@ -4909,20 +4909,20 @@
                   {#if !testRunActiveFilterProperty}
                     <div class="flex flex-col py-1">
                       <div
-                        class="px-4 py-2 text-[10px] font-black uppercase tracking-wider text-slate-400"
+                        class="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400"
                       >
                         Filter by
                       </div>
                       {#each testRunFilterProperties as prop}
                         <button
-                          class="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm font-bold text-slate-700 hover:bg-slate-50 dark:text-gray-200 dark:hover:bg-gray-700/50 transition-colors"
+                          class="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 dark:text-gray-200 dark:hover:bg-gray-700/50 transition-colors"
                           on:click={() =>
                             (testRunActiveFilterProperty = prop.id)}
                         >
                           <span>{prop.label}</span>
                           <div class="flex items-center gap-1.5">
                             {#if testRunActiveFilters[prop.id]?.length > 0}
-                              <span class="text-xs font-black text-indigo-500"
+                              <span class="text-xs font-semibold text-indigo-500"
                                 >{testRunActiveFilters[prop.id].length}</span
                               >
                             {/if}
@@ -4935,7 +4935,7 @@
                           class="h-px bg-slate-100 dark:bg-gray-700 my-1"
                         ></div>
                         <button
-                          class="px-4 py-2 text-sm font-black text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/10 text-center w-full transition-colors"
+                          class="px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/10 text-center w-full transition-colors"
                           on:click={() => {
                             testRunActiveFilters = { priority: [], status: [] };
                             showTestRunFilterDropdown = false;
@@ -4955,7 +4955,7 @@
                           <ChevronLeft size={16} />
                         </button>
                         <span
-                          class="text-[10px] font-black uppercase tracking-wider text-slate-400"
+                          class="text-[10px] font-semibold uppercase tracking-wider text-slate-400"
                         >
                           {testRunFilterProperties.find(
                             (p) => p.id === testRunActiveFilterProperty,
@@ -4980,7 +4980,7 @@
                                 toggleTestRunFilter("priority", opt.value)}
                             />
                             <span
-                              class="text-sm font-bold text-slate-700 dark:text-gray-200"
+                              class="text-sm font-medium text-slate-700 dark:text-gray-200"
                               >{opt.label}</span
                             >
                           </label>
@@ -5000,7 +5000,7 @@
                                 toggleTestRunFilter("status", opt.value)}
                             />
                             <span
-                              class="text-sm font-bold text-slate-700 dark:text-gray-200"
+                              class="text-sm font-medium text-slate-700 dark:text-gray-200"
                               >{opt.label}</span
                             >
                           </label>
@@ -5019,7 +5019,7 @@
               {#each Object.entries(testRunActiveFilters) as [prop, values]}
                 {#each values as val}
                   <span
-                    class="flex items-center gap-1 rounded-lg bg-indigo-50 border border-indigo-100 px-2.5 py-1 text-[12px] font-black text-indigo-700 dark:bg-indigo-500/10 dark:border-indigo-500/20 dark:text-indigo-300"
+                    class="flex items-center gap-1 rounded-lg bg-indigo-50 border border-indigo-100 px-2.5 py-1 text-[12px] font-semibold text-indigo-700 dark:bg-indigo-500/10 dark:border-indigo-500/20 dark:text-indigo-300"
                   >
                     <span class="opacity-60"
                       >{testRunFilterProperties.find((p) => p.id === prop)
@@ -5043,7 +5043,7 @@
             class="rounded-xl border border-slate-200 dark:border-gray-700 overflow-hidden"
           >
             <div
-              class="text-[11px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 dark:bg-gray-800/50 px-4 py-2 border-b border-slate-200 dark:border-gray-700"
+              class="text-[11px] font-semibold uppercase tracking-widest text-slate-400 bg-slate-50 dark:bg-gray-800/50 px-4 py-2 border-b border-slate-200 dark:border-gray-700"
             >
               <span>{$_("tc__test_case")}</span>
             </div>
@@ -5105,7 +5105,7 @@
                         on:change={() => toggleSuiteSelection(suite)}
                       />
                       <span
-                        class="text-xs font-black text-slate-600 dark:text-gray-300"
+                        class="text-xs font-semibold text-slate-600 dark:text-gray-300"
                         >{suite.title}</span
                       >
                       <span class="text-[10px] text-slate-400"
@@ -5130,7 +5130,7 @@
                         />
                         {#if tc.test_no}
                           <span
-                            class="shrink-0 text-[11px] font-black text-slate-400 dark:text-gray-500"
+                            class="shrink-0 text-[11px] font-semibold text-slate-400 dark:text-gray-500"
                             >TC-{tc.test_no}</span
                           >
                         {/if}
@@ -5153,11 +5153,11 @@
         class="flex items-center justify-end gap-3 px-8 py-5 border-t border-slate-100 dark:border-gray-800 shrink-0"
       >
         <button
-          class="rounded-xl px-5 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
+          class="rounded-xl px-5 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
           on:click={() => (showNewTestRunModal = false)}>{$_("tc__cancel")}</button
         >
         <button
-          class="rounded-xl bg-indigo-600 px-6 py-2 text-sm font-black text-white hover:bg-indigo-500 disabled:opacity-50"
+          class="rounded-xl bg-indigo-600 px-6 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
           disabled={!newTestRunForm.name.trim()}
           on:click={handleCreateTestRun}>{$_("tc__start_run")}</button
         >
@@ -5203,7 +5203,7 @@
             />
           </svg>
           <div
-            class="absolute inset-0 flex items-center justify-center text-sm font-black text-indigo-600"
+            class="absolute inset-0 flex items-center justify-center text-sm font-semibold text-indigo-600"
           >
             {Math.round(
               (importProgress.current / (importProgress.total || 1)) * 100,
@@ -5211,7 +5211,7 @@
           </div>
         </div>
 
-        <h3 class="text-lg font-black text-slate-800 dark:text-white">
+        <h3 class="text-base font-semibold text-slate-800 dark:text-white">
           Importing Test Cases
         </h3>
         <p class="mt-2 text-sm text-slate-500 dark:text-gray-400">
@@ -5407,7 +5407,7 @@
           <FileCheck size={24} />
         </div>
         <div>
-          <h2 class="text-xl font-black text-slate-800 dark:text-white">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-white">
             Import Summary
           </h2>
           <p class="text-sm text-slate-500 dark:text-gray-400">
@@ -5419,31 +5419,31 @@
       <div class="grid grid-cols-3 gap-4 mb-8">
         <div class="rounded-xl bg-slate-50 p-4 dark:bg-gray-800/50">
           <p
-            class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1"
+            class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1"
           >
             Success
           </p>
-          <p class="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+          <p class="text-lg font-semibold text-emerald-600 dark:text-emerald-400">
             {importSummary.success}
           </p>
         </div>
         <div class="rounded-xl bg-slate-50 p-4 dark:bg-gray-800/50">
           <p
-            class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1"
+            class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1"
           >
             Failed
           </p>
-          <p class="text-2xl font-black text-rose-600 dark:text-rose-400">
+          <p class="text-lg font-semibold text-rose-600 dark:text-rose-400">
             {importSummary.failed}
           </p>
         </div>
         <div class="rounded-xl bg-slate-50 p-4 dark:bg-gray-800/50">
           <p
-            class="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1"
+            class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1"
           >
             Skipped
           </p>
-          <p class="text-2xl font-black text-amber-600 dark:text-amber-400">
+          <p class="text-lg font-semibold text-amber-600 dark:text-amber-400">
             {importSummary.skipped.length}
           </p>
         </div>
@@ -5513,7 +5513,7 @@
 
       <div class="flex justify-end">
         <button
-          class="rounded-xl bg-indigo-600 px-8 py-2 text-sm font-black text-white hover:bg-indigo-500 shadow-lg shadow-indigo-600/20"
+          class="rounded-xl bg-indigo-600 px-8 py-2 text-sm font-semibold text-white hover:bg-indigo-500 shadow-lg shadow-indigo-600/20"
           on:click={() => (importSummary = null)}
         >
           Done
