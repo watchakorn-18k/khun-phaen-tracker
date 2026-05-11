@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy, tick } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { get } from "svelte/store";
   import { browser } from "$app/environment";
   import { goto } from "$app/navigation";
@@ -113,13 +113,15 @@
   let aiChatHistoryIndex = -1;
   let aiChatMessagesContainer: HTMLDivElement | null = null;
 
-  // Auto scroll to bottom when messages change
-  $: if (aiChatMessages.length > 0 && aiChatMessagesContainer) {
-    setTimeout(() => {
-      if (aiChatMessagesContainer) {
-        aiChatMessagesContainer.scrollTop = aiChatMessagesContainer.scrollHeight;
-      }
-    }, 100);
+  // Scroll to bottom when messages change (using manual trigger instead of reactive)
+  function scrollToBottom() {
+    if (aiChatMessagesContainer) {
+      requestAnimationFrame(() => {
+        if (aiChatMessagesContainer) {
+          aiChatMessagesContainer.scrollTop = aiChatMessagesContainer.scrollHeight;
+        }
+      });
+    }
   }
   let filterDropdownEl: HTMLDivElement | null = null;
   let filterPanelEl: HTMLDivElement | null = null;
@@ -410,6 +412,7 @@
     aiChatInput = "";
     aiChatLoading = true;
     aiChatError = "";
+    scrollToBottom();
 
     try {
       const res = await api.data.ai.chatTasks(workspaceId, {
@@ -428,6 +431,7 @@
           results: data.results || [],
         },
       ];
+      scrollToBottom();
     } catch (error) {
       aiChatError = error instanceof Error ? error.message : "AI chat failed";
     } finally {
@@ -453,6 +457,7 @@
     aiChatInput = "";
     aiGenerateLoading = true;
     aiChatError = "";
+    scrollToBottom();
 
     // Show loading message
     aiChatMessages = [
@@ -462,6 +467,7 @@
         content: "กำลังวิเคราะห์และสร้าง task...",
       },
     ];
+    scrollToBottom();
 
     try {
       const res = await api.data.ai.generateTask(workspaceId, {
@@ -486,6 +492,7 @@
           aiResponse: aiRawResponse,
         },
       ];
+      scrollToBottom();
     } catch (error) {
       // Remove loading message on error
       aiChatMessages = aiChatMessages.slice(0, -1);
@@ -501,6 +508,11 @@
 
     const today = new Date().toISOString().split("T")[0];
 
+    // Calculate due date: 7 days from today
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + 7);
+    const dueDateStr = dueDate.toISOString().split("T")[0];
+
     try {
       const taskData: any = {
         title: generatedTask.title || "",
@@ -509,9 +521,19 @@
         notes: generatedTask.notes || "",
         project: generatedTask.project || "",
         date: today,
+        due_date: dueDateStr,
         duration_minutes: 60,
         status: "todo",
       };
+
+      // Add checklist if AI generated it
+      if (generatedTask.checklist && Array.isArray(generatedTask.checklist)) {
+        taskData.checklist = generatedTask.checklist.map((text: string, index: number) => ({
+          id: `${Date.now()}-${index}`,
+          text: text,
+          completed: false,
+        }));
+      }
 
       if (assignToMe && myAssigneeId) {
         taskData.assignee_ids = [myAssigneeId];
@@ -560,6 +582,16 @@
   }
 
   function handleAiChatKeydown(e: KeyboardEvent) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (aiChatMode === "search") {
+        sendAiChat();
+      } else {
+        generateTaskFromAi();
+      }
+      return;
+    }
+
     if (e.key === "ArrowUp") {
       e.preventDefault();
       if (aiChatHistory.length === 0) return;
@@ -887,13 +919,6 @@
                       <div class="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
                     </div>
 
-                    {#if message.aiResponse}
-                      <div class="mb-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-700 dark:bg-slate-800/30">
-                        <div class="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">AI Analysis</div>
-                        <div class="whitespace-pre-wrap text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">{message.aiResponse}</div>
-                      </div>
-                    {/if}
-
                     <div class="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-3.5 dark:border-emerald-900/30 dark:bg-emerald-900/10">
                       <div class="mb-2.5 flex items-start justify-between gap-2">
                         <h4 class="text-[13px] font-bold leading-tight text-slate-800 dark:text-slate-100">{message.generatedTask.title}</h4>
@@ -911,6 +936,20 @@
                         <div class="mb-2.5 rounded-xl bg-white/60 p-2.5 text-[11px] leading-relaxed text-slate-700 dark:bg-slate-800/40 dark:text-slate-300">
                           <div class="font-semibold mb-1 text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">Description</div>
                           <div class="whitespace-pre-wrap">{message.generatedTask.notes}</div>
+                        </div>
+                      {/if}
+
+                      {#if message.generatedTask.checklist && message.generatedTask.checklist.length > 0}
+                        <div class="mb-2.5 rounded-xl bg-white/60 p-2.5 dark:bg-slate-800/40">
+                          <div class="font-semibold mb-1.5 text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">Checklist</div>
+                          <div class="space-y-1">
+                            {#each message.generatedTask.checklist as item}
+                              <div class="flex items-start gap-2 text-[11px] text-slate-700 dark:text-slate-300">
+                                <span class="mt-0.5 text-slate-400">☐</span>
+                                <span>{item}</span>
+                              </div>
+                            {/each}
+                          </div>
                         </div>
                       {/if}
 

@@ -5,6 +5,7 @@
   import { goto, afterNavigate } from "$app/navigation";
   import { base } from "$app/paths";
   import { _ } from "svelte-i18n";
+  import { marked } from "marked";
   import {
     getTaskById,
     getTaskComments,
@@ -150,7 +151,7 @@
   let sprints: Sprint[] = [];
 
   let editedDescription = "";
-  $: isDescriptionDirty = task && editedDescription !== (task.notes || "");
+  let isEditingDescription = false;
   $: currentProject = projects.find(p => p.name === task?.project);
   $: projectShortName = currentProject?.short_name || "";
 
@@ -875,11 +876,26 @@
   async function saveDescription() {
     if (!task) return;
     await handleUpdateTask({ notes: editedDescription });
+    isEditingDescription = false;
   }
 
   function cancelDescription() {
     if (task) {
       editedDescription = task.notes || "";
+    }
+    isEditingDescription = false;
+  }
+
+  function startEditingDescription() {
+    isEditingDescription = true;
+  }
+
+  function renderMarkdown(markdown: string): string {
+    if (!markdown) return "";
+    try {
+      return marked.parse(markdown, { breaks: true, gfm: true }) as string;
+    } catch {
+      return markdown;
     }
   }
 
@@ -1213,13 +1229,13 @@
 
           <!-- Description Section -->
           <div class="space-y-4">
-            <RichTextEditor
-              value={editedDescription}
-              onchange={handleDescriptionChange}
-              placeholder={$_("taskDetail__no_description")}
-            />
+            {#if isEditingDescription}
+              <RichTextEditor
+                value={editedDescription}
+                onchange={handleDescriptionChange}
+                placeholder={$_("taskDetail__no_description")}
+              />
 
-            {#if isDescriptionDirty}
               <div
                 class="flex items-center justify-end gap-2 mt-2 animate-fade-in"
               >
@@ -1235,6 +1251,22 @@
                 >
                   {$_("page__save")}
                 </button>
+              </div>
+            {:else}
+              <div
+                role="button"
+                tabindex="0"
+                on:click={startEditingDescription}
+                on:keydown={(e) => e.key === "Enter" && startEditingDescription()}
+                class="min-h-[100px] cursor-text hover:bg-slate-50 dark:hover:bg-slate-900/50 rounded-lg transition-colors px-3 py-3 outline-none"
+              >
+                {#if editedDescription}
+                  <div class="prose prose-sm dark:prose-invert max-w-none">
+                    {@html renderMarkdown(editedDescription)}
+                  </div>
+                {:else}
+                  <p class="text-slate-400 dark:text-slate-500 italic">{$_("taskDetail__no_description")}</p>
+                {/if}
               </div>
             {/if}
           </div>

@@ -73,7 +73,7 @@
 		"jspdf": "^4.1.0",
 		"lucide-svelte": "^0.563.0",
 		"lz4js": "^0.2.0",
-		"marked": "^17.0.2",
+		"marked": "^17.0.6",
 		"mongoose": "^9.2.3",
 		"pptxgenjs": "^4.0.1",
 		"qrcode": "^1.5.4",

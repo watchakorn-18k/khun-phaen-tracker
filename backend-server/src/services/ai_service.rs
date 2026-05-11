@@ -128,35 +128,28 @@ impl AiService {
             "You are a task management assistant. Generate a well-structured task based on the user's request.\n\
             Context about the workspace:\n{}\n\n\
             IMPORTANT INSTRUCTIONS:\n\
-            1. Title Format:\n\
-               - Start with a prefix based on the task type:\n\
-                 * \"Feature:\" for new features or functionality\n\
-                 * \"Bugfix: \" for bug fixes\n\
-                 * \"Improvement: \" for enhancements to existing features\n\
-                 * \"Refactor: \" for code refactoring\n\
-                 * \"Docs: \" for documentation\n\
-                 * \"Test: \" for testing tasks\n\
-               - Follow with a clear, concise description (e.g., \"Feature: Add QR code login API\")\n\
+            1. Title: Start with a prefix (\"Feature:\", \"Bugfix:\", \"Improvement:\", \"Refactor:\", \"Docs:\", \"Test:\") \
+            followed by a clear description. Example: \"Feature: Add QR code login API\"\n\
             2. Category: Choose from 'feature', 'bug', 'improvement', 'refactor', 'documentation', 'test'\n\
-            3. Priority: Analyze urgency and set to 'urgent', 'high', 'medium', 'low', or 'none'\n\
-            4. Notes: Provide a detailed description including:\n\
-               - What needs to be done (overview)\n\
-               - Key requirements or acceptance criteria\n\
-               - Technical considerations if applicable\n\
-               - Any dependencies or related tasks\n\
-               - OPTIONAL: If the task is complex and would benefit from visualization, you may include a Mermaid diagram\n\
-                 (flowchart, sequence diagram, or gantt chart) to illustrate the workflow or architecture.\n\
-                 Only add Mermaid if it genuinely helps understanding. Use markdown code blocks: ```mermaid\\n...\\n```\n\
-            5. Project: Extract project name from context if mentioned, otherwise leave empty\n\n\
-            Return ONLY a valid JSON object with these fields:\n\
+            3. Priority: Choose from 'urgent', 'high', 'medium', 'low', 'none'\n\
+            4. Notes: Write 2-4 sentences explaining what needs to be done, requirements, and technical considerations. \
+            DO NOT repeat the title or checklist items here. You may include a Mermaid diagram if complex.\n\
+            5. Checklist: Generate 3-5 actionable items based on task type:\n\
+               - Bug: \"Reproduce bug\", \"Identify root cause\", \"Apply fix\", \"Add unit tests\", \"Verify in production-like environment\"\n\
+               - Feature: \"Design approach\", \"Implement functionality\", \"Write tests\", \"Update documentation\"\n\
+               - Backend: Include \"Write unit tests\" and \"Update Swagger/API docs\"\n\
+               - Frontend: Include \"Test on different browsers\" and \"Add responsive design\"\n\
+            6. Project: Extract from context if mentioned, otherwise leave empty\n\n\
+            Return ONLY a valid JSON object:\n\
             {{\n\
-              \"title\": \"string\",\n\
-              \"category\": \"string\",\n\
-              \"priority\": \"string\",\n\
-              \"notes\": \"string\",\n\
-              \"project\": \"string\"\n\
+              \"title\": \"Bugfix: Fix QR code scanning\",\n\
+              \"category\": \"bug\",\n\
+              \"priority\": \"high\",\n\
+              \"notes\": \"Fix QR code generation where codes fail to scan. Identify encoding issues and apply proper error correction.\",\n\
+              \"project\": \"\",\n\
+              \"checklist\": [\"Reproduce bug\", \"Locate QR generation code\", \"Apply fix\", \"Add unit tests\", \"Test on devices\"]\n\
             }}\n\n\
-            Do not include any markdown formatting, code blocks, or explanatory text outside the JSON. Return only the JSON object.",
+            No markdown, no explanations, just the JSON object.",
             context
         );
 
@@ -178,7 +171,7 @@ impl AiService {
                 "model": llm_config.llm_model,
                 "messages": messages,
                 "temperature": 0.7,
-                "max_tokens": 500,
+                "max_tokens": 400,
                 "stream": false
             }))
             .send()
@@ -201,7 +194,67 @@ impl AiService {
             .as_str()
             .ok_or_else(|| format!("No content in LLM response. Response structure: {}", serde_json::to_string_pretty(&body).unwrap_or_default()))?;
 
-        Ok(content.to_string())
+        // Try to extract JSON from response
+        let json_str = if let Some(start) = content.find('{') {
+            if let Some(end) = content.rfind('}') {
+                &content[start..=end]
+            } else {
+                content
+            }
+        } else {
+            content
+        };
+
+        // Validate JSON
+        match serde_json::from_str::<serde_json::Value>(json_str) {
+            Ok(_) => Ok(json_str.to_string()),
+            Err(_) => {
+                // Fallback: create basic task
+                let fallback = serde_json::json!({
+                    "title": prompt,
+                    "category": "feature",
+                    "priority": "medium",
+                    "notes": content.trim(),
+                    "project": "",
+                    "checklist": Self::generate_default_checklist("feature")
+                });
+                Ok(serde_json::to_string(&fallback).unwrap_or_default())
+            }
+        }
+    }
+
+    fn generate_default_checklist(category: &str) -> Vec<String> {
+        match category {
+            "bug" => vec![
+                "Reproduce and document the bug".to_string(),
+                "Identify root cause".to_string(),
+                "Implement fix".to_string(),
+                "Add unit tests".to_string(),
+                "Verify fix in production-like environment".to_string(),
+            ],
+            "feature" => vec![
+                "Design implementation approach".to_string(),
+                "Implement core functionality".to_string(),
+                "Write unit tests".to_string(),
+                "Update documentation".to_string(),
+            ],
+            "test" => vec![
+                "Write test cases".to_string(),
+                "Implement test automation".to_string(),
+                "Run and verify tests".to_string(),
+            ],
+            "documentation" => vec![
+                "Research and gather information".to_string(),
+                "Write documentation".to_string(),
+                "Review and proofread".to_string(),
+            ],
+            _ => vec![
+                "Plan implementation".to_string(),
+                "Implement changes".to_string(),
+                "Test thoroughly".to_string(),
+                "Update documentation".to_string(),
+            ],
+        }
     }
 
     pub async fn search_tasks(
