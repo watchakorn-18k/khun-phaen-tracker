@@ -492,6 +492,7 @@
       {sprintManagerTasks}
       assignees={$assignees}
       on:statusChange={(e) => taskActions.handleStatusChange(e)}
+      on:priorityChange={(e) => taskActions.handlePriorityChange(e)}
       on:edit={(e) => {
         void openTaskPage(e.detail);
       }}

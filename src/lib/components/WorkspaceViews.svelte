@@ -86,6 +86,7 @@
         on:delete={(e) => dispatch("delete", e.detail)}
         on:deleteSelected={(e) => dispatch("deleteSelected", e.detail)}
         on:statusChange={(e) => dispatch("statusChange", e.detail)}
+        on:priorityChange={(e) => dispatch("priorityChange", e.detail)}
         on:checklistToggle={(e) => dispatch("checklistToggle", e.detail)}
         on:exportQR={(e) => dispatch("exportQR", e.detail)}
         on:pageChange={(e) => dispatch("pageChange", e.detail)}

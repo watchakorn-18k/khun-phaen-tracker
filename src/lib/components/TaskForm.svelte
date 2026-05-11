@@ -104,7 +104,7 @@
   let date = new Date().toISOString().split("T")[0];
   let end_date = "";
   let status: Task["status"] = "todo";
-  let priority: string = "none";
+  let priority: string = "medium";
   let category = "งานหลัก";
   let notes = "";
   let assignee_ids: (string | number)[] = [];
@@ -243,7 +243,7 @@
       date = new Date().toISOString().split("T")[0];
       end_date = "";
       status = "todo";
-      priority = "none";
+      priority = "medium";
       category = $taskDefaults.category || "งานหลัก";
       notes = "";
       if ($taskDefaults.assignee_id) {

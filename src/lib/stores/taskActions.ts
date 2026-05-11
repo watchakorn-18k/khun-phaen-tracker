@@ -493,6 +493,63 @@ export function createTaskActions(deps: TaskActionDeps) {
     }
   }
 
+  async function handlePriorityChange(
+    event: CustomEvent<{ id: string | number; priority: Task["priority"] }>,
+  ) {
+    const { id, priority } = event.detail;
+    const oldTasks = deps.getTasks();
+    const oldFiltered = deps.getFilteredTasks();
+    const editingTask = deps.getEditingTask();
+    const oldEditingTask = editingTask;
+
+    // Optimistic update
+    deps.setTasks(
+      oldTasks.map((task) =>
+        String(task.id) === String(id) ? { ...task, priority } : task,
+      ),
+    );
+    deps.setFilteredTasks(
+      oldFiltered.map((task) =>
+        String(task.id) === String(id) ? { ...task, priority } : task,
+      ),
+    );
+    if (editingTask && String(editingTask.id) === String(id)) {
+      deps.setEditingTask({ ...editingTask, priority });
+    }
+
+    try {
+      const currentTask = oldTasks.find((task) => String(task.id) === String(id));
+      const serverTask = await updateTask(id, { priority, workspace_id: currentTask?.workspace_id });
+
+      if (serverTask) {
+        const enrichedTask = await enrichTaskWithAssignees(serverTask);
+
+        deps.setTasks(
+          deps.getTasks().map((task) =>
+            String(task.id) === String(id) ? enrichedTask : task,
+          ),
+        );
+        deps.setFilteredTasks(
+          deps.getFilteredTasks().map((task) =>
+            String(task.id) === String(id) ? enrichedTask : task,
+          ),
+        );
+        if (oldEditingTask && String(oldEditingTask.id) === String(id)) {
+          deps.setEditingTask(enrichedTask);
+        }
+      }
+
+      deps.trackRealtime("update-task-priority");
+    } catch (e) {
+      deps.setTasks(oldTasks);
+      deps.setFilteredTasks(oldFiltered);
+      if (oldEditingTask) {
+        deps.setEditingTask(oldEditingTask);
+      }
+      deps.notify("เกิดข้อผิดพลาด", "error");
+    }
+  }
+
   return {
     handleAddTask,
     handleChecklistUpdate,
@@ -501,6 +558,7 @@ export function createTaskActions(deps: TaskActionDeps) {
     handleDeleteTask,
     handleDeleteSelectedTasks,
     handleStatusChange,
+    handlePriorityChange,
     handleKanbanMove,
     startTimerFromCommandPalette,
   };

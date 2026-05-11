@@ -50,9 +50,9 @@
     FileCheck,
     LoaderCircle,
     MinusCircle,
-    ArrowUp,
-    Minus,
-    ArrowDown,
+    SignalHigh,
+    SignalMedium,
+    SignalLow,
   } from "lucide-svelte";
   import { _ } from "svelte-i18n";
   import TestCaseStepList from "$lib/components/TestCaseStepList.svelte";
@@ -1968,51 +1968,51 @@
     {
       value: "high",
       label: "High",
-      icon: ArrowUp,
-      iconClass: "text-rose-500",
-      pillClass: "text-rose-500 bg-rose-50 border-rose-100 dark:bg-rose-500/10 dark:border-rose-500/20",
+      icon: SignalHigh,
+      iconClass: "text-white",
+      pillClass: "bg-orange-600 text-white px-1.5 py-0.5 rounded shadow-sm border border-orange-700",
     },
     {
       value: "medium",
       label: "Medium",
-      icon: Minus,
-      iconClass: "text-amber-500",
-      pillClass: "text-amber-600 bg-amber-50 border-amber-100 dark:bg-amber-500/10 dark:border-amber-500/20",
+      icon: SignalMedium,
+      iconClass: "text-orange-600 dark:text-orange-400",
+      pillClass: "bg-orange-900/40 text-orange-600 dark:text-orange-400 px-1.5 py-0.5 rounded border border-orange-900/50",
     },
     {
       value: "low",
       label: "Low",
-      icon: ArrowDown,
-      iconClass: "text-gray-400",
-      pillClass: "text-gray-500 bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-700",
+      icon: SignalLow,
+      iconClass: "text-gray-500 dark:text-gray-400",
+      pillClass: "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700",
     },
   ];
 
   const priorityTone = {
     high: {
       button:
-        "border-rose-500/30 bg-[#1a0710] !text-[#f25f86] hover:border-rose-400/45 hover:bg-[#240914] dark:border-rose-500/30 dark:bg-[#1a0710] dark:!text-[#f25f86] dark:hover:bg-[#240914]",
-      menu: "text-[#f08aa8] dark:text-[#f08aa8]",
-      dot: "bg-rose-500",
-      icon: ArrowUp,
+        "bg-orange-600 text-white border-orange-700 shadow-sm",
+      menu: "text-orange-600 dark:text-orange-400",
+      dot: "bg-orange-600",
+      icon: SignalHigh,
     },
     medium: {
       button:
-        "border-amber-500/30 bg-[#1d1305] !text-[#f0b43a] hover:border-amber-400/45 hover:bg-[#261805] dark:border-amber-500/30 dark:bg-[#1d1305] dark:!text-[#f0b43a] dark:hover:bg-[#261805]",
-      menu: "text-[#d8a94e] dark:text-[#d8a94e]",
-      dot: "bg-amber-500",
-      icon: Minus,
+        "bg-orange-900/40 text-orange-600 dark:text-orange-400 border-orange-900/50",
+      menu: "text-orange-600 dark:text-orange-400",
+      dot: "bg-orange-400",
+      icon: SignalMedium,
     },
     low: {
       button:
-        "border-slate-700/80 bg-[#070b12] !text-[#9fb0c9] hover:border-slate-600 hover:bg-[#0b1019] dark:border-slate-700/80 dark:bg-[#070b12] dark:!text-[#9fb0c9] dark:hover:bg-[#0b1019]",
-      menu: "text-[#8f9aae] dark:text-[#8f9aae]",
-      dot: "bg-slate-400",
-      icon: ArrowDown,
+        "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700",
+      menu: "text-gray-500 dark:text-gray-400",
+      dot: "bg-gray-400",
+      icon: SignalLow,
     },
   } satisfies Record<
     TestCase["priority"],
-    { button: string; menu: string; dot: string; icon: typeof ArrowUp }
+    { button: string; menu: string; dot: string; icon: typeof SignalHigh }
   >;
 
   function getPriorityMeta(priority: string | null | undefined) {
@@ -3261,12 +3261,12 @@
                         >
                         <!-- Priority badge -->
                         <span
-                          class="flex items-center justify-center rounded-md border px-1 py-0.5 text-[10px] font-black uppercase tracking-wide
+                          class="flex items-center justify-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium shadow-sm
                           {entry.test_case?.priority === 'high'
-                            ? 'border-rose-400 bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400'
+                            ? 'bg-orange-600 text-white border-orange-700'
                             : entry.test_case?.priority === 'medium'
-                              ? 'border-amber-400 bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
-                              : 'border-slate-300 bg-slate-50 text-slate-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400'}"
+                              ? 'bg-orange-900/40 text-orange-600 dark:text-orange-400 border-orange-900/50'
+                              : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700'}"
                         >
                           {entry.test_case?.priority ?? "—"}
                         </span>
@@ -3388,17 +3388,17 @@
                           <span
                             class="h-2.5 w-2.5 rounded-full border-2 {testCase.priority ===
                             'high'
-                              ? 'border-rose-500'
+                              ? 'border-orange-600'
                               : testCase.priority === 'medium'
-                                ? 'border-amber-400'
-                                : 'border-slate-300'}"
+                                ? 'border-orange-400'
+                                : 'border-gray-300'}"
                           ></span>
                         </button>
                         <div class="relative hidden sm:block">
                           {#if isAuthorized}
                             <button
                               type="button"
-                              class="priority-glow priority-glow-{testCase.priority} inline-flex h-8 w-[108px] items-center justify-between gap-1.5 rounded-full border px-2.5 text-[12px] font-black shadow-lg shadow-black/15 transition-colors disabled:cursor-wait disabled:opacity-70 {getPriorityMeta(
+                              class="inline-flex items-center justify-between gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium shadow-sm transition-colors disabled:cursor-wait disabled:opacity-70 {getPriorityMeta(
                                 testCase.priority,
                               ).button}"
                               title="Change priority"
@@ -3410,13 +3410,13 @@
                                     ? ""
                                     : testCase.id)}
                             >
-                              <span class="inline-flex min-w-0 items-center gap-1.5">
+                              <span class="inline-flex min-w-0 items-center gap-1">
                                 {#if updatingPriorityCaseIds.has(testCase.id)}
-                                  <LoaderCircle size={13} class="shrink-0 animate-spin" />
+                                  <LoaderCircle size={10} class="shrink-0 animate-spin" />
                                 {:else}
                                   <svelte:component
                                     this={getPriorityMeta(testCase.priority).icon}
-                                    size={13}
+                                    size={10}
                                     class="shrink-0"
                                   />
                                 {/if}
@@ -3425,7 +3425,7 @@
                                 </span>
                               </span>
                               <ChevronDown
-                                size={12}
+                                size={10}
                                 class="shrink-0 opacity-60 transition-transform {openPriorityMenuId ===
                                 testCase.id
                                   ? 'rotate-180'
@@ -3442,17 +3442,17 @@
                                   (openPriorityMenuId = "")}
                               ></button>
                               <div
-                                class="absolute left-0 top-full z-[8999] mt-1 w-40 overflow-hidden rounded-lg border border-slate-800/80 bg-[#030712] p-1 shadow-2xl shadow-black/60 ring-1 ring-white/[0.04]"
+                                class="absolute left-0 top-full z-[8999] mt-1 w-36 overflow-hidden rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-gray-900 p-1 shadow-xl"
                               >
                                 {#each priorityOptions as opt}
                                   {@const optionMeta = getPriorityMeta(String(opt.value))}
                                   {@const OptionIcon = optionMeta.icon}
                                   <button
                                     type="button"
-                                    class="flex h-9 w-full items-center justify-between rounded-md px-2.5 text-left text-[13px] font-bold transition-colors hover:bg-white/[0.05] {testCase.priority ===
+                                    class="flex h-8 w-full items-center justify-between rounded-md px-2 text-left text-[11px] font-medium transition-colors hover:bg-gray-100 dark:hover:bg-white/[0.05] {testCase.priority ===
                                     opt.value
-                                      ? 'bg-white/[0.08]'
-                                      : 'text-slate-500'}"
+                                      ? 'bg-gray-100 dark:bg-white/[0.08]'
+                                      : 'text-gray-500 dark:text-slate-400'}"
                                     on:click|stopPropagation={() =>
                                       updatePriority(
                                         testCase,
@@ -3465,13 +3465,13 @@
                                       ></span>
                                       <svelte:component
                                         this={OptionIcon}
-                                        size={13}
+                                        size={11}
                                         class="shrink-0"
                                       />
                                       <span>{opt.label}</span>
                                     </span>
                                     {#if testCase.priority === opt.value}
-                                      <Check size={14} class="text-slate-400" />
+                                      <Check size={12} class="text-gray-400 dark:text-slate-400" />
                                     {/if}
                                   </button>
                                 {/each}
@@ -3479,13 +3479,13 @@
                             {/if}
                           {:else}
                             <span
-                              class="priority-glow priority-glow-{testCase.priority} inline-flex h-8 w-[108px] items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-black shadow-lg shadow-black/15 {getPriorityMeta(
+                              class="inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium shadow-sm {getPriorityMeta(
                                 testCase.priority,
                               ).button}"
                             >
                               <svelte:component
                                 this={getPriorityMeta(testCase.priority).icon}
-                                size={13}
+                                size={10}
                                 class="shrink-0"
                               />
                               {getPriorityLabel(testCase.priority)}
@@ -5609,57 +5609,6 @@
     background: #6b7280;
   }
 
-  .priority-glow {
-    position: relative;
-    isolation: isolate;
-    overflow: visible;
-  }
-
-  .priority-glow::after {
-    content: "";
-    position: absolute;
-    pointer-events: none;
-    inset: -2px;
-    z-index: -2;
-    border-radius: 999px;
-    border: 1px solid rgb(var(--priority-aura-rgb) / 0.34);
-    box-shadow:
-      0 0 6px rgb(var(--priority-aura-rgb) / 0.28),
-      0 0 13px rgb(var(--priority-aura-rgb) / 0.16),
-      inset 0 0 7px rgb(var(--priority-aura-rgb) / 0.07);
-    opacity: 0.2;
-  }
-
-  .priority-glow-high {
-    --priority-aura-rgb: 244 63 94;
-    box-shadow:
-      0 0 0 1px rgba(244, 63, 94, 0.5),
-      0 0 7px rgba(244, 63, 94, 0.8),
-      inset 0 0 9px rgba(244, 63, 94, 0.06);
-  }
-
-  .priority-glow-medium {
-    --priority-aura-rgb: 245 158 11;
-    box-shadow:
-      0 0 0 1px rgba(245, 158, 11, 0.5),
-      0 0 7px rgba(245, 158, 11, 0.8),
-      inset 0 0 9px rgba(245, 158, 11, 0.06);
-  }
-
-  .priority-glow-low {
-    --priority-aura-rgb: 148 163 184;
-    box-shadow:
-      0 0 0 1px rgba(148, 163, 184, 0.5),
-      0 0 7px rgba(148, 163, 184, 0.8),
-      inset 0 0 8px rgba(148, 163, 184, 0.06);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .priority-glow,
-    .priority-glow::after {
-      animation: none !important;
-    }
-  }
 
   :global(.property-select .property-trigger-btn) {
     background-color: transparent !important;
