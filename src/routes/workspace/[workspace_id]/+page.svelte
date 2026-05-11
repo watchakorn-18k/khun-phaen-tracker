@@ -111,6 +111,16 @@
   }> = [];
   let aiChatHistory: string[] = [];
   let aiChatHistoryIndex = -1;
+  let aiChatMessagesContainer: HTMLDivElement | null = null;
+
+  // Auto scroll to bottom when messages change
+  $: if (aiChatMessages.length > 0 && aiChatMessagesContainer) {
+    setTimeout(() => {
+      if (aiChatMessagesContainer) {
+        aiChatMessagesContainer.scrollTop = aiChatMessagesContainer.scrollHeight;
+      }
+    }, 100);
+  }
   let filterDropdownEl: HTMLDivElement | null = null;
   let filterPanelEl: HTMLDivElement | null = null;
   let filterDropdownPos = { top: 0, left: 0 };
@@ -815,7 +825,7 @@
           </div>
 
           <!-- Messages Area -->
-          <div class="flex max-h-[480px] min-h-[300px] flex-col gap-4 overflow-y-auto p-5 scrollbar-thin">
+          <div bind:this={aiChatMessagesContainer} class="flex max-h-[480px] min-h-[300px] flex-col gap-4 overflow-y-auto p-5 scrollbar-thin">
             {#if aiChatMessages.length === 0}
               <div class="flex flex-col items-center justify-center py-8 text-center">
                 <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-600">
