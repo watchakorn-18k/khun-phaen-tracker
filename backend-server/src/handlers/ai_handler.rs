@@ -165,7 +165,8 @@ pub async fn generate_task(
             match serde_json::from_str::<serde_json::Value>(&json_str) {
                 Ok(task_json) => axum::Json(serde_json::json!({
                     "success": true,
-                    "task": task_json
+                    "task": task_json,
+                    "ai_response": json_str
                 }))
                 .into_response(),
                 Err(_) => {
@@ -178,7 +179,8 @@ pub async fn generate_task(
                             "priority": "medium",
                             "notes": json_str,
                             "project": ""
-                        }
+                        },
+                        "ai_response": json_str
                     }))
                     .into_response()
                 }
@@ -434,6 +436,96 @@ pub async fn list_llm_models_handler(
         Err(e) => Json(serde_json::json!({
             "success": false,
             "error": format!("Failed to connect to LLM API: {}", e)
+        }))
+        .into_response(),
+    }
+}
+
+pub async fn list_embeddings_models_handler(
+    State(state): State<SharedState>,
+    jar: CookieJar,
+    headers: HeaderMap,
+) -> axum::response::Response {
+    if let Err(response) = ensure_admin(&headers, &jar, &state) {
+        return response;
+    }
+
+    let repo = AiRepository::new(&state.db);
+    let stored = match repo.get_ai_config().await {
+        Ok(config) => config,
+        Err(_) => None,
+    };
+
+    let embeddings_url = stored
+        .as_ref()
+        .and_then(|c| c.embeddings_url.clone())
+        .or_else(|| std::env::var("AI_EMBEDDINGS_URL").ok());
+
+    let embeddings_api_key = stored
+        .as_ref()
+        .and_then(|c| c.embeddings_api_key.clone())
+        .or_else(|| std::env::var("AI_EMBEDDINGS_API_KEY").ok());
+
+    let (embeddings_url, embeddings_api_key) = match (embeddings_url, embeddings_api_key) {
+        (Some(url), Some(key)) => (url, key),
+        _ => {
+            return Json(serde_json::json!({
+                "success": false,
+                "error": "Embeddings URL or API key not configured"
+            }))
+            .into_response();
+        }
+    };
+
+    // Extract base URL from embeddings URL (remove /embeddings or /v1/embeddings)
+    let base_url = embeddings_url
+        .trim_end_matches("/embeddings")
+        .trim_end_matches("/v1/embeddings");
+    let models_url = format!("{}/models", base_url.trim_end_matches('/'));
+    let client = reqwest::Client::new();
+
+    match client
+        .get(&models_url)
+        .bearer_auth(&embeddings_api_key)
+        .send()
+        .await
+    {
+        Ok(response) => {
+            if response.status().is_success() {
+                match response.json::<serde_json::Value>().await {
+                    Ok(body) => {
+                        let models: Vec<String> = body["data"]
+                            .as_array()
+                            .map(|arr| {
+                                arr.iter()
+                                    .filter_map(|m| m["id"].as_str().map(String::from))
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+
+                        Json(serde_json::json!({
+                            "success": true,
+                            "models": models
+                        }))
+                        .into_response()
+                    }
+                    Err(e) => Json(serde_json::json!({
+                        "success": false,
+                        "error": format!("Failed to parse models response: {}", e)
+                    }))
+                    .into_response(),
+                }
+            } else {
+                Json(serde_json::json!({
+                    "success": false,
+                    "error": format!("Failed to fetch models: {}", response.status())
+                }))
+                .into_response()
+            }
+        }
+        Err(e) => Json(serde_json::json!({
+            "success": false,
+            "error": format!("Failed to connect to Embeddings API: {}", e)
         }))
         .into_response(),
     }

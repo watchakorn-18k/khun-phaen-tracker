@@ -107,6 +107,7 @@
     showAssignPrompt?: boolean;
     createdTaskUrl?: string;
     createdTask?: any;
+    aiResponse?: string;
   }> = [];
   let filterDropdownEl: HTMLDivElement | null = null;
   let filterPanelEl: HTMLDivElement | null = null;
@@ -152,7 +153,14 @@
     const wsId = $page.params.workspace_id;
     const urlRoom = $page.url.searchParams.get("room");
     const roomParam = urlRoom ? `?room=${urlRoom}` : "";
-    goto(`${base}/workspace/${wsId}/task/${task.id}${roomParam}`);
+
+    // Handle MongoDB ObjectId format
+    let taskId = task.id;
+    if (typeof taskId === 'object' && taskId !== null) {
+      taskId = (taskId as any).$oid || String(taskId);
+    }
+
+    goto(`${base}/workspace/${wsId}/task/${taskId}${roomParam}`);
   }
 
   function handleWindowClick(event: MouseEvent) {
@@ -426,12 +434,27 @@
     aiGenerateLoading = true;
     aiChatError = "";
 
+    // Show loading message
+    aiChatMessages = [
+      ...aiChatMessages,
+      {
+        role: "assistant",
+        content: "กำลังวิเคราะห์และสร้าง task...",
+      },
+    ];
+
     try {
       const res = await api.data.ai.generateTask(workspaceId, {
         prompt: message,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Task generation failed (${res.status})`);
+
+      // Replace loading message with result
+      aiChatMessages = aiChatMessages.slice(0, -1);
+
+      // Extract AI's raw response if available
+      const aiRawResponse = data.ai_response || data.raw_response || "";
 
       aiChatMessages = [
         ...aiChatMessages,
@@ -440,9 +463,12 @@
           content: "ฉันสร้าง task ให้แล้ว ต้องการ assign ให้คุณด้วยไหม?",
           generatedTask: data.task,
           showAssignPrompt: true,
+          aiResponse: aiRawResponse,
         },
       ];
     } catch (error) {
+      // Remove loading message on error
+      aiChatMessages = aiChatMessages.slice(0, -1);
       aiChatError = error instanceof Error ? error.message : "Task generation failed";
     } finally {
       aiGenerateLoading = false;
@@ -476,7 +502,15 @@
 
       if (!res.ok) throw new Error(data.error || "Failed to create task");
 
-      const taskId = data.task?.id || data.id;
+      // Handle MongoDB ObjectId format
+      const task = data.task || data;
+      let taskId = task.id || task._id;
+
+      // If id is an object with $oid property, extract it
+      if (typeof taskId === 'object' && taskId !== null) {
+        taskId = taskId.$oid || String(taskId);
+      }
+
       const taskUrl = `${window.location.origin}${base}/workspace/${workspaceId}/task/${taskId}`;
 
       aiChatMessages = [
@@ -485,7 +519,7 @@
           role: "assistant",
           content: "สร้าง task สำเร็จแล้ว!",
           createdTaskUrl: taskUrl,
-          createdTask: data.task || data,
+          createdTask: task,
         },
       ];
 
@@ -712,7 +746,7 @@
       on:milestonesUpdated={fetchMilestones}
     />
     <DailyReflect bind:show={$modals.dailyReflect} {isOwner} />
-    {#if !isMyTasksWorkspace && $user?.role === "admin"}
+    {#if !isMyTasksWorkspace}
       <button
         type="button"
         class="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-white shadow-xl shadow-indigo-500/40 transition-all hover:scale-110 hover:bg-indigo-500 active:scale-95"
@@ -806,6 +840,14 @@
                       <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Generated Task</span>
                       <div class="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
                     </div>
+
+                    {#if message.aiResponse}
+                      <div class="mb-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-700 dark:bg-slate-800/30">
+                        <div class="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">AI Analysis</div>
+                        <div class="whitespace-pre-wrap text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">{message.aiResponse}</div>
+                      </div>
+                    {/if}
+
                     <div class="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-3.5 dark:border-emerald-900/30 dark:bg-emerald-900/10">
                       <div class="mb-2.5 flex items-start justify-between gap-2">
                         <h4 class="text-[13px] font-bold leading-tight text-slate-800 dark:text-slate-100">{message.generatedTask.title}</h4>

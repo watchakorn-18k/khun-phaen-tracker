@@ -37,7 +37,9 @@
   let showApiKey = false;
   let showLlmApiKey = false;
   let availableModels: string[] = [];
+  let availableEmbeddingsModels: string[] = [];
   let loadingModels = false;
+  let loadingEmbeddingsModels = false;
 
   async function fetchAvailableModels() {
     if (!draftLlmUrl || !draftLlmApiKey) return;
@@ -58,6 +60,28 @@
       availableModels = [];
     } finally {
       loadingModels = false;
+    }
+  }
+
+  async function fetchAvailableEmbeddingsModels() {
+    if (!draftEmbeddingsUrl || !draftEmbeddingsApiKey) return;
+
+    loadingEmbeddingsModels = true;
+    try {
+      const response = await api.admin.listEmbeddingsModels();
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        availableEmbeddingsModels = data.models || [];
+      } else {
+        console.error("Failed to fetch embeddings models:", data.error);
+        availableEmbeddingsModels = [];
+      }
+    } catch (error) {
+      console.error("Failed to fetch embeddings models:", error);
+      availableEmbeddingsModels = [];
+    } finally {
+      loadingEmbeddingsModels = false;
     }
   }
 
@@ -385,7 +409,11 @@
             <div class="space-y-4">
               <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
                 <span>Embeddings URL</span>
-                <input bind:value={draftEmbeddingsUrl} placeholder="http://example.com/v1/embeddings" class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white" />
+                <input
+                  bind:value={draftEmbeddingsUrl}
+                  placeholder="http://example.com/v1/embeddings"
+                  class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white"
+                />
               </label>
 
               <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
@@ -413,8 +441,38 @@
               </label>
 
               <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
-                <span>Model</span>
-                <input bind:value={draftEmbeddingsModel} placeholder="mistral/mistral-embed" class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white" />
+                <div class="flex items-center justify-between">
+                  <span>Model</span>
+                  <button
+                    type="button"
+                    class="text-xs text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
+                    on:click={fetchAvailableEmbeddingsModels}
+                    disabled={!draftEmbeddingsUrl || !draftEmbeddingsApiKey || loadingEmbeddingsModels}
+                  >
+                    {#if loadingEmbeddingsModels}
+                      Loading...
+                    {:else}
+                      Load Models
+                    {/if}
+                  </button>
+                </div>
+                {#if availableEmbeddingsModels.length > 0}
+                  <select
+                    bind:value={draftEmbeddingsModel}
+                    class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white"
+                  >
+                    <option value="">Select a model</option>
+                    {#each availableEmbeddingsModels as model}
+                      <option value={model}>{model}</option>
+                    {/each}
+                  </select>
+                {:else}
+                  <input
+                    bind:value={draftEmbeddingsModel}
+                    placeholder="mistral/mistral-embed"
+                    class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white"
+                  />
+                {/if}
               </label>
             </div>
           </div>
@@ -426,7 +484,6 @@
                 <span>LLM URL</span>
                 <input
                   bind:value={draftLlmUrl}
-                  on:blur={fetchAvailableModels}
                   placeholder="http://example.com/v1"
                   class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white"
                 />
@@ -437,7 +494,6 @@
                 <div class="relative">
                   <input
                     bind:value={draftLlmApiKey}
-                    on:blur={fetchAvailableModels}
                     type={showLlmApiKey ? "text" : "password"}
                     placeholder="sk-..."
                     class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-12 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white"
@@ -460,9 +516,18 @@
               <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
                 <div class="flex items-center justify-between">
                   <span>Model</span>
-                  {#if loadingModels}
-                    <span class="text-xs text-slate-400">Loading models...</span>
-                  {/if}
+                  <button
+                    type="button"
+                    class="text-xs text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
+                    on:click={fetchAvailableModels}
+                    disabled={!draftLlmUrl || !draftLlmApiKey || loadingModels}
+                  >
+                    {#if loadingModels}
+                      Loading...
+                    {:else}
+                      Load Models
+                    {/if}
+                  </button>
                 </div>
                 {#if availableModels.length > 0}
                   <select

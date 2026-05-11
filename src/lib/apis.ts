@@ -300,6 +300,23 @@ export const api = {
         credentials: "include",
       });
     },
+    listEmbeddingsModels: async (): Promise<Response> => {
+      let token = "";
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(
+          new RegExp("(^| )_khun_ph_token=([^;]+)"),
+        );
+        if (match) token = match[2];
+      }
+
+      const headers: Record<string, string> = { Accept: "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      return fetch(`${API_BASE_URL}/admin/ai/embeddings-models`, {
+        headers,
+        credentials: "include",
+      });
+    },
     storageStats: async (): Promise<Response> => {
       let token = "";
       if (typeof document !== "undefined") {

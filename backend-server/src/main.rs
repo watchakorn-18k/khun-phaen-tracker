@@ -203,6 +203,10 @@ async fn main() {
             get(handlers::ai_handler::list_llm_models_handler),
         )
         .route(
+            "/api/admin/ai/embeddings-models",
+            get(handlers::ai_handler::list_embeddings_models_handler),
+        )
+        .route(
             "/api/admin/storage/stats",
             get(handlers::storage_handler::get_storage_stats_handler),
         )

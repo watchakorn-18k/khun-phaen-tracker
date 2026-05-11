@@ -125,15 +125,38 @@ impl AiService {
         let client = reqwest::Client::new();
 
         let system_prompt = format!(
-            "You are a task management assistant. Generate a task based on the user's request.\n\
+            "You are a task management assistant. Generate a well-structured task based on the user's request.\n\
             Context about the workspace:\n{}\n\n\
+            IMPORTANT INSTRUCTIONS:\n\
+            1. Title Format:\n\
+               - Start with a prefix based on the task type:\n\
+                 * \"Feature:\" for new features or functionality\n\
+                 * \"Bugfix: \" for bug fixes\n\
+                 * \"Improvement: \" for enhancements to existing features\n\
+                 * \"Refactor: \" for code refactoring\n\
+                 * \"Docs: \" for documentation\n\
+                 * \"Test: \" for testing tasks\n\
+               - Follow with a clear, concise description (e.g., \"Feature: Add QR code login API\")\n\
+            2. Category: Choose from 'feature', 'bug', 'improvement', 'refactor', 'documentation', 'test'\n\
+            3. Priority: Analyze urgency and set to 'urgent', 'high', 'medium', 'low', or 'none'\n\
+            4. Notes: Provide a detailed description including:\n\
+               - What needs to be done (overview)\n\
+               - Key requirements or acceptance criteria\n\
+               - Technical considerations if applicable\n\
+               - Any dependencies or related tasks\n\
+               - OPTIONAL: If the task is complex and would benefit from visualization, you may include a Mermaid diagram\n\
+                 (flowchart, sequence diagram, or gantt chart) to illustrate the workflow or architecture.\n\
+                 Only add Mermaid if it genuinely helps understanding. Use markdown code blocks: ```mermaid\\n...\\n```\n\
+            5. Project: Extract project name from context if mentioned, otherwise leave empty\n\n\
             Return ONLY a valid JSON object with these fields:\n\
-            - title: string (concise task title)\n\
-            - category: string (e.g., 'feature', 'bug', 'improvement', 'documentation')\n\
-            - priority: string ('urgent', 'high', 'medium', 'low', or 'none')\n\
-            - notes: string (detailed description)\n\
-            - project: string (project name if mentioned, otherwise empty)\n\n\
-            Do not include any markdown formatting or code blocks. Return only the JSON object.",
+            {{\n\
+              \"title\": \"string\",\n\
+              \"category\": \"string\",\n\
+              \"priority\": \"string\",\n\
+              \"notes\": \"string\",\n\
+              \"project\": \"string\"\n\
+            }}\n\n\
+            Do not include any markdown formatting, code blocks, or explanatory text outside the JSON. Return only the JSON object.",
             context
         );
 
