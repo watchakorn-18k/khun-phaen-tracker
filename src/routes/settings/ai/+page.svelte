@@ -36,6 +36,30 @@
   let draftLlmModel = "";
   let showApiKey = false;
   let showLlmApiKey = false;
+  let availableModels: string[] = [];
+  let loadingModels = false;
+
+  async function fetchAvailableModels() {
+    if (!draftLlmUrl || !draftLlmApiKey) return;
+
+    loadingModels = true;
+    try {
+      const response = await api.admin.listLlmModels();
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        availableModels = data.models || [];
+      } else {
+        console.error("Failed to fetch models:", data.error);
+        availableModels = [];
+      }
+    } catch (error) {
+      console.error("Failed to fetch models:", error);
+      availableModels = [];
+    } finally {
+      loadingModels = false;
+    }
+  }
 
   function openConfigModal() {
     modalError = "";
@@ -400,7 +424,12 @@
             <div class="space-y-4">
               <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
                 <span>LLM URL</span>
-                <input bind:value={draftLlmUrl} placeholder="http://example.com/v1/chat/completions" class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white" />
+                <input
+                  bind:value={draftLlmUrl}
+                  on:blur={fetchAvailableModels}
+                  placeholder="http://example.com/v1"
+                  class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white"
+                />
               </label>
 
               <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
@@ -408,6 +437,7 @@
                 <div class="relative">
                   <input
                     bind:value={draftLlmApiKey}
+                    on:blur={fetchAvailableModels}
                     type={showLlmApiKey ? "text" : "password"}
                     placeholder="sk-..."
                     class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-12 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white"
@@ -428,8 +458,29 @@
               </label>
 
               <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
-                <span>Model</span>
-                <input bind:value={draftLlmModel} placeholder="mistral/mistral-7b-instruct" class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white" />
+                <div class="flex items-center justify-between">
+                  <span>Model</span>
+                  {#if loadingModels}
+                    <span class="text-xs text-slate-400">Loading models...</span>
+                  {/if}
+                </div>
+                {#if availableModels.length > 0}
+                  <select
+                    bind:value={draftLlmModel}
+                    class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white"
+                  >
+                    <option value="">Select a model</option>
+                    {#each availableModels as model}
+                      <option value={model}>{model}</option>
+                    {/each}
+                  </select>
+                {:else}
+                  <input
+                    bind:value={draftLlmModel}
+                    placeholder="mistral/mistral-7b-instruct"
+                    class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white"
+                  />
+                {/if}
               </label>
             </div>
           </div>

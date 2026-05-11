@@ -142,8 +142,14 @@ impl AiService {
             {"role": "user", "content": prompt}
         ]);
 
+        let llm_url = if llm_config.llm_url.ends_with("/chat/completions") {
+            llm_config.llm_url.clone()
+        } else {
+            format!("{}/chat/completions", llm_config.llm_url.trim_end_matches('/'))
+        };
+
         let response = client
-            .post(&llm_config.llm_url)
+            .post(&llm_url)
             .bearer_auth(&llm_config.llm_api_key)
             .json(&serde_json::json!({
                 "model": llm_config.llm_model,

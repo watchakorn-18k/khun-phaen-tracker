@@ -352,3 +352,90 @@ pub async fn reset_ai_config_handler(
     }))
     .into_response()
 }
+
+pub async fn list_llm_models_handler(
+    State(state): State<SharedState>,
+    jar: CookieJar,
+    headers: HeaderMap,
+) -> axum::response::Response {
+    if let Err(response) = ensure_admin(&headers, &jar, &state) {
+        return response;
+    }
+
+    let repo = AiRepository::new(&state.db);
+    let stored = match repo.get_ai_config().await {
+        Ok(config) => config,
+        Err(_) => None,
+    };
+
+    let llm_url = stored
+        .as_ref()
+        .and_then(|c| c.llm_url.clone())
+        .or_else(|| std::env::var("AI_LLM_URL").ok());
+
+    let llm_api_key = stored
+        .as_ref()
+        .and_then(|c| c.llm_api_key.clone())
+        .or_else(|| std::env::var("AI_LLM_API_KEY").ok());
+
+    let (llm_url, llm_api_key) = match (llm_url, llm_api_key) {
+        (Some(url), Some(key)) => (url, key),
+        _ => {
+            return Json(serde_json::json!({
+                "success": false,
+                "error": "LLM URL or API key not configured"
+            }))
+            .into_response();
+        }
+    };
+
+    let models_url = format!("{}/models", llm_url.trim_end_matches('/'));
+    let client = reqwest::Client::new();
+
+    match client
+        .get(&models_url)
+        .bearer_auth(&llm_api_key)
+        .send()
+        .await
+    {
+        Ok(response) => {
+            if response.status().is_success() {
+                match response.json::<serde_json::Value>().await {
+                    Ok(body) => {
+                        let models: Vec<String> = body["data"]
+                            .as_array()
+                            .map(|arr| {
+                                arr.iter()
+                                    .filter_map(|m| m["id"].as_str().map(String::from))
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+
+                        Json(serde_json::json!({
+                            "success": true,
+                            "models": models
+                        }))
+                        .into_response()
+                    }
+                    Err(e) => Json(serde_json::json!({
+                        "success": false,
+                        "error": format!("Failed to parse models response: {}", e)
+                    }))
+                    .into_response(),
+                }
+            } else {
+                Json(serde_json::json!({
+                    "success": false,
+                    "error": format!("Failed to fetch models: {}", response.status())
+                }))
+                .into_response()
+            }
+        }
+        Err(e) => Json(serde_json::json!({
+            "success": false,
+            "error": format!("Failed to connect to LLM API: {}", e)
+        }))
+        .into_response(),
+    }
+}
+

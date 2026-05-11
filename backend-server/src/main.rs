@@ -199,6 +199,10 @@ async fn main() {
             post(handlers::ai_handler::reset_ai_config_handler),
         )
         .route(
+            "/api/admin/ai/models",
+            get(handlers::ai_handler::list_llm_models_handler),
+        )
+        .route(
             "/api/admin/storage/stats",
             get(handlers::storage_handler::get_storage_stats_handler),
         )
