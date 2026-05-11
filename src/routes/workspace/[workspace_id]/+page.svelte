@@ -109,6 +109,8 @@
     createdTask?: any;
     aiResponse?: string;
   }> = [];
+  let aiChatHistory: string[] = [];
+  let aiChatHistoryIndex = -1;
   let filterDropdownEl: HTMLDivElement | null = null;
   let filterPanelEl: HTMLDivElement | null = null;
   let filterDropdownPos = { top: 0, left: 0 };
@@ -390,6 +392,10 @@
     const workspaceId = $page.params.workspace_id;
     if (!message || !workspaceId || aiChatLoading) return;
 
+    // Add to history
+    aiChatHistory = [...aiChatHistory, message];
+    aiChatHistoryIndex = -1;
+
     aiChatMessages = [...aiChatMessages, { role: "user", content: message }];
     aiChatInput = "";
     aiChatLoading = true;
@@ -428,6 +434,10 @@
     const message = aiChatInput.trim();
     const workspaceId = $page.params.workspace_id;
     if (!message || !workspaceId || aiGenerateLoading) return;
+
+    // Add to history
+    aiChatHistory = [...aiChatHistory, message];
+    aiChatHistoryIndex = -1;
 
     aiChatMessages = [...aiChatMessages, { role: "user", content: message }];
     aiChatInput = "";
@@ -537,6 +547,32 @@
         content: "ยกเลิกการสร้าง task แล้ว",
       },
     ];
+  }
+
+  function handleAiChatKeydown(e: KeyboardEvent) {
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (aiChatHistory.length === 0) return;
+
+      if (aiChatHistoryIndex === -1) {
+        aiChatHistoryIndex = aiChatHistory.length - 1;
+      } else if (aiChatHistoryIndex > 0) {
+        aiChatHistoryIndex--;
+      }
+
+      aiChatInput = aiChatHistory[aiChatHistoryIndex] || "";
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (aiChatHistoryIndex === -1) return;
+
+      if (aiChatHistoryIndex < aiChatHistory.length - 1) {
+        aiChatHistoryIndex++;
+        aiChatInput = aiChatHistory[aiChatHistoryIndex] || "";
+      } else {
+        aiChatHistoryIndex = -1;
+        aiChatInput = "";
+      }
+    }
   }
 </script>
 
@@ -978,6 +1014,7 @@
               <input
                 class="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-4 pr-12 text-sm text-slate-900 transition-all focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white dark:focus:border-indigo-500 dark:focus:bg-slate-900"
                 bind:value={aiChatInput}
+                on:keydown={handleAiChatKeydown}
                 placeholder={aiChatMode === 'search' ? 'ค้นหา task เช่น "งานที่ด่วนที่สุด"' : 'สร้าง task เช่น "ทำ API สำหรับ login"'}
                 disabled={aiChatLoading || aiGenerateLoading}
               />
