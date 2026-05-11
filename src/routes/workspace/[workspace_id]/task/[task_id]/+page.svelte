@@ -89,6 +89,7 @@
     ExternalLink,
     X,
     ChevronLeft,
+    FileCheck,
   } from "lucide-svelte";
   import ConfirmModal from "$lib/components/ConfirmModal.svelte";
   import BranchDialog from "$lib/components/BranchDialog.svelte";
@@ -1280,6 +1281,35 @@
               </button>
             </div>
           </div>
+
+          <!-- Related Test Case Section -->
+          {#if task.testcase_id}
+            <div class="space-y-3">
+              <div class="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                <FileCheck size={15} />
+                <span>Related Test Case</span>
+              </div>
+              <a
+                href="{base}/workspace/{workspaceId}/test-cases?testcase_id={task.testcase_id}{workspaceRoom ? `&room=${workspaceRoom}` : ''}"
+                class="flex items-center gap-2 px-4 py-3 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors group"
+              >
+                <div class="flex items-center gap-2 flex-1 min-w-0">
+                  <div class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                    <FileCheck size={16} class="text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div class="flex flex-col min-w-0">
+                    <span class="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
+                      View Test Case
+                    </span>
+                    <span class="text-xs text-slate-500 dark:text-slate-400 truncate">
+                      ID: {task.testcase_id}
+                    </span>
+                  </div>
+                </div>
+                <ExternalLink size={14} class="text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors shrink-0" />
+              </a>
+            </div>
+          {/if}
 
           <hr class="border-slate-100 dark:border-slate-800" />
 

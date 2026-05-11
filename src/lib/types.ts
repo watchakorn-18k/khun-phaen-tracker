@@ -72,6 +72,7 @@ export interface Task {
   dependencies?: (string | number)[];
   checklist?: ChecklistItem[];
   links?: string[];
+  testcase_id?: string; // ID of related test case
 }
 
 export interface CommentImage {
@@ -224,5 +225,8 @@ export interface AiConfig {
   embeddings_url?: string;
   embeddings_api_key?: string;
   embeddings_model?: string;
+  llm_url?: string;
+  llm_api_key?: string;
+  llm_model?: string;
   updated_at?: string;
 }

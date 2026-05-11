@@ -18,6 +18,9 @@
   let embeddings_url = "";
   let embeddings_api_key = "";
   let embeddings_model = "";
+  let llm_url = "";
+  let llm_api_key = "";
+  let llm_model = "";
   let pageError = "";
   let pageSuccess = "";
   let modalError = "";
@@ -28,7 +31,11 @@
   let draftEmbeddingsUrl = "";
   let draftEmbeddingsApiKey = "";
   let draftEmbeddingsModel = "";
+  let draftLlmUrl = "";
+  let draftLlmApiKey = "";
+  let draftLlmModel = "";
   let showApiKey = false;
+  let showLlmApiKey = false;
 
   function openConfigModal() {
     modalError = "";
@@ -36,7 +43,11 @@
     draftEmbeddingsUrl = embeddings_url;
     draftEmbeddingsApiKey = embeddings_api_key;
     draftEmbeddingsModel = embeddings_model;
+    draftLlmUrl = llm_url;
+    draftLlmApiKey = llm_api_key;
+    draftLlmModel = llm_model;
     showApiKey = false;
+    showLlmApiKey = false;
     configModalOpen = true;
   }
 
@@ -45,6 +56,7 @@
     modalError = "";
     modalSuccess = "";
     showApiKey = false;
+    showLlmApiKey = false;
     configModalOpen = false;
   }
 
@@ -62,9 +74,15 @@
       embeddings_url = config.embeddings_url || "";
       embeddings_api_key = config.embeddings_api_key || "";
       embeddings_model = config.embeddings_model || "";
+      llm_url = config.llm_url || "";
+      llm_api_key = config.llm_api_key || "";
+      llm_model = config.llm_model || "";
       draftEmbeddingsUrl = embeddings_url;
       draftEmbeddingsApiKey = embeddings_api_key;
       draftEmbeddingsModel = embeddings_model;
+      draftLlmUrl = llm_url;
+      draftLlmApiKey = llm_api_key;
+      draftLlmModel = llm_model;
     } catch (error) {
       console.error("Failed to load AI config:", error);
       modalError = "Failed to load AI config";
@@ -91,6 +109,9 @@
         embeddings_url: draftEmbeddingsUrl || null,
         embeddings_api_key: draftEmbeddingsApiKey || null,
         embeddings_model: draftEmbeddingsModel || null,
+        llm_url: draftLlmUrl || null,
+        llm_api_key: draftLlmApiKey || null,
+        llm_model: draftLlmModel || null,
       });
       const data = await response.json();
 
@@ -208,30 +229,65 @@
       </button>
     </div>
 
-    <div class="mt-5 grid gap-3 lg:grid-cols-2">
-      <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/60">
-        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
-          Embeddings URL
-        </p>
-        <p class="mt-2 truncate text-sm text-gray-900 dark:text-white">
-          {embeddings_url || "Not configured"}
-        </p>
+    <div class="mt-5 space-y-6">
+      <div>
+        <h4 class="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">Embeddings (Search)</h4>
+        <div class="grid gap-3 lg:grid-cols-2">
+          <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/60">
+            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
+              Embeddings URL
+            </p>
+            <p class="mt-2 truncate text-sm text-gray-900 dark:text-white">
+              {embeddings_url || "Not configured"}
+            </p>
+          </div>
+          <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/60">
+            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
+              Model
+            </p>
+            <p class="mt-2 text-sm text-gray-900 dark:text-white">
+              {embeddings_model || "Not configured"}
+            </p>
+          </div>
+          <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/60 lg:col-span-2">
+            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
+              API Key
+            </p>
+            <p class="mt-2 font-mono text-sm text-gray-900 dark:text-white">
+              {embeddings_api_key ? "••••••••••••••••" : "Not configured"}
+            </p>
+          </div>
+        </div>
       </div>
-      <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/60">
-        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
-          Model
-        </p>
-        <p class="mt-2 text-sm text-gray-900 dark:text-white">
-          {embeddings_model || "Not configured"}
-        </p>
-      </div>
-      <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/60 lg:col-span-2">
-        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
-          API Key
-        </p>
-        <p class="mt-2 font-mono text-sm text-gray-900 dark:text-white">
-          {embeddings_api_key ? "••••••••••••••••" : "Not configured"}
-        </p>
+
+      <div>
+        <h4 class="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">LLM (Task Generation)</h4>
+        <div class="grid gap-3 lg:grid-cols-2">
+          <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/60">
+            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
+              LLM URL
+            </p>
+            <p class="mt-2 truncate text-sm text-gray-900 dark:text-white">
+              {llm_url || "Not configured"}
+            </p>
+          </div>
+          <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/60">
+            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
+              Model
+            </p>
+            <p class="mt-2 text-sm text-gray-900 dark:text-white">
+              {llm_model || "Not configured"}
+            </p>
+          </div>
+          <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/60 lg:col-span-2">
+            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
+              API Key
+            </p>
+            <p class="mt-2 font-mono text-sm text-gray-900 dark:text-white">
+              {llm_api_key ? "••••••••••••••••" : "Not configured"}
+            </p>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -300,39 +356,83 @@
         {/if}
 
         <div class="grid gap-4">
-          <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
-            <span>Embeddings URL</span>
-            <input bind:value={draftEmbeddingsUrl} placeholder="http://example.com/v1/embeddings" class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white" />
-          </label>
+          <div>
+            <h5 class="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Embeddings (Search)</h5>
+            <div class="space-y-4">
+              <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                <span>Embeddings URL</span>
+                <input bind:value={draftEmbeddingsUrl} placeholder="http://example.com/v1/embeddings" class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white" />
+              </label>
 
-          <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
-            <span>API Key</span>
-            <div class="relative">
-              <input
-                bind:value={draftEmbeddingsApiKey}
-                type={showApiKey ? "text" : "password"}
-                placeholder="sk-..."
-                class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-12 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white"
-              />
-              <button
-                type="button"
-                class="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
-                aria-label={showApiKey ? "Hide API key" : "Show API key"}
-                on:click={() => (showApiKey = !showApiKey)}
-              >
-                {#if showApiKey}
-                  <EyeOff size={16} />
-                {:else}
-                  <Eye size={16} />
-                {/if}
-              </button>
+              <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                <span>API Key</span>
+                <div class="relative">
+                  <input
+                    bind:value={draftEmbeddingsApiKey}
+                    type={showApiKey ? "text" : "password"}
+                    placeholder="sk-..."
+                    class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-12 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white"
+                  />
+                  <button
+                    type="button"
+                    class="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
+                    aria-label={showApiKey ? "Hide API key" : "Show API key"}
+                    on:click={() => (showApiKey = !showApiKey)}
+                  >
+                    {#if showApiKey}
+                      <EyeOff size={16} />
+                    {:else}
+                      <Eye size={16} />
+                    {/if}
+                  </button>
+                </div>
+              </label>
+
+              <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                <span>Model</span>
+                <input bind:value={draftEmbeddingsModel} placeholder="mistral/mistral-embed" class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white" />
+              </label>
             </div>
-          </label>
+          </div>
 
-          <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
-            <span>Model</span>
-            <input bind:value={draftEmbeddingsModel} placeholder="mistral/mistral-embed" class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white" />
-          </label>
+          <div class="border-t border-slate-200 pt-4 dark:border-slate-700">
+            <h5 class="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">LLM (Task Generation)</h5>
+            <div class="space-y-4">
+              <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                <span>LLM URL</span>
+                <input bind:value={draftLlmUrl} placeholder="http://example.com/v1/chat/completions" class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white" />
+              </label>
+
+              <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                <span>API Key</span>
+                <div class="relative">
+                  <input
+                    bind:value={draftLlmApiKey}
+                    type={showLlmApiKey ? "text" : "password"}
+                    placeholder="sk-..."
+                    class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-12 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white"
+                  />
+                  <button
+                    type="button"
+                    class="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
+                    aria-label={showLlmApiKey ? "Hide API key" : "Show API key"}
+                    on:click={() => (showLlmApiKey = !showLlmApiKey)}
+                  >
+                    {#if showLlmApiKey}
+                      <EyeOff size={16} />
+                    {:else}
+                      <Eye size={16} />
+                    {/if}
+                  </button>
+                </div>
+              </label>
+
+              <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                <span>Model</span>
+                <input bind:value={draftLlmModel} placeholder="mistral/mistral-7b-instruct" class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-white" />
+              </label>
+            </div>
+          </div>
         </div>
 
         <div class="mt-6 flex justify-end gap-3">

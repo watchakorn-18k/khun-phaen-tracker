@@ -650,6 +650,14 @@ export const api = {
           body: JSON.stringify(payload),
         });
       },
+      generateTask: (wsId: string, payload: Record<string, any>): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/ai/tasks/generate`, {
+          method: "POST",
+          headers: api.data._headers(true),
+          credentials: "include",
+          body: JSON.stringify(payload),
+        });
+      },
     },
 
     // Tasks

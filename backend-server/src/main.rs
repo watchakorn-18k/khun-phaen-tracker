@@ -291,6 +291,10 @@ async fn main() {
             post(handlers::ai_handler::chat_with_tasks),
         )
         .route(
+            "/api/workspaces/:ws_id/ai/tasks/generate",
+            post(handlers::ai_handler::generate_task),
+        )
+        .route(
             "/api/workspaces/:ws_id/tasks/next-number",
             get(handlers::task_handler::get_next_task_number),
         )

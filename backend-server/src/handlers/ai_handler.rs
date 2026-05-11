@@ -12,7 +12,7 @@ use crate::models::ai::{AiConfigDocument, UpdateAiConfigRequest};
 use crate::models::data::TaskFilterQuery;
 use crate::repositories::ai_repo::AiRepository;
 use crate::repositories::data_repo::DataRepository;
-use crate::services::ai_service::{AiConfig, AiService};
+use crate::services::ai_service::{AiConfig, AiService, LlmConfig};
 use crate::state::SharedState;
 
 #[derive(Debug, Deserialize)]
@@ -100,6 +100,98 @@ pub async fn chat_with_tasks(
     }
 }
 
+#[derive(Debug, Deserialize)]
+pub struct AiGenerateTaskRequest {
+    pub prompt: String,
+}
+
+pub async fn generate_task(
+    State(state): State<SharedState>,
+    Path(ws_id): Path<String>,
+    headers: HeaderMap,
+    jar: CookieJar,
+    Json(payload): Json<AiGenerateTaskRequest>,
+) -> axum::response::Response {
+    let prompt = payload.prompt.trim();
+    if prompt.is_empty() {
+        return (
+            axum::http::StatusCode::BAD_REQUEST,
+            axum::Json(serde_json::json!({ "error": "prompt is required" })),
+        )
+            .into_response();
+    }
+
+    let ws_oid = match verify_workspace_access(&state, &headers, &jar, &ws_id).await {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+
+    let ai_repo = AiRepository::new(&state.db);
+    let stored_config = ai_repo.get_ai_config().await.ok().flatten();
+
+    let llm_config = stored_config
+        .as_ref()
+        .and_then(LlmConfig::from_doc)
+        .or_else(LlmConfig::from_env);
+
+    let llm_config = match llm_config {
+        Some(config) => config,
+        None => {
+            return (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                axum::Json(serde_json::json!({ "error": "LLM config is missing" })),
+            )
+                .into_response()
+        }
+    };
+
+    // Build context from workspace
+    let data_repo = DataRepository::new(&state.db);
+    let projects = data_repo.find_projects(&ws_oid).await.unwrap_or_default();
+    let assignees = data_repo.find_assignees(&ws_oid).await.unwrap_or_default();
+
+    let project_names: Vec<String> = projects.iter().map(|p| p.name.clone()).collect();
+    let assignee_names: Vec<String> = assignees.iter().map(|a| a.name.clone()).collect();
+
+    let context = format!(
+        "Available projects: {}\nAvailable assignees: {}",
+        if project_names.is_empty() { "None".to_string() } else { project_names.join(", ") },
+        if assignee_names.is_empty() { "None".to_string() } else { assignee_names.join(", ") }
+    );
+
+    match AiService::generate_task(&llm_config, prompt, &context).await {
+        Ok(json_str) => {
+            // Try to parse and validate the JSON
+            match serde_json::from_str::<serde_json::Value>(&json_str) {
+                Ok(task_json) => axum::Json(serde_json::json!({
+                    "success": true,
+                    "task": task_json
+                }))
+                .into_response(),
+                Err(_) => {
+                    // If parsing fails, return the raw response
+                    axum::Json(serde_json::json!({
+                        "success": true,
+                        "task": {
+                            "title": prompt,
+                            "category": "feature",
+                            "priority": "medium",
+                            "notes": json_str,
+                            "project": ""
+                        }
+                    }))
+                    .into_response()
+                }
+            }
+        }
+        Err(e) => (
+            axum::http::StatusCode::BAD_GATEWAY,
+            axum::Json(serde_json::json!({ "error": e })),
+        )
+            .into_response(),
+    }
+}
+
 fn ensure_admin(
     headers: &HeaderMap,
     jar: &CookieJar,
@@ -163,6 +255,9 @@ pub async fn get_ai_config_handler(
     let env_url = std::env::var("AI_EMBEDDINGS_URL").ok();
     let env_key = std::env::var("AI_EMBEDDINGS_API_KEY").ok();
     let env_model = std::env::var("AI_EMBEDDINGS_MODEL").ok();
+    let env_llm_url = std::env::var("AI_LLM_URL").ok();
+    let env_llm_key = std::env::var("AI_LLM_API_KEY").ok();
+    let env_llm_model = std::env::var("AI_LLM_MODEL").ok();
 
     Json(serde_json::json!({
         "success": true,
@@ -170,6 +265,9 @@ pub async fn get_ai_config_handler(
             "embeddings_url": stored.as_ref().and_then(|c| c.embeddings_url.clone()).or(env_url),
             "embeddings_api_key": stored.as_ref().and_then(|c| c.embeddings_api_key.clone()).or(env_key),
             "embeddings_model": stored.as_ref().and_then(|c| c.embeddings_model.clone()).or(env_model),
+            "llm_url": stored.as_ref().and_then(|c| c.llm_url.clone()).or(env_llm_url),
+            "llm_api_key": stored.as_ref().and_then(|c| c.llm_api_key.clone()).or(env_llm_key),
+            "llm_model": stored.as_ref().and_then(|c| c.llm_model.clone()).or(env_llm_model),
             "updated_at": stored.as_ref().and_then(|c| c.updated_at.clone())
         }
     }))
@@ -189,12 +287,18 @@ pub async fn update_ai_config_handler(
     let embeddings_url = normalize_optional(payload.embeddings_url);
     let embeddings_api_key = normalize_optional(payload.embeddings_api_key);
     let embeddings_model = normalize_optional(payload.embeddings_model);
+    let llm_url = normalize_optional(payload.llm_url);
+    let llm_api_key = normalize_optional(payload.llm_api_key);
+    let llm_model = normalize_optional(payload.llm_model);
 
     let config = AiConfigDocument {
         key: "ai_config".to_string(),
         embeddings_url,
         embeddings_api_key,
         embeddings_model,
+        llm_url,
+        llm_api_key,
+        llm_model,
         updated_at: Some(chrono::Utc::now().to_rfc3339()),
     };
 
@@ -214,6 +318,9 @@ pub async fn update_ai_config_handler(
             "embeddings_url": config.embeddings_url,
             "embeddings_api_key": config.embeddings_api_key,
             "embeddings_model": config.embeddings_model,
+            "llm_url": config.llm_url,
+            "llm_api_key": config.llm_api_key,
+            "llm_model": config.llm_model,
             "updated_at": config.updated_at
         }
     }))

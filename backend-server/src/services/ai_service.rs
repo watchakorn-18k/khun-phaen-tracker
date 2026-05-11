@@ -9,6 +9,13 @@ pub struct AiConfig {
     pub embeddings_model: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct LlmConfig {
+    pub llm_url: String,
+    pub llm_api_key: String,
+    pub llm_model: String,
+}
+
 impl AiConfig {
     pub fn from_env() -> Option<Self> {
         Some(Self {
@@ -26,6 +33,27 @@ impl AiConfig {
             embeddings_model: doc.embeddings_model.clone()
                 .or_else(|| std::env::var("AI_EMBEDDINGS_MODEL").ok())
                 .unwrap_or_else(|| "mistral/mistral-embed".to_string()),
+        })
+    }
+}
+
+impl LlmConfig {
+    pub fn from_env() -> Option<Self> {
+        Some(Self {
+            llm_url: std::env::var("AI_LLM_URL").ok()?,
+            llm_api_key: std::env::var("AI_LLM_API_KEY").ok()?,
+            llm_model: std::env::var("AI_LLM_MODEL")
+                .unwrap_or_else(|_| "mistral/mistral-7b-instruct".to_string()),
+        })
+    }
+
+    pub fn from_doc(doc: &AiConfigDocument) -> Option<Self> {
+        Some(Self {
+            llm_url: doc.llm_url.clone().or_else(|| std::env::var("AI_LLM_URL").ok())?,
+            llm_api_key: doc.llm_api_key.clone().or_else(|| std::env::var("AI_LLM_API_KEY").ok())?,
+            llm_model: doc.llm_model.clone()
+                .or_else(|| std::env::var("AI_LLM_MODEL").ok())
+                .unwrap_or_else(|| "mistral/mistral-7b-instruct".to_string()),
         })
     }
 }
@@ -87,6 +115,59 @@ impl AiService {
             .next()
             .map(|item| item.embedding)
             .ok_or_else(|| "embeddings response contains no vectors".to_string())
+    }
+
+    pub async fn generate_task(
+        llm_config: &LlmConfig,
+        prompt: &str,
+        context: &str,
+    ) -> Result<String, String> {
+        let client = reqwest::Client::new();
+
+        let system_prompt = format!(
+            "You are a task management assistant. Generate a task based on the user's request.\n\
+            Context about the workspace:\n{}\n\n\
+            Return ONLY a valid JSON object with these fields:\n\
+            - title: string (concise task title)\n\
+            - category: string (e.g., 'feature', 'bug', 'improvement', 'documentation')\n\
+            - priority: string ('urgent', 'high', 'medium', 'low', or 'none')\n\
+            - notes: string (detailed description)\n\
+            - project: string (project name if mentioned, otherwise empty)\n\n\
+            Do not include any markdown formatting or code blocks. Return only the JSON object.",
+            context
+        );
+
+        let messages = serde_json::json!([
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt}
+        ]);
+
+        let response = client
+            .post(&llm_config.llm_url)
+            .bearer_auth(&llm_config.llm_api_key)
+            .json(&serde_json::json!({
+                "model": llm_config.llm_model,
+                "messages": messages,
+                "temperature": 0.7,
+                "max_tokens": 500
+            }))
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(format!("LLM request failed: {} {}", status, body));
+        }
+
+        let body: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
+
+        let content = body["choices"][0]["message"]["content"]
+            .as_str()
+            .ok_or_else(|| "No content in LLM response".to_string())?;
+
+        Ok(content.to_string())
     }
 
     pub async fn search_tasks(
