@@ -121,6 +121,8 @@ pub struct TaskDocument {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub links: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub testcase_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub created_at: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub updated_at: Option<String>,
@@ -169,6 +171,8 @@ pub struct CreateTaskRequest {
     pub checklist: Option<serde_json::Value>,
     #[serde(default)]
     pub links: Option<Vec<String>>,
+    #[serde(default)]
+    pub testcase_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -191,6 +195,7 @@ pub struct UpdateTaskRequest {
     pub checklist: Option<Option<serde_json::Value>>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub links: Option<Option<Vec<String>>>,
+    pub testcase_id: Option<Option<String>>,
 }
 
 // ===== Project Document =====

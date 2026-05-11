@@ -993,6 +993,7 @@ pub async fn convert_test_case_to_task(
         is_archived: false,
         checklist: None,
         links: None,
+        testcase_id: Some(id.clone()),
         created_at: None,
         updated_at: None,
     };

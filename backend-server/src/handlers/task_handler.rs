@@ -338,6 +338,7 @@ pub async fn create_task(
             is_archived: payload.is_archived,
             checklist: payload.checklist.clone(),
             links: payload.links.clone(),
+            testcase_id: payload.testcase_id.clone(),
             created_at: None,
             updated_at: None,
         };
@@ -523,6 +524,16 @@ pub async fn update_task(
             }
             None => {
                 updates.insert("links", mongodb::bson::Bson::Null);
+            }
+        }
+    }
+    if let Some(v) = payload.testcase_id {
+        match v {
+            Some(tc_id) => {
+                updates.insert("testcase_id", tc_id);
+            }
+            None => {
+                updates.insert("testcase_id", mongodb::bson::Bson::Null);
             }
         }
     }
